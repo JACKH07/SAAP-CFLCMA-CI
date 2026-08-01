@@ -1,0 +1,238 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Region {
+  id        Int        @id @default(autoincrement())
+  nom       String     @db.VarChar(100)
+  code      String     @unique @db.VarChar(20)
+  districts District[]
+  membres   Membre[]
+  cotisations Cotisation[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("regions")
+}
+
+model District {
+  id        Int        @id @default(autoincrement())
+  nom       String     @db.VarChar(100)
+  regionId  Int        @map("region_id")
+  region    Region     @relation(fields: [regionId], references: [id])
+  paroisses Paroisse[]
+  membres   Membre[]
+  cotisations Cotisation[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([regionId])
+  @@map("districts")
+}
+
+model Paroisse {
+  id           Int          @id @default(autoincrement())
+  nom          String       @db.VarChar(150)
+  nomNormalise String       @map("nom_normalise") @db.VarChar(150)
+  districtId   Int          @map("district_id")
+  district     District     @relation(fields: [districtId], references: [id])
+  communautes  Communaute[]
+  membres      Membre[]
+  cotisations  Cotisation[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@unique([districtId, nomNormalise])
+  @@index([nomNormalise])
+  @@index([districtId])
+  @@map("paroisses")
+}
+
+model Communaute {
+  id           Int         @id @default(autoincrement())
+  nom          String      @db.VarChar(150)
+  nomNormalise String      @map("nom_normalise") @db.VarChar(150)
+  paroisseId   Int         @map("paroisse_id")
+  paroisse     Paroisse    @relation(fields: [paroisseId], references: [id])
+  membres      Membre[]
+  cotisations  Cotisation[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([paroisseId, nomNormalise])
+  @@index([nomNormalise])
+  @@index([paroisseId])
+  @@map("communautes")
+}
+
+model Role {
+  id                 Int      @id @default(autoincrement())
+  nom                String   @unique @db.VarChar(100)
+  niveauHierarchique Int      @map("niveau_hierarchique")
+  membres            Membre[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("roles")
+}
+
+model Membre {
+  id              Int       @id @default(autoincrement())
+  nom             String    @db.VarChar(100)
+  prenom          String    @db.VarChar(100)
+  contact         String?   @db.VarChar(50)
+  email           String?   @unique @db.VarChar(150)
+  passwordHash    String    @map("password_hash") @db.VarChar(255)
+  dateNaissance   DateTime  @map("date_naissance") @db.Date
+  lieuNaissance   String    @map("lieu_naissance") @db.VarChar(150)
+  /// Flambeaux = Hommes, Lumières = Femmes
+  branche         Branche
+  situationMatrimoniale String? @map("situation_matrimoniale") @db.VarChar(50)
+  profession      String?   @db.VarChar(150)
+  responsabiliteBureau String? @map("responsabilite_bureau") @db.VarChar(150)
+  photoUrl        String?   @map("photo_url") @db.VarChar(500)
+  idMembre        String    @unique @map("id_membre") @db.VarChar(50)
+  roleId          Int       @map("role_id")
+  role            Role      @relation(fields: [roleId], references: [id])
+  regionId        Int?      @map("region_id")
+  region          Region?   @relation(fields: [regionId], references: [id])
+  districtId      Int?      @map("district_id")
+  district        District? @relation(fields: [districtId], references: [id])
+  paroisseId      Int?      @map("paroisse_id")
+  paroisse        Paroisse? @relation(fields: [paroisseId], references: [id])
+  communauteId    Int?      @map("communaute_id")
+  communaute      Communaute? @relation(fields: [communauteId], references: [id])
+  mandateParId    Int?      @map("mandate_par")
+  mandatePar      Membre?   @relation("Mandat", fields: [mandateParId], references: [id])
+  mandataires     Membre[]  @relation("Mandat")
+  isAdmin         Boolean   @default(false) @map("is_admin")
+  statut          StatutMembre @default(EN_ATTENTE)
+  collisionSuffix Int?      @map("collision_suffix")
+  cotisations     Cotisation[]
+  audits          AuditLog[] @relation("AuditActeur")
+  historiqueMandats HistoriqueMandat[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([roleId])
+  @@index([regionId])
+  @@index([districtId])
+  @@index([paroisseId])
+  @@index([communauteId])
+  @@index([branche])
+  @@map("membres")
+}
+
+/// Flambeaux = Hommes, Lumières = Femmes
+enum Branche {
+  FLAMBEAUX
+  LUMIERES
+}
+
+enum StatutMembre {
+  EN_ATTENTE
+  VALIDE
+  REJETE
+  SUSPENDU
+}
+
+model Activite {
+  id               Int          @id @default(autoincrement())
+  nom              String       @unique @db.VarChar(100)
+  prefixeIdPaiement String      @unique @map("prefixe_id_paiement") @db.VarChar(30)
+  montantDefaut    Decimal?     @map("montant_defaut") @db.Decimal(12, 2)
+  active           Boolean      @default(true)
+  cotisations      Cotisation[]
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@map("activites")
+}
+
+model Cotisation {
+  id              Int            @id @default(autoincrement())
+  membreId        Int            @map("membre_id")
+  membre          Membre         @relation(fields: [membreId], references: [id])
+  activiteId      Int            @map("activite_id")
+  activite        Activite       @relation(fields: [activiteId], references: [id])
+  idPaiement      String         @unique @map("id_paiement") @db.VarChar(80)
+  montant         Decimal        @db.Decimal(12, 2)
+  montantPaye     Decimal        @default(0) @map("montant_paye") @db.Decimal(12, 2)
+  datePaiement    DateTime?      @map("date_paiement")
+  statut          StatutPaiement @default(EN_ATTENTE)
+  modePaiement    ModePaiement?  @map("mode_paiement")
+  regionId        Int?           @map("region_id")
+  region          Region?        @relation(fields: [regionId], references: [id])
+  districtId      Int?           @map("district_id")
+  district        District?      @relation(fields: [districtId], references: [id])
+  paroisseId      Int?           @map("paroisse_id")
+  paroisse        Paroisse?      @relation(fields: [paroisseId], references: [id])
+  communauteId    Int?           @map("communaute_id")
+  communaute      Communaute?    @relation(fields: [communauteId], references: [id])
+  saisiParId      Int?           @map("saisi_par_id")
+  justificatifUrl String?        @map("justificatif_url") @db.VarChar(500)
+  referenceExterne String?       @map("reference_externe") @db.VarChar(100)
+  provider        String?        @db.VarChar(50)
+  notes           String?        @db.Text
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([membreId, activiteId])
+  @@index([activiteId])
+  @@index([statut])
+  @@index([regionId])
+  @@map("cotisations")
+}
+
+enum StatutPaiement {
+  EN_ATTENTE
+  PARTIEL
+  PAYE
+  ECHOUE
+  ANNULE
+}
+
+enum ModePaiement {
+  MOBILE_MONEY
+  MANUEL
+}
+
+model HistoriqueMandat {
+  id         Int       @id @default(autoincrement())
+  membreId   Int       @map("membre_id")
+  membre     Membre    @relation(fields: [membreId], references: [id])
+  roleId     Int       @map("role_id")
+  regionId   Int?      @map("region_id")
+  districtId Int?      @map("district_id")
+  paroisseId Int?      @map("paroisse_id")
+  communauteId Int?    @map("communaute_id")
+  dateDebut  DateTime  @default(now()) @map("date_debut")
+  dateFin    DateTime? @map("date_fin")
+  notes      String?   @db.Text
+  createdAt  DateTime  @default(now())
+
+  @@index([membreId])
+  @@map("historique_mandats")
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  acteurId    Int?     @map("acteur_id")
+  acteur      Membre?  @relation("AuditActeur", fields: [acteurId], references: [id])
+  action      String   @db.VarChar(100)
+  entite      String   @db.VarChar(50)
+  entiteId    String?  @map("entite_id") @db.VarChar(50)
+  details     Json?
+  ipAddress   String?  @map("ip_address") @db.VarChar(45)
+  createdAt   DateTime @default(now())
+
+  @@index([acteurId])
+  @@index([entite, entiteId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

@@ -1,0 +1,120 @@
+.app-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: calc(72px + var(--safe-bottom));
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  backdrop-filter: blur(10px);
+  background: rgba(244, 247, 244, 0.92);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 64px;
+  gap: 1rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: inherit;
+}
+
+.brand-logo--nav {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--color-brand-soft);
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.brand-text strong {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  color: var(--color-brand);
+}
+
+.brand-text small {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+
+.btn-logout {
+  border: none;
+  background: transparent;
+  color: var(--color-muted);
+  font-weight: 600;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+}
+
+.main-content {
+  flex: 1;
+  padding: 1.25rem 0 2rem;
+}
+
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0.25rem;
+  padding: 0.45rem 0.5rem calc(0.45rem + var(--safe-bottom));
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1px solid var(--color-border);
+  backdrop-filter: blur(12px);
+}
+
+.bottom-nav a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border-radius: 10px;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 0.35rem;
+}
+
+.bottom-nav a.active {
+  color: var(--color-brand);
+  background: var(--color-brand-soft);
+}
+
+@media (min-width: 900px) {
+  .app-shell {
+    padding-bottom: 0;
+  }
+
+  .bottom-nav {
+    position: static;
+    max-width: 1100px;
+    margin: 0 auto 1.5rem;
+    width: calc(100% - 2rem);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 0.45rem;
+  }
+}

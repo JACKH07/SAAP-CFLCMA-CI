@@ -1,0 +1,226 @@
+.auth-page {
+  min-height: 100dvh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding:
+    max(1rem, env(safe-area-inset-top))
+    max(0.85rem, env(safe-area-inset-right))
+    calc(1.5rem + var(--safe-bottom))
+    max(0.85rem, env(safe-area-inset-left));
+  gap: 1rem;
+  width: min(100%, 480px);
+  margin: 0 auto;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.auth-page--register {
+  width: min(100%, 640px);
+  justify-content: flex-start;
+  padding-top: max(1rem, env(safe-area-inset-top));
+}
+
+@media (min-width: 900px) {
+  .auth-page--register {
+    width: min(100%, 760px);
+    padding-inline: 1.25rem;
+  }
+}
+
+/* Connexion membre : logo en fond */
+.auth-page--membre {
+  width: min(100%, 420px);
+  z-index: 0;
+}
+
+.auth-bg-logo {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at center, rgba(244, 247, 244, 0.55) 0%, rgba(244, 247, 244, 0.92) 70%),
+    url('/logo.png') center / min(78vw, 520px) no-repeat,
+    var(--color-bg);
+}
+
+.auth-card--membre {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 12px 40px rgba(28, 124, 56, 0.12);
+}
+
+.auth-card-logo {
+  width: clamp(64px, 18vw, 72px);
+  height: clamp(64px, 18vw, 72px);
+  margin: 0 auto 0.85rem;
+}
+
+.auth-page--admin {
+  width: min(100%, 480px);
+}
+
+.auth-card--admin {
+  border-top: 3px solid var(--color-accent);
+}
+
+.auth-hero {
+  text-align: center;
+  animation: fadeUp 0.5s ease both;
+  padding-inline: 0.25rem;
+}
+
+.auth-logo {
+  width: clamp(88px, 24vw, 108px);
+  height: clamp(88px, 24vw, 108px);
+  margin: 0 auto 0.85rem;
+  filter: drop-shadow(0 8px 18px rgba(28, 124, 56, 0.18));
+}
+
+.auth-page--register .auth-logo {
+  width: clamp(72px, 20vw, 96px);
+  height: clamp(72px, 20vw, 96px);
+}
+
+.auth-hero .eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: clamp(0.65rem, 2.5vw, 0.72rem);
+  font-weight: 700;
+  color: var(--color-accent-deep);
+  margin: 0 0 0.5rem;
+  line-height: 1.35;
+}
+
+.auth-hero h1 {
+  font-size: clamp(1.55rem, 6.5vw, 2.45rem);
+  color: var(--color-brand);
+  line-height: 1.15;
+  word-break: break-word;
+}
+
+.auth-hero .lede {
+  color: var(--color-muted);
+  margin: 0.35rem 0 0;
+  font-size: clamp(0.9rem, 3.2vw, 1rem);
+}
+
+.auth-card {
+  animation: fadeUp 0.55s ease 0.08s both;
+  width: 100%;
+  max-width: 100%;
+  padding: clamp(1rem, 3vw, 1.35rem);
+  box-sizing: border-box;
+}
+
+.auth-page--register .auth-card {
+  overflow: visible;
+}
+
+.auth-card h2 {
+  margin-bottom: 1rem;
+  text-align: center;
+  color: var(--color-brand);
+  font-size: clamp(1.15rem, 4vw, 1.35rem);
+}
+
+.auth-footer {
+  text-align: center;
+  margin: 1rem 0 0;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.auth-footer-secondary {
+  margin-top: 0.45rem;
+  font-size: 0.88rem;
+}
+
+.form-section {
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.form-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 0.35rem;
+  padding-bottom: 0;
+}
+
+.form-section-title {
+  margin: 0 0 0.85rem;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-brand);
+}
+
+/* Grille d’inscription : 1 col mobile, 2 cols tablette/desktop */
+.auth-page--register .form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+@media (min-width: 640px) {
+  .auth-page--register .form-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 0.9rem;
+  }
+
+  .auth-page--register .form-grid > .form-group {
+    margin-bottom: 1rem;
+  }
+
+  .auth-page--register .form-span-2 {
+    grid-column: 1 / -1;
+  }
+}
+
+.auth-page--register .btn-block {
+  position: sticky;
+  bottom: calc(0.5rem + var(--safe-bottom));
+  z-index: 5;
+  margin-top: 0.35rem;
+  box-shadow: 0 8px 24px rgba(28, 124, 56, 0.2);
+}
+
+.profile-photo {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--color-brand);
+  margin-bottom: 0.75rem;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Petits téléphones */
+@media (max-width: 380px) {
+  .auth-page {
+    padding-inline: 0.65rem;
+  }
+
+  .auth-card {
+    padding: 0.9rem;
+  }
+
+  .form-group label {
+    font-size: 0.85rem;
+  }
+}

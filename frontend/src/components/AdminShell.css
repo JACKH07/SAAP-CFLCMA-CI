@@ -1,0 +1,254 @@
+.admin-shell {
+  --sidebar: #14602b;
+  --sidebar-hover: rgba(255, 255, 255, 0.08);
+  --accent: #1c7c38;
+  --accent-soft: #e7f6eb;
+  --accent-2: #c9a227;
+  --warn: #a48434;
+  --danger: #b42318;
+  --ok: #1c7c38;
+  --surface: #f4f7f4;
+  --card: #ffffff;
+  --ink: #101411;
+  --muted: #5a655e;
+  --border: #d4e0d6;
+  --radius: 14px;
+  --shadow: 0 4px 24px rgba(28, 124, 56, 0.08);
+
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+.admin-sidebar {
+  background: linear-gradient(180deg, #14602b 0%, #1c7c38 55%, #1a6f33 100%);
+  color: rgba(255, 255, 255, 0.88);
+  padding: 1.25rem 0.9rem;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  overflow-y: auto;
+  z-index: 40;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.35rem 0.65rem 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  margin-bottom: 1rem;
+}
+
+.sidebar-logo-img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(201, 162, 39, 0.55);
+}
+
+.sidebar-brand strong {
+  display: block;
+  color: #fff;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+}
+
+.sidebar-brand small {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+}
+
+.nav-group {
+  margin-bottom: 1.1rem;
+}
+
+.nav-group-label {
+  margin: 0 0.65rem 0.45rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 700;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 44px;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 500;
+  font-size: 0.92rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nav-item:hover {
+  background: var(--sidebar-hover);
+  color: #fff;
+}
+
+.nav-item.active {
+  background: rgba(201, 162, 39, 0.28);
+  color: #ffe9a3;
+  font-weight: 650;
+}
+
+.nav-ico {
+  width: 1.4rem;
+  text-align: center;
+}
+
+.admin-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 64px;
+  padding: 0.65rem 1.25rem;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar-left,
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.icon-btn {
+  display: none;
+  border: 1px solid var(--border);
+  background: #fff;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 1.1rem;
+}
+
+.breadcrumbs {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.breadcrumbs .sep {
+  margin: 0 0.35rem;
+  opacity: 0.5;
+}
+
+.breadcrumbs .current {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #1c7c38, #14602b);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.user-meta strong {
+  display: block;
+  font-size: 0.88rem;
+  line-height: 1.2;
+}
+
+.user-meta small {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.btn-logout-sm {
+  border: 1px solid var(--border);
+  background: #fff;
+  min-height: 40px;
+  padding: 0 0.85rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.admin-content {
+  padding: 1.25rem 1.35rem 2rem;
+}
+
+.page-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(1.5rem, 3vw, 1.85rem);
+  margin: 0 0 1.15rem;
+  letter-spacing: -0.02em;
+  color: var(--color-brand, #1c7c38);
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 980px) {
+  .admin-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: min(280px, 86vw);
+    transform: translateX(-105%);
+    transition: transform 0.22s ease;
+    box-shadow: 8px 0 30px rgba(0, 0, 0, 0.25);
+  }
+
+  .admin-shell.sidebar-open .admin-sidebar {
+    transform: translateX(0);
+  }
+
+  .icon-btn {
+    display: inline-grid;
+    place-items: center;
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    border: none;
+    background: rgba(16, 20, 17, 0.45);
+    z-index: 30;
+  }
+
+  .user-meta {
+    display: none;
+  }
+}

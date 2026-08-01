@@ -1,0 +1,47 @@
+# Base MySQL dédiée PRODUCTION
+name: saap-cflcma-prod
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: saap-cflcma-prod-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD requis}
+      MYSQL_DATABASE: saap_cflcma_prod
+      MYSQL_USER: saap_prod
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD requis}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - saap_prod_db_data:/var/lib/mysql
+    # Schéma appliqué via Prisma (db push) — pas d'init.sql local
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: saap-cflcma-prod-phpmyadmin
+    restart: unless-stopped
+    profiles: ["tools"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      UPLOAD_LIMIT: 64M
+    ports:
+      - "${PMA_PORT:-8084}:80"
+
+volumes:
+  saap_prod_db_data:

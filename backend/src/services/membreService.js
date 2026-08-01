@@ -1,0 +1,313 @@
+const prisma = require('../config/prisma');
+const { AppError } = require('../utils/errors');
+const { membrePublicSelect, withAdminFlag } = require('./authService');
+const { ROLE_COORDINATEUR_GENERAL } = require('../utils/roles');
+const membreIdService = require('./membreIdService');
+const auditService = require('./auditService');
+const lieuAutocompleteService = require('./lieuAutocompleteService');
+const bcrypt = require('bcryptjs');
+
+async function resolveIsAdminForRole(roleId, explicitIsAdmin) {
+  if (roleId) {
+    const role = await prisma.role.findUnique({ where: { id: Number(roleId) } });
+    if (role?.nom === ROLE_COORDINATEUR_GENERAL) return true;
+    // Retirer isAdmin si on quitte le rôle Coordinateur général
+    if (explicitIsAdmin === undefined) return false;
+  }
+  return Boolean(explicitIsAdmin);
+}
+
+class MembreService {
+  async getById(id) {
+    const membre = await prisma.membre.findUnique({
+      where: { id: Number(id) },
+      select: membrePublicSelect,
+    });
+    if (!membre) throw new AppError('Membre introuvable', 404);
+    return withAdminFlag(membre);
+  }
+
+  async list({ page = 1, limit = 20, search, regionId, statut, roleId } = {}) {
+    const skip = (page - 1) * limit;
+    const where = {};
+
+    if (regionId) where.regionId = Number(regionId);
+    if (statut) where.statut = statut;
+    if (roleId) where.roleId = Number(roleId);
+    if (search) {
+      where.OR = [
+        { nom: { contains: search } },
+        { prenom: { contains: search } },
+        { idMembre: { contains: search } },
+        { contact: { contains: search } },
+        { email: { contains: search } },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      prisma.membre.findMany({
+        where,
+        skip,
+        take: Number(limit),
+        orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
+        select: membrePublicSelect,
+      }),
+      prisma.membre.count({ where }),
+    ]);
+
+    return {
+      items: items.map(withAdminFlag),
+      total,
+      page: Number(page),
+      limit: Number(limit),
+    };
+  }
+
+  async createByAdmin(payload, adminId, meta = {}) {
+    const {
+      nom,
+      prenom,
+      contact,
+      email,
+      password,
+      dateNaissance,
+      lieuNaissance,
+      branche,
+      regionId,
+      districtId,
+      paroisseNom,
+      paroisseId,
+      communauteNom,
+      communauteId,
+      roleId,
+      isAdmin = false,
+      statut = 'VALIDE',
+      mandateParId,
+      situationMatrimoniale,
+      profession,
+      responsabiliteBureau,
+    } = payload;
+
+    if (!nom || !prenom || !dateNaissance || !lieuNaissance || !password || !roleId) {
+      throw new AppError('Champs obligatoires manquants', 400);
+    }
+    if (!branche || !['FLAMBEAUX', 'LUMIERES'].includes(branche)) {
+      throw new AppError('Sélectionnez Flambeaux (Hommes) ou Lumières (Femmes)', 400);
+    }
+
+    let finalParoisseId = paroisseId ? Number(paroisseId) : null;
+    let finalCommunauteId = communauteId ? Number(communauteId) : null;
+
+    if (!finalParoisseId && paroisseNom && districtId) {
+      const { paroisse } = await lieuAutocompleteService.findOrCreateParoisse(
+        paroisseNom,
+        Number(districtId)
+      );
+      finalParoisseId = paroisse.id;
+    }
+
+    if (!finalCommunauteId && communauteNom && finalParoisseId) {
+      const { communaute } = await lieuAutocompleteService.findOrCreateCommunaute(
+        communauteNom,
+        finalParoisseId
+      );
+      finalCommunauteId = communaute.id;
+    }
+
+    const idResult = await membreIdService.generateUniqueId(nom, prenom, dateNaissance);
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    const membre = await prisma.membre.create({
+      data: {
+        nom: nom.trim(),
+        prenom: prenom.trim(),
+        contact: contact || null,
+        email: email || null,
+        passwordHash,
+        dateNaissance: new Date(dateNaissance),
+        lieuNaissance: lieuNaissance.trim(),
+        branche,
+        situationMatrimoniale: situationMatrimoniale?.trim() || null,
+        profession: profession?.trim() || null,
+        responsabiliteBureau: responsabiliteBureau?.trim() || null,
+        idMembre: idResult.idMembre,
+        collisionSuffix: idResult.suffix,
+        roleId: Number(roleId),
+        regionId: regionId ? Number(regionId) : null,
+        districtId: districtId ? Number(districtId) : null,
+        paroisseId: finalParoisseId,
+        communauteId: finalCommunauteId,
+        mandateParId: mandateParId ? Number(mandateParId) : null,
+        isAdmin: await resolveIsAdminForRole(roleId, isAdmin),
+        statut,
+      },
+      select: membrePublicSelect,
+    });
+
+    if (idResult.collision) {
+      await membreIdService.notifyCollision({
+        idMembre: idResult.idMembre,
+        baseId: idResult.baseId,
+        suffix: idResult.suffix,
+        inscritParId: adminId,
+      });
+    }
+
+    await prisma.historiqueMandat.create({
+      data: {
+        membreId: membre.id,
+        roleId: membre.roleId,
+        regionId: membre.regionId,
+        districtId: membre.districtId,
+        paroisseId: membre.paroisseId,
+        communauteId: membre.communauteId,
+      },
+    });
+
+    const activites = await prisma.activite.findMany({ where: { active: true } });
+    if (activites.length) {
+      await prisma.cotisation.createMany({
+        data: activites.map((a) => ({
+          membreId: membre.id,
+          activiteId: a.id,
+          idPaiement: membreIdService.buildPaymentId(a.prefixeIdPaiement, membre.idMembre),
+          montant: a.montantDefaut || 0,
+          statut: 'EN_ATTENTE',
+          regionId: membre.regionId,
+          districtId: membre.districtId,
+          paroisseId: membre.paroisseId,
+          communauteId: membre.communauteId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    await auditService.log({
+      acteurId: adminId,
+      action: 'CREATE_MEMBRE',
+      entite: 'Membre',
+      entiteId: membre.id,
+      details: { idMembre: membre.idMembre },
+      ipAddress: meta.ip,
+    });
+
+    return withAdminFlag(membre);
+  }
+
+  async update(id, payload, adminId, meta = {}) {
+    const existing = await this.getById(id);
+    const data = {};
+
+    const stringFields = [
+      'nom', 'prenom', 'contact', 'email', 'lieuNaissance', 'branche', 'statut',
+      'situationMatrimoniale', 'profession', 'responsabiliteBureau',
+    ];
+    for (const key of stringFields) {
+      if (payload[key] === undefined) continue;
+      if (typeof payload[key] === 'string') {
+        const trimmed = payload[key].trim();
+        data[key] = ['contact', 'email', 'situationMatrimoniale', 'profession', 'responsabiliteBureau'].includes(key)
+          ? trimmed || null
+          : trimmed;
+      } else {
+        data[key] = payload[key];
+      }
+    }
+
+    if (payload.branche && !['FLAMBEAUX', 'LUMIERES'].includes(payload.branche)) {
+      throw new AppError('Branche invalide : Flambeaux ou Lumières', 400);
+    }
+
+    if (payload.dateNaissance) {
+      data.dateNaissance = new Date(payload.dateNaissance);
+    }
+
+    if (payload.password) {
+      data.passwordHash = await bcrypt.hash(payload.password, 12);
+    }
+
+    const toNullableInt = (v) => {
+      if (v === '' || v === null || v === undefined) return null;
+      return Number(v);
+    };
+
+    if (payload.roleId !== undefined) data.roleId = Number(payload.roleId);
+    if (payload.regionId !== undefined) data.regionId = toNullableInt(payload.regionId);
+    if (payload.districtId !== undefined) data.districtId = toNullableInt(payload.districtId);
+    if (payload.mandateParId !== undefined) data.mandateParId = toNullableInt(payload.mandateParId);
+
+    let finalParoisseId =
+      payload.paroisseId !== undefined ? toNullableInt(payload.paroisseId) : existing.paroisseId;
+    let finalCommunauteId =
+      payload.communauteId !== undefined ? toNullableInt(payload.communauteId) : existing.communauteId;
+
+    const districtId = data.districtId !== undefined ? data.districtId : existing.districtId;
+
+    if (payload.paroisseNom && districtId) {
+      const { paroisse } = await lieuAutocompleteService.findOrCreateParoisse(
+        payload.paroisseNom,
+        Number(districtId)
+      );
+      finalParoisseId = paroisse.id;
+    }
+
+    if (payload.communauteNom && finalParoisseId) {
+      const { communaute } = await lieuAutocompleteService.findOrCreateCommunaute(
+        payload.communauteNom,
+        Number(finalParoisseId)
+      );
+      finalCommunauteId = communaute.id;
+    }
+
+    if (payload.paroisseId !== undefined || payload.paroisseNom) {
+      data.paroisseId = finalParoisseId;
+    }
+    if (payload.communauteId !== undefined || payload.communauteNom) {
+      data.communauteId = finalCommunauteId;
+    }
+
+    const nextRoleId = data.roleId != null ? Number(data.roleId) : existing.roleId;
+    data.isAdmin = await resolveIsAdminForRole(
+      nextRoleId,
+      payload.isAdmin !== undefined ? payload.isAdmin : undefined
+    );
+
+    const roleChanged = data.roleId && Number(data.roleId) !== existing.roleId;
+
+    const membre = await prisma.membre.update({
+      where: { id: Number(id) },
+      data,
+      select: membrePublicSelect,
+    });
+
+    if (roleChanged) {
+      await prisma.historiqueMandat.updateMany({
+        where: { membreId: membre.id, dateFin: null },
+        data: { dateFin: new Date() },
+      });
+      await prisma.historiqueMandat.create({
+        data: {
+          membreId: membre.id,
+          roleId: membre.roleId,
+          regionId: membre.regionId,
+          districtId: membre.districtId,
+          paroisseId: membre.paroisseId,
+          communauteId: membre.communauteId,
+        },
+      });
+    }
+
+    await auditService.log({
+      acteurId: adminId,
+      action: 'UPDATE_MEMBRE',
+      entite: 'Membre',
+      entiteId: membre.id,
+      details: payload,
+      ipAddress: meta.ip,
+    });
+
+    return withAdminFlag(membre);
+  }
+}
+
+module.exports = new MembreService();

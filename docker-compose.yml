@@ -1,0 +1,46 @@
+# Développement local
+name: cflcmaci
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: saap-flccmaci-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: saaproot
+      MYSQL_DATABASE: saap_flccmaci
+      MYSQL_USER: saap
+      MYSQL_PASSWORD: saap123
+    ports:
+      - "3310:3306"
+    volumes:
+      - saap_db_data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-psaaproot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: saap-flccmaci-phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: saaproot
+      UPLOAD_LIMIT: 64M
+    ports:
+      - "8082:80"
+
+volumes:
+  saap_db_data:

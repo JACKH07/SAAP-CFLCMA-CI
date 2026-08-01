@@ -1,0 +1,47 @@
+# Base MySQL dédiée PREPROD (port hôte 3311)
+name: saap-cflcma-preprod
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: saap-cflcma-preprod-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-saaproot_preprod}
+      MYSQL_DATABASE: saap_cflcma_preprod
+      MYSQL_USER: saap_preprod
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-CHANGE_ME_PREPROD}
+    ports:
+      - "3311:3306"
+    volumes:
+      - saap_preprod_db_data:/var/lib/mysql
+    # Schéma appliqué via Prisma (db push) — pas d'init.sql local
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-saaproot_preprod}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: saap-cflcma-preprod-phpmyadmin
+    restart: unless-stopped
+    profiles: ["tools"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD:-saaproot_preprod}
+      UPLOAD_LIMIT: 64M
+    ports:
+      - "8083:80"
+
+volumes:
+  saap_preprod_db_data:
