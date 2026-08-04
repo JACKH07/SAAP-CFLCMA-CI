@@ -80,7 +80,7 @@ export default function AdminCotisationsPage() {
   }
 
   return (
-    <AdminShell title="Paiements" crumbs={['Tableaux de bord', 'Paiements']}>
+    <AdminShell title="Paiements" crumbs={['Administration', 'Paiements']}>
       <section className="stack">
         <p className="muted" style={{ marginTop: 0 }}>Recherche et saisie manuelle</p>
 

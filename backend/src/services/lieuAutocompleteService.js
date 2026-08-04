@@ -11,14 +11,27 @@ class LieuAutocompleteService {
    */
   async searchParoisses(search, { districtId = null, limit = 15 } = {}) {
     const q = normalizeText(search);
-    if (q.length < 1) return [];
-
-    const where = {
-      nomNormalise: { contains: q },
-    };
+    const where = {};
     if (districtId) {
       where.districtId = Number(districtId);
     }
+
+    // Sans texte : lister les paroisses du district (sélection formulaire)
+    if (q.length < 1) {
+      if (!districtId) return [];
+      return prisma.paroisse.findMany({
+        where,
+        take: Math.max(limit, 100),
+        orderBy: { nom: 'asc' },
+        include: {
+          district: {
+            select: { id: true, nom: true, regionId: true },
+          },
+        },
+      });
+    }
+
+    where.nomNormalise = { contains: q };
 
     return prisma.paroisse.findMany({
       where,

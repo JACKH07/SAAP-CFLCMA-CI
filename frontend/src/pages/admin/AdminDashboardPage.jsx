@@ -5,8 +5,6 @@ import {
   CartesianGrid,
   Cell,
   Legend,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -14,64 +12,34 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { Link } from 'react-router-dom';
 import AdminShell from '../../components/AdminShell';
 import api from '../../api/client';
+import { paths } from '../../config/env';
 import './AdminDashboard.css';
 
 const COLORS = {
   primary: '#1c7c38',
+  primarySoft: '#a8dfb6',
   secondary: '#c9a227',
+  secondarySoft: '#f0e2a8',
   warn: '#a48434',
-  muted: '#94a3a0',
-  ok: '#1c7c38',
-  soft: '#a8dfb6',
+  muted: '#94a3b8',
+  ok: '#059669',
+  danger: '#dc2626',
+  ink: '#0f172a',
 };
 
-function formatFcfa(n) {
-  return Math.round(Number(n) || 0).toLocaleString('fr-FR');
-}
-
-function RingStat({ label, value, percent, color }) {
-  const r = 34;
-  const c = 2 * Math.PI * r;
-  const offset = c - (Math.min(percent, 100) / 100) * c;
-
-  return (
-    <div className="ring-card dash-card">
-      <div className="ring-wrap">
-        <svg width="88" height="88" viewBox="0 0 88 88">
-          <circle cx="44" cy="44" r={r} fill="none" stroke="#eef2f7" strokeWidth="8" />
-          <circle
-            cx="44"
-            cy="44"
-            r={r}
-            fill="none"
-            stroke={color}
-            strokeWidth="8"
-            strokeLinecap="round"
-            strokeDasharray={c}
-            strokeDashoffset={offset}
-            transform="rotate(-90 44 44)"
-          />
-          <text x="44" y="48" textAnchor="middle" className="ring-pct">
-            {percent}%
-          </text>
-        </svg>
-      </div>
-      <div>
-        <div className="ring-value">{value}</div>
-        <div className="ring-label">{label}</div>
-      </div>
-    </div>
-  );
+function initials(prenom, nom) {
+  return `${prenom?.[0] || ''}${nom?.[0] || ''}`.toUpperCase() || '?';
 }
 
 function Sparkline({ points, color }) {
   if (!points?.length) return null;
   const max = Math.max(...points, 1);
   const min = Math.min(...points, 0);
-  const w = 90;
-  const h = 36;
+  const w = 88;
+  const h = 34;
   const path = points
     .map((p, i) => {
       const x = (i / (points.length - 1 || 1)) * w;
@@ -81,8 +49,8 @@ function Sparkline({ points, color }) {
     .join(' ');
 
   return (
-    <svg width={w} height={h} className="spark">
-      <path d={path} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+    <svg width={w} height={h} className="spark" aria-hidden>
+      <path d={path} fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" />
     </svg>
   );
 }
@@ -93,6 +61,7 @@ export default function AdminDashboardPage() {
   const [regions, setRegions] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState('1A');
 
   async function load(rid = regionId) {
     setError('');
@@ -130,7 +99,7 @@ export default function AdminDashboardPage() {
       .catch(() => setError('Export impossible'));
   }
 
-  const regionChart = useMemo(() => {
+  const regionChartBranded = useMemo(() => {
     if (!stats?.parRegion) return [];
     return [...stats.parRegion]
       .sort((a, b) => b.membres - a.membres)
@@ -138,37 +107,18 @@ export default function AdminDashboardPage() {
       .map((r) => ({
         name: r.nom.length > 10 ? `${r.nom.slice(0, 9)}…` : r.nom,
         fullName: r.nom,
-        membres: r.membres,
+        flambeaux: r.flambeaux ?? 0,
+        lumieres: r.lumieres ?? 0,
         payees: r.payees,
-        taux: r.taux,
       }));
   }, [stats]);
 
-  const statutPie = useMemo(() => {
+  const branchePie = useMemo(() => {
     if (!stats) return [];
-    const c = stats.cotisations;
     return [
-      { name: 'Payées', value: c.payees, color: COLORS.ok },
-      { name: 'Partielles', value: c.partielles, color: COLORS.warn },
-      { name: 'En attente', value: c.enAttente, color: COLORS.muted },
+      { name: 'Lumières', value: stats.membres.lumieres || 0, color: COLORS.secondary },
+      { name: 'Flambeaux', value: stats.membres.flambeaux || 0, color: COLORS.primary },
     ].filter((x) => x.value > 0);
-  }, [stats]);
-
-  const activiteBars = useMemo(() => {
-    if (!stats?.parActivite) return [];
-    return stats.parActivite.map((a) => ({
-      name: a.prefixe,
-      fullName: a.nom,
-      total: a.total,
-      payees: a.payees,
-      taux: a.taux,
-      percu: a.montantPercu,
-    }));
-  }, [stats]);
-
-  const topRegionsTable = useMemo(() => {
-    if (!stats?.parRegion) return [];
-    return [...stats.parRegion].sort((a, b) => b.taux - a.taux || b.membres - a.membres).slice(0, 8);
   }, [stats]);
 
   const sparkMembres = useMemo(
@@ -180,15 +130,11 @@ export default function AdminDashboardPage() {
     [stats]
   );
 
-  const totalCotisations = stats?.cotisations?.total || 0;
-  const tauxPercu = stats
-    ? stats.cotisations.montantAttendu > 0
-      ? Math.round((stats.cotisations.montantPercu / stats.cotisations.montantAttendu) * 100)
-      : 0
-    : 0;
+  const totalMembres =
+    (stats?.membres.flambeaux ?? 0) + (stats?.membres.lumieres ?? 0) || stats?.membres.total || 0;
 
   return (
-    <AdminShell title="Analytique" crumbs={['Tableaux de bord', 'Analytique']}>
+    <AdminShell title="Tableaux de bord" crumbs={['Tableaux de bord']}>
       <div className="dash-toolbar">
         <select
           className="dash-select"
@@ -207,10 +153,10 @@ export default function AdminDashboardPage() {
         </select>
         <div className="dash-actions">
           <button type="button" className="dash-btn ghost" onClick={() => exportFile('excel')}>
-            Exporter Excel
+            Excel
           </button>
           <button type="button" className="dash-btn primary" onClick={() => exportFile('pdf')}>
-            Exporter PDF
+            PDF
           </button>
         </div>
       </div>
@@ -220,232 +166,246 @@ export default function AdminDashboardPage() {
 
       {stats && (
         <>
-          <div className="kpi-row">
+          <div className="kpi-row kpi-row--4">
             <div className="dash-card kpi-card">
               <div className="kpi-head">
-                <span>Flambeaux (Hommes)</span>
+                <span>Activités</span>
                 <Sparkline points={sparkMembres} color={COLORS.primary} />
               </div>
               <div className="kpi-value">
-                {(stats.membres.flambeaux ?? 0).toLocaleString('fr-FR')}
+                {(stats.parActivite?.length ?? 0).toLocaleString('fr-FR')}
               </div>
-              <div className="kpi-foot ok">Membres validés</div>
+              <div className="kpi-foot ok">Activités actives</div>
             </div>
 
             <div className="dash-card kpi-card">
               <div className="kpi-head">
-                <span>Lumières (Femmes)</span>
+                <span>Membres du bureau</span>
                 <Sparkline points={sparkTaux} color={COLORS.secondary} />
               </div>
-              <div className="kpi-value">
-                {(stats.membres.lumieres ?? 0).toLocaleString('fr-FR')}
+              <div className="kpi-value">{(stats.membres.bureau ?? 0).toLocaleString('fr-FR')}</div>
+              <div className="kpi-foot ok">Désignés au bureau</div>
+            </div>
+
+            <div className="dash-card kpi-card kpi-card--metric">
+              <div className="kpi-metric-icon" aria-hidden>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                  <circle cx="9.5" cy="8" r="3" stroke="currentColor" strokeWidth="1.8" />
+                  <path
+                    d="M20 19v-1a3.5 3.5 0 0 0-2.5-3.3"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                  <circle cx="17" cy="8.5" r="2.5" stroke="currentColor" strokeWidth="1.8" />
+                </svg>
               </div>
-              <div className="kpi-foot ok">Membres validés</div>
+              <div className="kpi-metric-value">{totalMembres.toLocaleString('fr-FR')}</div>
+              <div className="kpi-metric-label">Total membres</div>
             </div>
 
             <div className="dash-card kpi-card">
               <div className="kpi-head">
-                <span>Total Flambeaux &amp; Lumières</span>
-                <Sparkline points={sparkMembres} color={COLORS.primary} />
-              </div>
-              <div className="kpi-value">
-                {(
-                  (stats.membres.flambeaux ?? 0) + (stats.membres.lumieres ?? 0)
-                  || stats.membres.total
-                  || 0
-                ).toLocaleString('fr-FR')}
-              </div>
-              <div className="kpi-foot">
-                {(stats.membres.flambeaux ?? 0)} H · {(stats.membres.lumieres ?? 0)} F
-                {stats.membres.enAttente > 0
-                  ? ` · ${stats.membres.enAttente} en attente`
-                  : ''}
-              </div>
-            </div>
-
-            <div className="dash-card kpi-card">
-              <div className="kpi-head">
-                <span>Taux de paiement</span>
+                <span>Inscriptions en attente</span>
                 <Sparkline points={sparkTaux} color={COLORS.warn} />
               </div>
-              <div className="kpi-value">{stats.cotisations.tauxPaiement}%</div>
+              <div className="kpi-value">{(stats.membres.enAttente ?? 0).toLocaleString('fr-FR')}</div>
               <div className="kpi-foot">
-                {stats.cotisations.payees}/{totalCotisations} cotisations soldées
+                {(stats.membres.suspendus || 0) > 0
+                  ? `${stats.membres.suspendus} suspendu(s)`
+                  : 'Dossiers à traiter'}
               </div>
-            </div>
-
-            <div className="dash-card kpi-promo">
-              <div className="promo-badge">FCFA</div>
-              <p>Montant perçu</p>
-              <strong>{formatFcfa(stats.cotisations.montantPercu)}</strong>
-              <small>
-                sur {formatFcfa(stats.cotisations.montantAttendu)} attendus ({tauxPercu}%)
-              </small>
             </div>
           </div>
 
-          <div className="dash-grid-mid">
-            <div className="dash-card chart-card wide">
+          <div className="dash-row-2">
+            <div className="dash-card chart-card">
               <div className="card-head">
                 <div>
-                  <h2>Rapport par région</h2>
-                  <p>Membres et cotisations payées (top 12)</p>
+                  <h2>Effectifs par région</h2>
+                  <p>Flambeaux & Lumières (top 12)</p>
                 </div>
-                <button type="button" className="dash-btn ghost" onClick={() => exportFile('excel')}>
-                  Exporter
-                </button>
+                <div className="range-tabs" role="group" aria-label="Période">
+                  {['1J', '7J', '1M', '1A'].map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      className={range === r ? 'active' : ''}
+                      onClick={() => setRange(r)}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="chart-box">
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={regionChart} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+                  <BarChart data={regionChartBranded} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" vertical={false} />
                     <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
                     <Tooltip
-                      formatter={(value, name) => [value, name === 'membres' ? 'Membres' : 'Payées']}
                       labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName || ''}
                     />
                     <Legend />
-                    <Bar dataKey="membres" name="Membres" fill={COLORS.primary} radius={[6, 6, 0, 0]} />
-                    <Bar dataKey="payees" name="Cotisations payées" fill={COLORS.secondary} radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="flambeaux" name="Flambeaux" stackId="a" fill={COLORS.primary} radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="lumieres" name="Lumières" stackId="a" fill={COLORS.secondary} radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            <div className="ring-stack">
-              <RingStat
-                label="Cotisations payées"
-                value={stats.cotisations.payees.toLocaleString('fr-FR')}
-                percent={totalCotisations ? Math.round((stats.cotisations.payees / totalCotisations) * 100) : 0}
-                color={COLORS.primary}
-              />
-              <RingStat
-                label="Montant encaissé"
-                value={`${tauxPercu}%`}
-                percent={tauxPercu}
-                color={COLORS.warn}
-              />
-            </div>
-
-            <div className="dash-card chart-card">
+            <div className="dash-card summary-strip-card">
               <div className="card-head">
                 <div>
-                  <h2>Statut des cotisations</h2>
-                  <p>Répartition nationale</p>
+                  <h2>Résumé des inscriptions</h2>
+                  <p>Statuts des dossiers membres</p>
+                </div>
+              </div>
+              <div className="summary-strip">
+                <div className="summary-item">
+                  <span className="summary-ico wait" />
+                  <div>
+                    <strong>{stats.membres.enAttente.toLocaleString('fr-FR')}</strong>
+                    <em>Nouveaux / en attente</em>
+                  </div>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-ico ok" />
+                  <div>
+                    <strong>{totalMembres.toLocaleString('fr-FR')}</strong>
+                    <em>Membres validés</em>
+                  </div>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-ico danger" />
+                  <div>
+                    <strong>{(stats.membres.rejetes || 0).toLocaleString('fr-FR')}</strong>
+                    <em>Dossiers rejetés</em>
+                  </div>
+                </div>
+              </div>
+              <div className="amount-banner">
+                <div>
+                  <span>Membres suspendus</span>
+                  <strong>{(stats.membres.suspendus || 0).toLocaleString('fr-FR')}</strong>
+                </div>
+                <small>Suivi des dossiers Flambeaux & Lumières</small>
+              </div>
+            </div>
+          </div>
+
+          <div className="dash-row-2 dash-row-2--swap">
+            <div className="dash-card chart-card chart-card--membres">
+              <div className="card-head">
+                <div>
+                  <h2>Membres</h2>
                 </div>
               </div>
               <div className="donut-wrap">
-                <ResponsiveContainer width="100%" height={180}>
+                <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
                     <Pie
-                      data={statutPie.length ? statutPie : [{ name: 'Aucune', value: 1, color: '#e2e8f0' }]}
+                      data={branchePie.length ? branchePie : [{ name: 'Aucune', value: 1, color: '#e2e8f0' }]}
                       dataKey="value"
                       nameKey="name"
-                      innerRadius={48}
-                      outerRadius={72}
-                      paddingAngle={3}
+                      innerRadius={58}
+                      outerRadius={82}
+                      paddingAngle={2}
+                      stroke="none"
                     >
-                      {(statutPie.length ? statutPie : [{ color: '#e2e8f0' }]).map((entry) => (
+                      {(branchePie.length ? branchePie : [{ color: '#e2e8f0' }]).map((entry) => (
                         <Cell key={entry.name} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip formatter={(value) => Number(value).toLocaleString('fr-FR')} />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="donut-center">
-                  <strong>{totalCotisations}</strong>
-                  <span>Total</span>
-                </div>
               </div>
-              <ul className="donut-legend">
-                {(statutPie.length ? statutPie : [{ name: 'Aucune donnée', value: 0, color: '#94a3b8' }]).map((s) => (
-                  <li key={s.name}>
-                    <span className="dot" style={{ background: s.color }} />
-                    <span>{s.name}</span>
-                    <strong>
-                      {s.value}
-                      {totalCotisations ? ` · ${Math.round((s.value / totalCotisations) * 1000) / 10}%` : ''}
-                    </strong>
-                  </li>
-                ))}
+              <ul className="donut-legend donut-legend--membres">
+                <li>
+                  <span className="dot" style={{ background: COLORS.secondary }} />
+                  <em>Lumières</em>
+                  <strong>{(stats.membres.lumieres ?? 0).toLocaleString('fr-FR')}</strong>
+                </li>
+                <li>
+                  <span className="dot" style={{ background: COLORS.primary }} />
+                  <em>Flambeaux</em>
+                  <strong>{(stats.membres.flambeaux ?? 0).toLocaleString('fr-FR')}</strong>
+                </li>
               </ul>
             </div>
           </div>
 
-          <div className="dash-grid-bottom">
-            <div className="dash-card chart-card">
-              <div className="card-head">
-                <div>
-                  <h2>Activités — paiement</h2>
-                  <p>Payées vs total par activité</p>
-                </div>
+          <div className="dash-card table-card">
+            <div className="card-head">
+              <div>
+                <h2>Liste des membres</h2>
+                <p>Titre, région, district, paroisse et communauté</p>
               </div>
-              <div className="chart-box">
-                <ResponsiveContainer width="100%" height={240}>
-                  <LineChart data={activiteBars}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" />
-                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} />
-                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} />
-                    <Tooltip
-                      labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName || ''}
-                    />
-                    <Legend />
-                    <Line type="monotone" dataKey="payees" name="Payées" stroke={COLORS.primary} strokeWidth={2.5} dot={{ r: 4 }} />
-                    <Line type="monotone" dataKey="total" name="Total" stroke={COLORS.secondary} strokeWidth={2.5} dot={{ r: 4 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              <Link to={paths.adminMembres} className="dash-btn ghost">
+                Voir tout
+              </Link>
             </div>
-
-            <div className="dash-card chart-card">
-              <div className="card-head">
-                <div>
-                  <h2>Top régions</h2>
-                  <p>Taux de paiement</p>
-                </div>
-              </div>
-              <div className="traffic-table">
-                <div className="traffic-head">
-                  <span>Région</span>
-                  <span>Membres</span>
-                  <span>Taux</span>
-                </div>
-                {topRegionsTable.map((r) => (
-                  <div key={r.regionId} className="traffic-row">
-                    <span className="traffic-name">{r.nom}</span>
-                    <span>{r.membres}</span>
-                    <div className="traffic-bar-wrap">
-                      <div className="traffic-bar" style={{ width: `${Math.max(r.taux, 2)}%` }} />
-                      <em>{r.taux}%</em>
-                    </div>
-                  </div>
-                ))}
-                {!topRegionsTable.length && <p className="muted">Aucune donnée régionale</p>}
-              </div>
+            <div className="data-table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Membre</th>
+                    <th>Titre</th>
+                    <th>Région</th>
+                    <th>District</th>
+                    <th>Paroisse</th>
+                    <th>Communauté</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(stats.derniersMembres || []).map((m) => (
+                    <tr key={m.id}>
+                      <td>
+                        <div className="person-cell">
+                          {m.photoUrl ? (
+                            <img src={m.photoUrl} alt="" className="avatar-sm" />
+                          ) : (
+                            <span className="avatar-sm avatar-sm--ph">
+                              {initials(m.prenom, m.nom)}
+                            </span>
+                          )}
+                          <div>
+                            <strong>
+                              {m.prenom} {m.nom}
+                            </strong>
+                            <em>{m.idMembre}</em>
+                          </div>
+                        </div>
+                      </td>
+                      <td>{m.role?.nom || '—'}</td>
+                      <td>{m.region?.nom || '—'}</td>
+                      <td>{m.district?.nom || '—'}</td>
+                      <td>{m.paroisse?.nom || '—'}</td>
+                      <td>{m.communaute?.nom || '—'}</td>
+                    </tr>
+                  ))}
+                  {!stats.derniersMembres?.length && (
+                    <tr>
+                      <td colSpan={6} className="muted">
+                        Aucun membre
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-
-            <div className="dash-card chart-card">
-              <div className="card-head">
-                <div>
-                  <h2>Encaissements par activité</h2>
-                  <p>Montants perçus (FCFA)</p>
-                </div>
-              </div>
-              <div className="chart-box">
-                <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={activiteBars} layout="vertical" margin={{ left: 8, right: 16 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" horizontal={false} />
-                    <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} />
-                    <YAxis type="category" dataKey="name" width={56} tick={{ fontSize: 11, fill: '#64748b' }} />
-                    <Tooltip
-                      formatter={(v) => [`${formatFcfa(v)} FCFA`, 'Perçu']}
-                      labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName || ''}
-                    />
-                    <Bar dataKey="percu" name="Perçu" fill={COLORS.primary} radius={[0, 6, 6, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+            <div className="table-foot">
+              <span>
+                Affichage de {(stats.derniersMembres || []).length} membre(s)
+              </span>
             </div>
           </div>
         </>

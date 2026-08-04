@@ -11,16 +11,8 @@ function formatDateInput(value) {
   return d.toISOString().slice(0, 10);
 }
 
-function brancheLabel(branche) {
-  if (branche === 'FLAMBEAUX') return 'Flambeaux';
-  if (branche === 'LUMIERES') return 'Lumières';
-  return '—';
-}
-
-function statutClass(statut) {
-  if (statut === 'VALIDE') return 'badge-valide';
-  if (statut === 'REJETE' || statut === 'SUSPENDU') return 'badge-attente';
-  return 'badge-en_attente';
+function initials(prenom, nom) {
+  return `${prenom?.[0] || ''}${nom?.[0] || ''}`.toUpperCase() || '?';
 }
 
 const EMPTY_FORM = {
@@ -43,8 +35,10 @@ const EMPTY_FORM = {
 
 export default function AdminMembresPage() {
   const [data, setData] = useState({ items: [], total: 0 });
-  const [search, setSearch] = useState('');
-  const [statutFilter, setStatutFilter] = useState('');
+  const [filters, setFilters] = useState({ id: '', nom: '', region: '' });
+  const [applied, setApplied] = useState({ id: '', nom: '', region: '' });
+  const [selected, setSelected] = useState(() => new Set());
+  const [openMenuId, setOpenMenuId] = useState(null);
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -68,18 +62,18 @@ export default function AdminMembresPage() {
     params: paroisseId ? { paroisseId } : {},
   });
 
-  async function load() {
+  async function load(searchNom = applied.nom) {
     setError('');
     setLoading(true);
     try {
       const { data: res } = await api.get('/membres', {
         params: {
-          search: search || undefined,
-          statut: statutFilter || undefined,
-          limit: 100,
+          search: searchNom || undefined,
+          limit: 200,
         },
       });
       setData(res);
+      setSelected(new Set());
     } catch (e) {
       setError(e.response?.data?.message || 'Erreur de chargement');
     } finally {
@@ -104,6 +98,39 @@ export default function AdminMembresPage() {
       setDistricts(res.data.data || []);
     });
   }, [form.regionId]);
+
+  function runSearch(e) {
+    e?.preventDefault();
+    const next = { ...filters };
+    setApplied(next);
+    load(next.nom);
+  }
+
+  function formatDateFr(value) {
+    if (!value) return '—';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('fr-FR');
+  }
+
+  function brancheLabel(branche) {
+    if (branche === 'FLAMBEAUX') return 'Flambeaux';
+    if (branche === 'LUMIERES') return 'Lumières';
+    return '—';
+  }
+
+  function toggleOne(id) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll(checked, ids) {
+    setSelected(checked ? new Set(ids) : new Set());
+  }
 
   function openEdit(m) {
     setMsg('');
@@ -216,122 +243,169 @@ export default function AdminMembresPage() {
     }
   }
 
-  const items = useMemo(() => data.items || [], [data.items]);
+  const items = useMemo(() => {
+    let list = data.items || [];
+    const idQ = applied.id.trim().toLowerCase();
+    const regionQ = applied.region.trim().toLowerCase();
+    if (idQ) {
+      list = list.filter((m) => (m.idMembre || '').toLowerCase().includes(idQ));
+    }
+    if (regionQ) {
+      list = list.filter((m) => (m.region?.nom || '').toLowerCase().includes(regionQ));
+    }
+    return list;
+  }, [data.items, applied]);
+
+  const allIds = items.map((m) => m.id);
+  const allSelected = allIds.length > 0 && allIds.every((id) => selected.has(id));
 
   return (
     <AdminShell title="Membres" crumbs={['Tableaux de bord', 'Membres']}>
       <section className="membres-page">
-        <div className="membres-toolbar">
-          <p className="muted membres-count">{data.total} membre(s)</p>
-        </div>
-
         {msg && <div className="alert alert-success">{msg}</div>}
         {error && <div className="alert alert-error">{error}</div>}
 
-        <div className="card membres-filters">
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="search">Recherche</label>
-              <input
-                id="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && load()}
-                placeholder="Nom, ID, contact, email…"
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="statutFilter">Statut</label>
-              <select
-                id="statutFilter"
-                value={statutFilter}
-                onChange={(e) => setStatutFilter(e.target.value)}
-              >
-                <option value="">Tous</option>
-                <option value="EN_ATTENTE">En attente</option>
-                <option value="VALIDE">Validé</option>
-                <option value="REJETE">Rejeté</option>
-                <option value="SUSPENDU">Suspendu</option>
-              </select>
-            </div>
+        <div className="card membres-panel">
+          <div className="membres-panel-head">
+            <h2>Données de tous les membres</h2>
           </div>
-          <button type="button" className="btn" onClick={() => load()}>
-            Filtrer
-          </button>
-        </div>
 
-        {loading ? (
-          <p className="muted">Chargement…</p>
-        ) : items.length === 0 ? (
-          <div className="card">
-            <p className="muted" style={{ margin: 0 }}>
-              Aucun membre trouvé.
-            </p>
-          </div>
-        ) : (
-          <div className="membres-list">
-            {items.map((m) => (
-              <article key={m.id} className="card membre-card">
-                <div className="membre-card-main">
-                  {m.photoUrl ? (
-                    <img src={m.photoUrl} alt="" className="membre-avatar" />
-                  ) : (
-                    <div className="membre-avatar membre-avatar--placeholder">
-                      {(m.prenom?.[0] || '?')}
-                      {(m.nom?.[0] || '')}
-                    </div>
-                  )}
-                  <div className="membre-info">
-                    <div className="membre-info-top">
-                      <h3>
+          <form className="membres-search-bar" onSubmit={runSearch}>
+            <input
+              type="search"
+              value={filters.id}
+              onChange={(e) => setFilters((f) => ({ ...f, id: e.target.value }))}
+              placeholder="Recherche par ID membre…"
+              aria-label="Recherche par ID"
+            />
+            <input
+              type="search"
+              value={filters.nom}
+              onChange={(e) => setFilters((f) => ({ ...f, nom: e.target.value }))}
+              placeholder="Recherche par nom…"
+              aria-label="Recherche par nom"
+            />
+            <input
+              type="search"
+              value={filters.region}
+              onChange={(e) => setFilters((f) => ({ ...f, region: e.target.value }))}
+              placeholder="Recherche par région…"
+              aria-label="Recherche par région"
+            />
+            <button type="submit" className="btn-search">
+              Recherche
+            </button>
+          </form>
+
+          {loading ? (
+            <p className="muted">Chargement…</p>
+          ) : (
+            <div className="data-table-wrap">
+              <table className="membres-data-table membres-data-table--rich">
+                <thead>
+                  <tr>
+                    <th className="col-check">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={(e) => toggleAll(e.target.checked, allIds)}
+                        aria-label="Tout sélectionner"
+                      />
+                    </th>
+                    <th>ID</th>
+                    <th>Photo</th>
+                    <th>Nom</th>
+                    <th>Branche</th>
+                    <th>Région</th>
+                    <th>District</th>
+                    <th>Paroisse</th>
+                    <th>Date de naissance</th>
+                    <th>Téléphone</th>
+                    <th>E-mail</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((m) => (
+                    <tr key={m.id}>
+                      <td className="col-check">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(m.id)}
+                          onChange={() => toggleOne(m.id)}
+                          aria-label={`Sélectionner ${m.prenom} ${m.nom}`}
+                        />
+                      </td>
+                      <td className="col-id">#{m.idMembre}</td>
+                      <td>
+                        {m.photoUrl ? (
+                          <img src={m.photoUrl} alt="" className="avatar-sm" />
+                        ) : (
+                          <span className="avatar-sm avatar-sm--ph">
+                            {initials(m.prenom, m.nom)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="col-name">
                         {m.prenom} {m.nom}
-                      </h3>
-                      <span className={`badge ${statutClass(m.statut)}`}>{m.statut}</span>
-                    </div>
-                    <p className="membre-meta">
-                      <span>{m.idMembre}</span>
-                      <span>·</span>
-                      <span>{m.role?.nom || '—'}</span>
-                      <span>·</span>
-                      <span>{brancheLabel(m.branche)}</span>
-                    </p>
-                    <p className="membre-meta">
-                      {[m.contact, m.email].filter(Boolean).join(' · ') || 'Pas de contact'}
-                    </p>
-                    <p className="membre-meta">
-                      {[m.region?.nom, m.district?.nom, m.paroisse?.nom, m.communaute?.nom]
-                        .filter(Boolean)
-                        .join(' › ') || 'Localisation non renseignée'}
-                    </p>
-                  </div>
-                </div>
-                <div className="membre-actions">
-                  <button type="button" className="btn" onClick={() => openEdit(m)}>
-                    Modifier
-                  </button>
-                  {m.statut === 'EN_ATTENTE' && (
-                    <>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        onClick={() => quickStatut(m.id, 'VALIDE')}
-                      >
-                        Valider
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        onClick={() => quickStatut(m.id, 'REJETE')}
-                      >
-                        Rejeter
-                      </button>
-                    </>
+                      </td>
+                      <td>{brancheLabel(m.branche)}</td>
+                      <td>{m.region?.nom || '—'}</td>
+                      <td>{m.district?.nom || '—'}</td>
+                      <td>{m.paroisse?.nom || '—'}</td>
+                      <td>{formatDateFr(m.dateNaissance)}</td>
+                      <td>{m.contact || '—'}</td>
+                      <td className="col-email">{m.email || '—'}</td>
+                      <td className="col-actions">
+                        <div className="row-menu">
+                          <button
+                            type="button"
+                            className="row-menu-btn"
+                            aria-label="Actions"
+                            onClick={() => setOpenMenuId(openMenuId === m.id ? null : m.id)}
+                          >
+                            ⋯
+                          </button>
+                          {openMenuId === m.id && (
+                            <div className="row-menu-list">
+                              <button type="button" onClick={() => { setOpenMenuId(null); openEdit(m); }}>
+                                Modifier
+                              </button>
+                              {m.statut === 'EN_ATTENTE' && (
+                                <>
+                                  <button type="button" onClick={() => { setOpenMenuId(null); quickStatut(m.id, 'VALIDE'); }}>
+                                    Valider
+                                  </button>
+                                  <button type="button" onClick={() => { setOpenMenuId(null); quickStatut(m.id, 'REJETE'); }}>
+                                    Rejeter
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {!items.length && (
+                    <tr>
+                      <td colSpan={12} className="muted empty-row">
+                        Aucun membre trouvé.
+                      </td>
+                    </tr>
                   )}
-                </div>
-              </article>
-            ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="table-foot">
+            <span>
+              Affichage de {items.length} membre(s)
+              {data.total != null ? ` · ${data.total} au total` : ''}
+            </span>
           </div>
-        )}
+        </div>
       </section>
 
       {editing && (

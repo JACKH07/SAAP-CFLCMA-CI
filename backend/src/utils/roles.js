@@ -14,7 +14,10 @@ const ROLE_MEMBRES = ROLE_MEMBRES_ACTIFS;
  * Accès admin / dashboard réservé exclusivement au Coordinateur général (C.G.).
  */
 function hasAdminAccess(membre) {
-  return membre?.role?.nom === ROLE_COORDINATEUR_GENERAL;
+  if (!membre) return false;
+  if (membre.isAdmin === true) return true;
+  if (membre.role?.niveauHierarchique === 1) return true;
+  return membre.role?.nom === ROLE_COORDINATEUR_GENERAL;
 }
 
 function isCoordinateurGeneral(membre) {

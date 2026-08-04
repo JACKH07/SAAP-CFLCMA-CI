@@ -42,11 +42,3 @@ exports.listRoles = asyncHandler(async (req, res) => {
   });
   res.json({ success: true, data: roles });
 });
-
-exports.listActivites = asyncHandler(async (_req, res) => {
-  const activites = await prisma.activite.findMany({
-    where: { active: true },
-    orderBy: { nom: 'asc' },
-  });
-  res.json({ success: true, data: activites });
-});

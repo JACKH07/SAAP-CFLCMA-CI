@@ -1,22 +1,31 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { paths } from '../config/env';
 import BrandLogo from './BrandLogo';
 import './AdminShell.css';
 
 const NAV = [
   {
-    label: 'Principal',
+    label: 'Tableaux de bord',
     items: [
-      { to: '/admin', end: true, label: 'Analytique', icon: 'chart' },
-      { to: '/admin/membres', label: 'Membres', icon: 'users' },
-      { to: '/admin/cotisations', label: 'Paiements', icon: 'pay' },
+      { to: paths.admin, end: true, label: 'Flambeaux & Lumières', icon: 'chart' },
+      { to: paths.adminMembres, label: 'Membres', icon: 'users' },
     ],
   },
   {
-    label: 'Compte',
+    label: 'Administration',
     items: [
-      { to: '/profil', label: 'Mon profil', icon: 'user' },
+      { to: paths.adminBureau, label: 'Bureau', icon: 'bureau' },
+      { to: paths.adminCompte, label: 'Compte', icon: 'compte' },
+      { to: paths.adminActivite, label: 'Activités', icon: 'activite' },
+      { to: paths.adminCotisations, label: 'Paiements', icon: 'pay' },
+    ],
+  },
+  {
+    label: 'Profil',
+    items: [
+      { to: paths.profil, label: 'Mon profil', icon: 'user' },
     ],
   },
 ];
@@ -47,6 +56,30 @@ function NavIcon({ type }) {
       </svg>
     );
   }
+  if (type === 'bureau') {
+    return (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path d="M4 20V9l8-5 8 5v11" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M9 20v-6h6v6" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (type === 'compte') {
+    return (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <rect x="5" y="4" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M9 9h6M9 13h6M9 17h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === 'activite') {
+    return (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path d="M12 3v4M12 17v4M3 12h4M17 12h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.8" />
+      </svg>
+    );
+  }
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
       <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.8" />
@@ -62,7 +95,7 @@ export default function AdminShell({ children, title = 'Analytique', crumbs = ['
 
   function handleLogout() {
     logout();
-    navigate('/admin_connecte');
+    navigate(paths.adminLogin);
   }
 
   return (

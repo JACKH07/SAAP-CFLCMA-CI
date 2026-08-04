@@ -8,6 +8,5 @@ router.get('/regions/:id/districts', geoController.listDistricts);
 router.get('/paroisses', geoController.searchParoisses);
 router.get('/communautes', geoController.searchCommunautes);
 router.get('/roles', geoController.listRoles);
-router.get('/activites', geoController.listActivites);
 
 module.exports = router;

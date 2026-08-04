@@ -15,7 +15,10 @@ class DashboardService {
       totalMembres,
       flambeaux,
       lumieres,
+      membresBureau,
       membresEnAttente,
+      membresRejetes,
+      membresSuspendus,
       totalCotisations,
       payees,
       partielles,
@@ -23,11 +26,21 @@ class DashboardService {
       montantAgg,
       parRegion,
       parActivite,
+      derniersMembres,
+      dernieresCotisations,
     ] = await Promise.all([
       prisma.membre.count({ where: membreWhere }),
       prisma.membre.count({ where: { ...membreWhere, branche: 'FLAMBEAUX' } }),
       prisma.membre.count({ where: { ...membreWhere, branche: 'LUMIERES' } }),
+      prisma.membre.count({
+        where: {
+          ...membreWhere,
+          responsabiliteBureau: { not: null },
+        },
+      }),
       prisma.membre.count({ where: { statut: 'EN_ATTENTE', ...(regionId ? { regionId: Number(regionId) } : {}) } }),
+      prisma.membre.count({ where: { statut: 'REJETE', ...(regionId ? { regionId: Number(regionId) } : {}) } }),
+      prisma.membre.count({ where: { statut: 'SUSPENDU', ...(regionId ? { regionId: Number(regionId) } : {}) } }),
       prisma.cotisation.count({ where: cotisationWhere }),
       prisma.cotisation.count({ where: { ...cotisationWhere, statut: 'PAYE' } }),
       prisma.cotisation.count({ where: { ...cotisationWhere, statut: 'PARTIEL' } }),
@@ -38,6 +51,49 @@ class DashboardService {
       }),
       this.statsByRegion(activiteId),
       this.statsByActivite(regionId),
+      prisma.membre.findMany({
+        where: regionId ? { regionId: Number(regionId) } : {},
+        orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
+        take: 50,
+        select: {
+          id: true,
+          nom: true,
+          prenom: true,
+          idMembre: true,
+          email: true,
+          contact: true,
+          branche: true,
+          statut: true,
+          photoUrl: true,
+          role: { select: { nom: true } },
+          region: { select: { nom: true } },
+          district: { select: { nom: true } },
+          paroisse: { select: { nom: true } },
+          communaute: { select: { nom: true } },
+        },
+      }),
+      prisma.cotisation.findMany({
+        where: cotisationWhere,
+        orderBy: { updatedAt: 'desc' },
+        take: 6,
+        include: {
+          membre: {
+            select: {
+              id: true,
+              nom: true,
+              prenom: true,
+              idMembre: true,
+              photoUrl: true,
+              role: { select: { nom: true } },
+              region: { select: { nom: true } },
+              district: { select: { nom: true } },
+              paroisse: { select: { nom: true } },
+              communaute: { select: { nom: true } },
+            },
+          },
+          activite: { select: { nom: true, prefixeIdPaiement: true } },
+        },
+      }),
     ]);
 
     const tauxPaiement =
@@ -48,7 +104,10 @@ class DashboardService {
         total: totalMembres,
         flambeaux,
         lumieres,
+        bureau: membresBureau,
         enAttente: membresEnAttente,
+        rejetes: membresRejetes,
+        suspendus: membresSuspendus,
       },
       cotisations: {
         total: totalCotisations,
@@ -61,6 +120,8 @@ class DashboardService {
       },
       parRegion,
       parActivite,
+      derniersMembres,
+      dernieresCotisations,
     };
   }
 
@@ -72,10 +133,12 @@ class DashboardService {
       const where = { regionId: region.id };
       if (activiteId) where.activiteId = Number(activiteId);
 
-      const [total, payees, membres] = await Promise.all([
+      const [total, payees, membres, flambeaux, lumieres] = await Promise.all([
         prisma.cotisation.count({ where }),
         prisma.cotisation.count({ where: { ...where, statut: 'PAYE' } }),
         prisma.membre.count({ where: { regionId: region.id, statut: 'VALIDE' } }),
+        prisma.membre.count({ where: { regionId: region.id, statut: 'VALIDE', branche: 'FLAMBEAUX' } }),
+        prisma.membre.count({ where: { regionId: region.id, statut: 'VALIDE', branche: 'LUMIERES' } }),
       ]);
 
       results.push({
@@ -83,6 +146,8 @@ class DashboardService {
         nom: region.nom,
         code: region.code,
         membres,
+        flambeaux,
+        lumieres,
         cotisations: total,
         payees,
         taux: total > 0 ? Math.round((payees / total) * 1000) / 10 : 0,

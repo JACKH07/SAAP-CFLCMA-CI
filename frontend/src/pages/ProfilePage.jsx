@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import { useAuthStore } from '../store/authStore';
-import api from '../api/client';
 import './Auth.css';
 
 function statutBadge(statut) {
@@ -17,11 +16,9 @@ function statutBadge(statut) {
 export default function ProfilePage() {
   const { user, refreshMe } = useAuthStore();
   const [profile, setProfile] = useState(user);
-  const [cotisations, setCotisations] = useState([]);
 
   useEffect(() => {
     refreshMe().then(setProfile).catch(() => {});
-    api.get('/cotisations/me').then((res) => setCotisations(res.data.data || []));
   }, []);
 
   if (!profile) return null;
@@ -103,41 +100,6 @@ export default function ProfilePage() {
                   .join(' · ') || '—'}
               </div>
             </div>
-          </div>
-        </div>
-
-        <div>
-          <h2>Mes cotisations</h2>
-          <div className="stack">
-            {cotisations.length === 0 && (
-              <p className="muted">Aucune cotisation pour le moment.</p>
-            )}
-            {cotisations.map((c) => (
-              <div key={c.id} className="card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
-                  <div>
-                    <strong>{c.activite?.nom}</strong>
-                    <div className="muted" style={{ fontSize: '0.85rem' }}>
-                      {c.idPaiement}
-                    </div>
-                  </div>
-                  <span
-                    className={`badge ${
-                      c.statut === 'PAYE'
-                        ? 'badge-paye'
-                        : c.statut === 'PARTIEL'
-                          ? 'badge-partiel'
-                          : 'badge-attente'
-                    }`}
-                  >
-                    {c.statut}
-                  </span>
-                </div>
-                <div style={{ marginTop: '0.75rem' }}>
-                  {Number(c.montantPaye)} / {Number(c.montant)} FCFA
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </section>

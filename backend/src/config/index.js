@@ -14,11 +14,31 @@ if ((appEnv === 'production' || appEnv === 'preprod') && (!process.env.JWT_SECRE
   );
 }
 
+const frontendUrl = (process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:5173').replace(
+  /\/$/,
+  ''
+);
+
 module.exports = {
   port: parseInt(process.env.PORT || '4000', 10),
   nodeEnv,
   appEnv,
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  corsOrigin: process.env.CORS_ORIGIN || frontendUrl,
+  urls: {
+    frontend: frontendUrl,
+    apiPublic: process.env.API_PUBLIC_URL || `http://localhost:${process.env.PORT || 4000}/api`,
+    memberLogin: process.env.MEMBER_LOGIN_URL || `${frontendUrl}/login`,
+    adminLogin: process.env.ADMIN_LOGIN_URL || `${frontendUrl}/admin_connecte`,
+    register: process.env.REGISTER_URL || `${frontendUrl}/register`,
+    adminDashboard: process.env.ADMIN_DASHBOARD_URL || `${frontendUrl}/admin`,
+    adminMembres: process.env.ADMIN_MEMBRES_URL || `${frontendUrl}/admin/membres`,
+    adminCotisations: process.env.ADMIN_COTISATIONS_URL || `${frontendUrl}/admin/cotisations`,
+    adminBureau: process.env.ADMIN_BUREAU_URL || `${frontendUrl}/admin/bureau`,
+    adminCompte: process.env.ADMIN_COMPTE_URL || `${frontendUrl}/admin/compte`,
+    adminActivite: process.env.ADMIN_ACTIVITE_URL || `${frontendUrl}/admin/activites`,
+    profil: process.env.PROFIL_URL || `${frontendUrl}/profil`,
+    mesCotisations: process.env.MES_COTISATIONS_URL || `${frontendUrl}/mes-cotisations`,
+  },
   jwt: {
     secret: process.env.JWT_SECRET || 'dev-secret-change-me',
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',

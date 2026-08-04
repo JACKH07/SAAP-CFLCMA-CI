@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { hasAdminAccess } from '../utils/roles';
+import { paths } from '../config/env';
 
 export function ProtectedRoute({ adminOnly = false }) {
   const { token, user } = useAuthStore();
@@ -9,7 +10,7 @@ export function ProtectedRoute({ adminOnly = false }) {
   if (!token) {
     return (
       <Navigate
-        to={adminOnly ? '/admin_connecte' : '/login'}
+        to={adminOnly ? paths.adminLogin : paths.login}
         replace
         state={{ from: location }}
       />
@@ -17,7 +18,7 @@ export function ProtectedRoute({ adminOnly = false }) {
   }
 
   if (adminOnly && !hasAdminAccess(user)) {
-    return <Navigate to="/profil" replace />;
+    return <Navigate to={paths.profil} replace />;
   }
 
   return <Outlet />;

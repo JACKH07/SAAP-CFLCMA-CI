@@ -1,7 +1,8 @@
 import axios from 'axios';
+import { API_URL, paths } from '../config/env';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -22,9 +23,9 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('saap_token');
       localStorage.removeItem('saap_user');
-      if (!window.location.pathname.startsWith('/login') &&
-          !window.location.pathname.startsWith('/register')) {
-        window.location.href = '/login';
+      const { pathname } = window.location;
+      if (!pathname.startsWith(paths.login) && !pathname.startsWith(paths.register)) {
+        window.location.href = paths.login;
       }
     }
     return Promise.reject(error);

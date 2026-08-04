@@ -17,14 +17,14 @@
 }
 
 .auth-page--register {
-  width: min(100%, 640px);
+  width: min(100%, 1100px);
   justify-content: flex-start;
   padding-top: max(1rem, env(safe-area-inset-top));
 }
 
 @media (min-width: 900px) {
   .auth-page--register {
-    width: min(100%, 760px);
+    width: min(100%, 1100px);
     padding-inline: 1.25rem;
   }
 }
@@ -126,6 +126,111 @@
   font-size: clamp(1.15rem, 4vw, 1.35rem);
 }
 
+.auth-card--grid .form-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.15rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.auth-card--grid .form-card-head h2 {
+  margin: 0;
+  text-align: left;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(1.15rem, 2.5vw, 1.35rem);
+  color: #0f172a;
+}
+
+.auth-hero--compact {
+  padding-bottom: 0.25rem;
+}
+
+.auth-hero--compact .auth-logo {
+  width: 64px;
+  height: 64px;
+}
+
+.req {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+/* Grille type maquette : 1 → 2 → 4 colonnes */
+.auth-page--register .form-grid,
+.auth-page--register .form-grid--4 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0 0.9rem;
+}
+
+.auth-page--register .form-grid--4 > .form-group {
+  margin-bottom: 1rem;
+}
+
+.auth-page--register .auth-card--grid input,
+.auth-page--register .auth-card--grid select,
+.auth-page--register .auth-card--grid textarea {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  border-radius: 8px;
+  min-height: 44px;
+}
+
+.auth-page--register .auth-card--grid label {
+  color: #475569;
+  font-size: 0.84rem;
+}
+
+.file-upload-box {
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 0.85rem 1rem;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+.file-upload-box input[type='file'] {
+  min-height: auto;
+  padding: 0.35rem 0;
+  background: transparent;
+  border: none;
+}
+
+@media (min-width: 640px) {
+  .auth-page--register .form-grid,
+  .auth-page--register .form-grid--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .auth-page--register .form-span-2 {
+    grid-column: span 2;
+  }
+}
+
+@media (min-width: 980px) {
+  .auth-page--register .form-grid--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .auth-page--register .form-grid--4 > .form-span-2 {
+    grid-column: span 2;
+  }
+}
+
+.auth-page--register .btn-block {
+  position: sticky;
+  bottom: calc(0.5rem + var(--safe-bottom));
+  z-index: 5;
+  margin-top: 0.85rem;
+  box-shadow: 0 8px 24px rgba(28, 124, 56, 0.2);
+}
+
 .auth-footer {
   text-align: center;
   margin: 1rem 0 0;
@@ -136,58 +241,6 @@
 .auth-footer-secondary {
   margin-top: 0.45rem;
   font-size: 0.88rem;
-}
-
-.form-section {
-  margin-bottom: 0.5rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.form-section:last-of-type {
-  border-bottom: none;
-  margin-bottom: 0.35rem;
-  padding-bottom: 0;
-}
-
-.form-section-title {
-  margin: 0 0 0.85rem;
-  font-family: var(--font-sans);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-brand);
-}
-
-/* Grille d’inscription : 1 col mobile, 2 cols tablette/desktop */
-.auth-page--register .form-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0;
-}
-
-@media (min-width: 640px) {
-  .auth-page--register .form-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    column-gap: 0.9rem;
-  }
-
-  .auth-page--register .form-grid > .form-group {
-    margin-bottom: 1rem;
-  }
-
-  .auth-page--register .form-span-2 {
-    grid-column: 1 / -1;
-  }
-}
-
-.auth-page--register .btn-block {
-  position: sticky;
-  bottom: calc(0.5rem + var(--safe-bottom));
-  z-index: 5;
-  margin-top: 0.35rem;
-  box-shadow: 0 8px 24px rgba(28, 124, 56, 0.2);
 }
 
 .profile-photo {

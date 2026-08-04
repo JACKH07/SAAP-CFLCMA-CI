@@ -1,9 +1,11 @@
 const bcrypt = require('bcryptjs');
 require('../config'); // charge .env / .env.$APP_ENV
 const prisma = require('../config/prisma');
+const { normalizeText } = require('../utils/text');
+const HIERARCHIE_GEO = require('./hierarchieGeo');
 
+/** Régions CI hors hiérarchie détaillée (district générique uniquement) */
 const REGIONS_CI = [
-  { nom: 'Abidjan', code: 'ABJ' },
   { nom: 'Yamoussoukro', code: 'YAM' },
   { nom: 'Bouaké', code: 'BKE' },
   { nom: 'Daloa', code: 'DAL' },
@@ -14,7 +16,6 @@ const REGIONS_CI = [
   { nom: 'Abengourou', code: 'ABG' },
   { nom: 'Divo', code: 'DIV' },
   { nom: 'Anyama', code: 'ANY' },
-  { nom: 'Agboville', code: 'AGB' },
   { nom: 'Grand-Bassam', code: 'GBA' },
   { nom: 'Bondoukou', code: 'BON' },
   { nom: 'Odienné', code: 'ODI' },
@@ -30,10 +31,10 @@ const REGIONS_CI = [
   { nom: 'Guiglo', code: 'GUI' },
   { nom: 'Duékoué', code: 'DUE' },
   { nom: 'Toumodi', code: 'TOU' },
-  { nom: 'Tiassalé', code: 'TIA' },
   { nom: 'Adiaké', code: 'ADI' },
-  { nom: 'Aboisso', code: 'ABO' },
 ];
+
+const HIERARCHIE_CODES = new Set(HIERARCHIE_GEO.map((h) => h.code));
 
 const ROLES = [
   { nom: 'Coordinateur général (C.G.)', niveauHierarchique: 1 },
@@ -47,7 +48,6 @@ const ROLES = [
   { nom: 'Membres actifs', niveauHierarchique: 9 },
 ];
 
-/** Anciens libellés → nouveaux (migration seed) */
 const ROLE_MIGRATIONS = {
   'Secrétaire général': 'Coordinateur général (C.G.)',
   'Coordinateur général': 'Coordinateur général (C.G.)',
@@ -58,7 +58,7 @@ const ROLE_MIGRATIONS = {
   CTA: 'Chefs de troupe adjoints (C.T.A.)',
   CP: 'Chefs de patrouille (C.P.)',
   SP: 'Sous-chefs de patrouille (S.P.)',
-  CLG: 'Membres actifs',
+  CLJ: 'Membres actifs',
   Membres: 'Membres actifs',
 };
 
@@ -69,6 +69,201 @@ const ACTIVITES = [
   { nom: 'Activité sociale', prefixeIdPaiement: 'SOCIAL', montantDefaut: 3000 },
   { nom: 'Journée Nationale', prefixeIdPaiement: 'JN', montantDefaut: 2000 },
 ];
+
+async function upsertParoisse(districtId, nom) {
+  const nomNormalise = normalizeText(nom);
+  const existing = await prisma.paroisse.findFirst({
+    where: { districtId, nomNormalise },
+  });
+  if (existing) {
+    return prisma.paroisse.update({
+      where: { id: existing.id },
+      data: { nom },
+    });
+  }
+  return prisma.paroisse.create({
+    data: { nom, nomNormalise, districtId },
+  });
+}
+
+/** Trouve un district par nom exact ou ancien préfixe "District …" */
+async function findDistrict(regionId, districtNom) {
+  const candidates = [
+    districtNom,
+    `District ${districtNom}`,
+    `District de ${districtNom}`,
+    `District d'${districtNom}`,
+  ];
+  for (const nom of candidates) {
+    const found = await prisma.district.findFirst({
+      where: { regionId, nom },
+    });
+    if (found) return found;
+  }
+  return null;
+}
+
+async function seedHierarchieGeo() {
+  let districtCount = 0;
+  let paroisseCount = 0;
+
+  for (const entry of HIERARCHIE_GEO) {
+    const region = await prisma.region.upsert({
+      where: { code: entry.code },
+      update: { nom: entry.region },
+      create: { nom: entry.region, code: entry.code },
+    });
+
+    // Supprimer l’ancien district générique "District {région}" s’il n’est plus utile
+    const generic = await prisma.district.findFirst({
+      where: { regionId: region.id, nom: `District ${entry.region}` },
+    });
+
+    for (const distDef of entry.districts) {
+      let district = await findDistrict(region.id, distDef.district);
+      if (!district) {
+        district = await prisma.district.create({
+          data: { nom: distDef.district, regionId: region.id },
+        });
+      } else if (district.nom !== distDef.district) {
+        district = await prisma.district.update({
+          where: { id: district.id },
+          data: { nom: distDef.district },
+        });
+      }
+      districtCount += 1;
+
+      for (const paroisseNom of distDef.paroisses) {
+        await upsertParoisse(district.id, paroisseNom);
+        paroisseCount += 1;
+      }
+    }
+
+    if (generic) {
+      const stillUsed = entry.districts.some(
+        (d) =>
+          d.district === generic.nom ||
+          `District ${d.district}` === generic.nom
+      );
+      if (!stillUsed) {
+        const paroisses = await prisma.paroisse.findMany({ where: { districtId: generic.id } });
+        if (paroisses.length === 0) {
+          await prisma.membre.updateMany({
+            where: { districtId: generic.id },
+            data: { districtId: null },
+          });
+          await prisma.cotisation.updateMany({
+            where: { districtId: generic.id },
+            data: { districtId: null },
+          });
+          await prisma.district.delete({ where: { id: generic.id } }).catch(() => {});
+        }
+      }
+    }
+  }
+
+  // Migrer l'ancienne région unique "Abidjan" (ABJ) vers Abidjan 1
+  const oldAbj = await prisma.region.findUnique({ where: { code: 'ABJ' } });
+  const abj1 = await prisma.region.findUnique({ where: { code: 'ABJ1' } });
+  if (oldAbj && abj1) {
+    const cocody = await findDistrict(abj1.id, 'Cocody');
+
+    await prisma.membre.updateMany({
+      where: { regionId: oldAbj.id },
+      data: {
+        regionId: abj1.id,
+        ...(cocody ? { districtId: cocody.id } : {}),
+      },
+    });
+    await prisma.cotisation.updateMany({
+      where: { regionId: oldAbj.id },
+      data: {
+        regionId: abj1.id,
+        ...(cocody ? { districtId: cocody.id } : {}),
+      },
+    });
+    await prisma.historiqueMandat
+      .updateMany({
+        where: { regionId: oldAbj.id },
+        data: {
+          regionId: abj1.id,
+          ...(cocody ? { districtId: cocody.id } : {}),
+        },
+      })
+      .catch(() => {});
+
+    const oldDistricts = await prisma.district.findMany({ where: { regionId: oldAbj.id } });
+    for (const d of oldDistricts) {
+      const paroisses = await prisma.paroisse.findMany({ where: { districtId: d.id } });
+      for (const p of paroisses) {
+        await prisma.communaute.deleteMany({ where: { paroisseId: p.id } });
+        await prisma.membre.updateMany({ where: { paroisseId: p.id }, data: { paroisseId: null } });
+        await prisma.cotisation.updateMany({ where: { paroisseId: p.id }, data: { paroisseId: null } });
+        await prisma.paroisse.delete({ where: { id: p.id } });
+      }
+      await prisma.membre.updateMany({
+        where: { districtId: d.id },
+        data: { districtId: cocody?.id || null },
+      });
+      await prisma.cotisation.updateMany({
+        where: { districtId: d.id },
+        data: { districtId: cocody?.id || null },
+      });
+      await prisma.district.delete({ where: { id: d.id } });
+    }
+
+    await prisma.region.delete({ where: { id: oldAbj.id } }).catch(() => {});
+    console.log('✓ Ancienne région Abidjan (ABJ) migrée vers Abidjan 1');
+  }
+
+  // Migrer Bouaké (BKE) → Bouaké 1 (BK1) si besoin
+  const oldBke = await prisma.region.findUnique({ where: { code: 'BKE' } });
+  const bk1 = await prisma.region.findUnique({ where: { code: 'BK1' } });
+  if (oldBke && bk1) {
+    const firstDist = await prisma.district.findFirst({
+      where: { regionId: bk1.id },
+      orderBy: { nom: 'asc' },
+    });
+    await prisma.membre.updateMany({
+      where: { regionId: oldBke.id },
+      data: { regionId: bk1.id, districtId: firstDist?.id || null },
+    });
+    await prisma.cotisation.updateMany({
+      where: { regionId: oldBke.id },
+      data: { regionId: bk1.id, districtId: firstDist?.id || null },
+    });
+  }
+
+  // Supprimer anciennes régions devenues districts (Tiassalé, Aboisso, Agboville générique déjà géré)
+  for (const obsolete of [
+    { code: 'TIA', label: 'Tiassalé' },
+    { code: 'ABO', label: 'Aboisso' },
+  ]) {
+    const reg = await prisma.region.findUnique({ where: { code: obsolete.code } });
+    if (!reg) continue;
+    const hasMembres = await prisma.membre.count({ where: { regionId: reg.id } });
+    if (hasMembres > 0) continue;
+    const dists = await prisma.district.findMany({ where: { regionId: reg.id } });
+    let canDelete = true;
+    for (const d of dists) {
+      const pCount = await prisma.paroisse.count({ where: { districtId: d.id } });
+      if (pCount > 0) {
+        canDelete = false;
+        break;
+      }
+    }
+    if (!canDelete) continue;
+    for (const d of dists) {
+      await prisma.district.delete({ where: { id: d.id } }).catch(() => {});
+    }
+    await prisma.region.delete({ where: { id: reg.id } }).catch(() => {});
+    console.log(`✓ Région obsolète ${obsolete.label} (${obsolete.code}) retirée`);
+  }
+
+  console.log(
+    `✓ Hiérarchie : ${HIERARCHIE_GEO.length} régions, ${districtCount} districts, ${paroisseCount} paroisses`
+  );
+}
 
 async function seed() {
   console.log('🌱 Seed SAAP CFLCMA-CI...');
@@ -101,7 +296,11 @@ async function seed() {
   }
   console.log(`✓ ${ROLES.length} rôles`);
 
+  await seedHierarchieGeo();
+
   for (const region of REGIONS_CI) {
+    if (HIERARCHIE_CODES.has(region.code)) continue;
+
     const created = await prisma.region.upsert({
       where: { code: region.code },
       update: { nom: region.nom },
@@ -112,12 +311,15 @@ async function seed() {
       where: { regionId: created.id, nom: `District ${region.nom}` },
     });
     if (!existingDistrict) {
-      await prisma.district.create({
-        data: { nom: `District ${region.nom}`, regionId: created.id },
-      });
+      const anyDistrict = await prisma.district.findFirst({ where: { regionId: created.id } });
+      if (!anyDistrict) {
+        await prisma.district.create({
+          data: { nom: `District ${region.nom}`, regionId: created.id },
+        });
+      }
     }
   }
-  console.log(`✓ ${REGIONS_CI.length} régions (+ districts initiaux)`);
+  console.log(`✓ ${REGIONS_CI.filter((r) => !HIERARCHIE_CODES.has(r.code)).length} autres régions`);
 
   for (const activite of ACTIVITES) {
     await prisma.activite.upsert({
@@ -138,10 +340,8 @@ async function seed() {
   const coordinateurGeneral = await prisma.role.findUnique({
     where: { nom: 'Coordinateur général (C.G.)' },
   });
-  const abidjan = await prisma.region.findUnique({ where: { code: 'ABJ' } });
-  const districtAbj = await prisma.district.findFirst({
-    where: { regionId: abidjan.id },
-  });
+  const abidjan1 = await prisma.region.findUnique({ where: { code: 'ABJ1' } });
+  const districtCocody = await findDistrict(abidjan1.id, 'Cocody');
 
   const existingAdmin = await prisma.membre.findUnique({ where: { email: adminEmail } });
   if (!existingAdmin) {
@@ -157,19 +357,26 @@ async function seed() {
         branche: 'FLAMBEAUX',
         idMembre: 'ADSY19900101',
         roleId: coordinateurGeneral?.id || membresRole.id,
-        regionId: abidjan.id,
-        districtId: districtAbj?.id,
+        regionId: abidjan1.id,
+        districtId: districtCocody?.id,
         isAdmin: true,
         statut: 'VALIDE',
       },
     });
     console.log(`✓ Coordinateur général (C.G.) créé : ${adminEmail}`);
-  } else if (coordinateurGeneral) {
+  } else {
     await prisma.membre.update({
       where: { id: existingAdmin.id },
-      data: { roleId: coordinateurGeneral.id, isAdmin: true },
+      data: {
+        passwordHash: await bcrypt.hash(adminPassword, 12),
+        roleId: coordinateurGeneral?.id || existingAdmin.roleId,
+        isAdmin: true,
+        statut: 'VALIDE',
+        regionId: abidjan1.id,
+        districtId: districtCocody?.id || existingAdmin.districtId,
+      },
     });
-    console.log(`✓ Coordinateur général (C.G.) déjà présent : ${adminEmail}`);
+    console.log(`✓ Coordinateur général (C.G.) mis à jour : ${adminEmail}`);
   }
 
   console.log('✅ Seed terminé');

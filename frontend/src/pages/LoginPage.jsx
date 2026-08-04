@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { hasAdminAccess } from '../utils/roles';
+import { paths } from '../config/env';
 import BrandLogo from '../components/BrandLogo';
 import './Auth.css';
 
@@ -16,7 +17,7 @@ export default function LoginPage({ mode = 'membre' }) {
   const [localError, setLocalError] = useState('');
 
   if (token && user) {
-    return <Navigate to={hasAdminAccess(user) ? '/admin' : '/profil'} replace />;
+    return <Navigate to={hasAdminAccess(user) ? paths.admin : paths.profil} replace />;
   }
 
   function onChange(e) {
@@ -52,7 +53,7 @@ export default function LoginPage({ mode = 'membre' }) {
         return;
       }
 
-      navigate(isAdmin ? '/admin' : '/profil');
+      navigate(isAdmin ? paths.admin : paths.profil);
     } catch {
       /* store */
     }
@@ -100,7 +101,7 @@ export default function LoginPage({ mode = 'membre' }) {
           </button>
 
           <p className="auth-footer muted">
-            Pas encore de compte ? <Link to="/register">S&apos;inscrire</Link>
+            Pas encore de compte ? <Link to={paths.register}>S&apos;inscrire</Link>
           </p>
         </form>
       </div>
@@ -153,7 +154,7 @@ export default function LoginPage({ mode = 'membre' }) {
         </button>
 
         <p className="auth-footer muted">
-          Vous êtes membre ? <Link to="/login">Connexion</Link>
+          Vous êtes membre ? <Link to={paths.login}>Connexion</Link>
         </p>
       </form>
     </div>

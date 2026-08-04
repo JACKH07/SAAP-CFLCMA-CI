@@ -1,19 +1,19 @@
 .admin-shell {
-  --sidebar: #14602b;
-  --sidebar-hover: rgba(255, 255, 255, 0.08);
+  --sidebar: #0b1f33;
+  --sidebar-hover: rgba(255, 255, 255, 0.07);
   --accent: #1c7c38;
   --accent-soft: #e7f6eb;
   --accent-2: #c9a227;
   --warn: #a48434;
   --danger: #b42318;
   --ok: #1c7c38;
-  --surface: #f4f7f4;
+  --surface: #f1f5f9;
   --card: #ffffff;
-  --ink: #101411;
-  --muted: #5a655e;
-  --border: #d4e0d6;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
   --radius: 14px;
-  --shadow: 0 4px 24px rgba(28, 124, 56, 0.08);
+  --shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
 
   min-height: 100dvh;
   display: grid;
@@ -24,7 +24,7 @@
 }
 
 .admin-sidebar {
-  background: linear-gradient(180deg, #14602b 0%, #1c7c38 55%, #1a6f33 100%);
+  background: linear-gradient(180deg, #0b1f33 0%, #102a44 55%, #0e2438 100%);
   color: rgba(255, 255, 255, 0.88);
   padding: 1.25rem 0.9rem;
   position: sticky;
@@ -95,9 +95,10 @@
 }
 
 .nav-item.active {
-  background: rgba(201, 162, 39, 0.28);
-  color: #ffe9a3;
+  background: rgba(28, 124, 56, 0.35);
+  color: #a8dfb6;
   font-weight: 650;
+  box-shadow: inset 3px 0 0 #c9a227;
 }
 
 .nav-ico {

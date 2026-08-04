@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { hasAdminAccess } from '../utils/roles';
+import { paths } from '../config/env';
 import BrandLogo from './BrandLogo';
 import './Layout.css';
 
@@ -11,14 +12,14 @@ export default function Layout({ children }) {
 
   function handleLogout() {
     logout();
-    navigate('/login');
+    navigate(paths.login);
   }
 
   return (
     <div className="app-shell">
       <header className="topbar">
         <div className="container topbar-inner">
-          <NavLink to={isAdmin ? '/admin' : '/profil'} className="brand">
+          <NavLink to={isAdmin ? paths.admin : paths.profil} className="brand">
             <BrandLogo size={42} className="brand-logo--nav" />
             <span className="brand-text">
               <strong>SAAP</strong>
@@ -39,15 +40,15 @@ export default function Layout({ children }) {
         <nav className="bottom-nav" aria-label="Navigation principale">
           {isAdmin ? (
             <>
-              <NavLink to="/admin">Tableau</NavLink>
-              <NavLink to="/admin/membres">Membres</NavLink>
-              <NavLink to="/admin/cotisations">Paiements</NavLink>
-              <NavLink to="/profil">Profil</NavLink>
+              <NavLink to={paths.admin}>Tableau</NavLink>
+              <NavLink to={paths.adminMembres}>Membres</NavLink>
+              <NavLink to={paths.adminCotisations}>Paiements</NavLink>
+              <NavLink to={paths.profil}>Profil</NavLink>
             </>
           ) : (
             <>
-              <NavLink to="/profil">Profil</NavLink>
-              <NavLink to="/mes-cotisations">Cotisations</NavLink>
+              <NavLink to={paths.profil}>Profil</NavLink>
+              <NavLink to={paths.mesCotisations}>Cotisations</NavLink>
             </>
           )}
         </nav>

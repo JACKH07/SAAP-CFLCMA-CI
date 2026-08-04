@@ -23,8 +23,13 @@ async function authenticate(req, _res, next) {
       throw new AppError('Token invalide ou expiré', 401);
     }
 
+    const membreId = Number(payload.sub);
+    if (!Number.isFinite(membreId) || membreId <= 0) {
+      throw new AppError('Token invalide ou expiré', 401);
+    }
+
     const membre = await prisma.membre.findUnique({
-      where: { id: payload.sub },
+      where: { id: membreId },
       select: membrePublicSelect,
     });
 
