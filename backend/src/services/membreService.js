@@ -139,6 +139,7 @@ class MembreService {
         communauteId: finalCommunauteId,
         mandateParId: mandateParId ? Number(mandateParId) : null,
         isAdmin: await resolveIsAdminForRole(roleId, isAdmin),
+        isSuperAdmin: false,
         statut,
       },
       select: membrePublicSelect,
@@ -271,6 +272,21 @@ class MembreService {
       nextRoleId,
       payload.isAdmin !== undefined ? payload.isAdmin : undefined
     );
+
+    // Le Super Admin ne peut jamais être rétrogradé via PATCH /membres
+    if (existing.isSuperAdmin) {
+      data.isAdmin = true;
+      data.isSuperAdmin = true;
+      if (payload.statut && payload.statut !== 'VALIDE' && Number(id) === Number(adminId)) {
+        throw new AppError('Vous ne pouvez pas suspendre votre propre compte Super Admin', 403);
+      }
+      if (payload.statut && ['SUSPENDU', 'REJETE'].includes(payload.statut)) {
+        throw new AppError('Le compte Super Admin ne peut pas être suspendu ainsi', 403);
+      }
+    } else {
+      // Empêcher l'élévation au Super Admin via cette route
+      delete data.isSuperAdmin;
+    }
 
     const roleChanged = data.roleId && Number(data.roleId) !== existing.roleId;
 

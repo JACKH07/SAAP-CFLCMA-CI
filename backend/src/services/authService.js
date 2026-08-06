@@ -25,6 +25,7 @@ const membrePublicSelect = {
   photoUrl: true,
   idMembre: true,
   isAdmin: true,
+  isSuperAdmin: true,
   statut: true,
   roleId: true,
   regionId: true,
@@ -41,7 +42,11 @@ const membrePublicSelect = {
 
 function withAdminFlag(membre) {
   if (!membre) return membre;
-  return { ...membre, isAdmin: hasAdminAccess(membre) };
+  return {
+    ...membre,
+    isAdmin: hasAdminAccess(membre),
+    isSuperAdmin: Boolean(membre.isSuperAdmin),
+  };
 }
 
 class AuthService {
@@ -192,7 +197,7 @@ class AuthService {
         paroisseId: paroisse.id,
         communauteId: communaute.id,
         isAdmin: false,
-        statut: 'EN_ATTENTE',
+        statut: 'VALIDE',
       },
       select: membrePublicSelect,
     });
@@ -243,7 +248,7 @@ class AuthService {
       collision: idResult.collision,
       message: idResult.collision
         ? `Inscription réussie. Un ID de collision a été généré : ${membre.idMembre}`
-        : 'Inscription réussie. Votre compte est en attente de validation.',
+        : 'Inscription réussie. Votre compte est validé.',
     };
   }
 

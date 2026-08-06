@@ -19,7 +19,7 @@ const NAV = [
       { to: paths.adminBureau, label: 'Bureau', icon: 'bureau' },
       { to: paths.adminCompte, label: 'Compte', icon: 'compte' },
       { to: paths.adminActivite, label: 'Activités', icon: 'activite' },
-      { to: paths.adminCotisations, label: 'Paiements', icon: 'pay' },
+      { to: paths.adminCotisations, label: 'Cotisations', icon: 'pay' },
     ],
   },
   {

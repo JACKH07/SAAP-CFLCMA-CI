@@ -234,6 +234,185 @@ async function seedHierarchieGeo() {
     });
   }
 
+  // Tié-n'diékro & M'bahiakro : Bouaké 1 → Bouaké 2
+  const bk2 = await prisma.region.findUnique({ where: { code: 'BK2' } });
+  if (bk1 && bk2) {
+    for (const districtNom of ["Tié-n'diékro", "M'bahiakro"]) {
+      const fromBk1 = await prisma.district.findFirst({
+        where: { regionId: bk1.id, nom: districtNom },
+      });
+      if (!fromBk1) continue;
+
+      const alreadyBk2 = await prisma.district.findFirst({
+        where: { regionId: bk2.id, nom: districtNom },
+      });
+
+      if (alreadyBk2 && alreadyBk2.id !== fromBk1.id) {
+        const paroisses = await prisma.paroisse.findMany({ where: { districtId: fromBk1.id } });
+        for (const p of paroisses) {
+          const target = await prisma.paroisse.findFirst({
+            where: { districtId: alreadyBk2.id, nomNormalise: p.nomNormalise },
+          });
+          if (target) {
+            await prisma.membre.updateMany({
+              where: { paroisseId: p.id },
+              data: { paroisseId: target.id, districtId: alreadyBk2.id, regionId: bk2.id },
+            });
+            await prisma.cotisation.updateMany({
+              where: { paroisseId: p.id },
+              data: { paroisseId: target.id, districtId: alreadyBk2.id, regionId: bk2.id },
+            });
+            await prisma.communaute.updateMany({
+              where: { paroisseId: p.id },
+              data: { paroisseId: target.id },
+            });
+            await prisma.paroisse.delete({ where: { id: p.id } });
+          } else {
+            await prisma.paroisse.update({
+              where: { id: p.id },
+              data: { districtId: alreadyBk2.id },
+            });
+            await prisma.membre.updateMany({
+              where: { districtId: fromBk1.id },
+              data: { districtId: alreadyBk2.id, regionId: bk2.id },
+            });
+            await prisma.cotisation.updateMany({
+              where: { districtId: fromBk1.id },
+              data: { districtId: alreadyBk2.id, regionId: bk2.id },
+            });
+          }
+        }
+        await prisma.membre.updateMany({
+          where: { districtId: fromBk1.id },
+          data: { districtId: alreadyBk2.id, regionId: bk2.id },
+        });
+        await prisma.cotisation.updateMany({
+          where: { districtId: fromBk1.id },
+          data: { districtId: alreadyBk2.id, regionId: bk2.id },
+        });
+        await prisma.district.delete({ where: { id: fromBk1.id } }).catch(() => {});
+      } else {
+        await prisma.district.update({
+          where: { id: fromBk1.id },
+          data: { regionId: bk2.id },
+        });
+        await prisma.membre.updateMany({
+          where: { districtId: fromBk1.id },
+          data: { regionId: bk2.id },
+        });
+        await prisma.cotisation.updateMany({
+          where: { districtId: fromBk1.id },
+          data: { regionId: bk2.id },
+        });
+      }
+    }
+    console.log("✓ Tié-n'diékro & M'bahiakro rattachés à Bouaké 2");
+  }
+
+  // Migrer Divo (DIV) → Divo 1 (DIV1) si besoin
+  const oldDiv = await prisma.region.findUnique({ where: { code: 'DIV' } });
+  const div1 = await prisma.region.findUnique({ where: { code: 'DIV1' } });
+  if (oldDiv && div1) {
+    const firstDist = await prisma.district.findFirst({
+      where: { regionId: div1.id },
+      orderBy: { nom: 'asc' },
+    });
+    await prisma.membre.updateMany({
+      where: { regionId: oldDiv.id },
+      data: { regionId: div1.id, districtId: firstDist?.id || null },
+    });
+    await prisma.cotisation.updateMany({
+      where: { regionId: oldDiv.id },
+      data: { regionId: div1.id, districtId: firstDist?.id || null },
+    });
+    console.log('✓ Ancienne région Divo (DIV) migrée vers Divo 1');
+  }
+
+  // Migrer Yamoussoukro (YAM) → Yamoussoukro 2 (YAM2) — Lac-Cité / Edmond
+  const oldYam = await prisma.region.findUnique({ where: { code: 'YAM' } });
+  const yam2 = await prisma.region.findUnique({ where: { code: 'YAM2' } });
+  if (oldYam && yam2) {
+    for (const districtNom of ['Lac-Cité', 'Edmond carrefour']) {
+      const fromOld = await prisma.district.findFirst({
+        where: { regionId: oldYam.id, nom: districtNom },
+      });
+      if (!fromOld) continue;
+      const already = await prisma.district.findFirst({
+        where: { regionId: yam2.id, nom: districtNom },
+      });
+      if (already && already.id !== fromOld.id) {
+        const paroisses = await prisma.paroisse.findMany({ where: { districtId: fromOld.id } });
+        for (const p of paroisses) {
+          const target = await prisma.paroisse.findFirst({
+            where: { districtId: already.id, nomNormalise: p.nomNormalise },
+          });
+          if (target) {
+            await prisma.membre.updateMany({
+              where: { paroisseId: p.id },
+              data: { paroisseId: target.id, districtId: already.id, regionId: yam2.id },
+            });
+            await prisma.cotisation.updateMany({
+              where: { paroisseId: p.id },
+              data: { paroisseId: target.id, districtId: already.id, regionId: yam2.id },
+            });
+            await prisma.communaute.updateMany({
+              where: { paroisseId: p.id },
+              data: { paroisseId: target.id },
+            });
+            await prisma.paroisse.delete({ where: { id: p.id } });
+          } else {
+            await prisma.paroisse.update({
+              where: { id: p.id },
+              data: { districtId: already.id },
+            });
+          }
+        }
+        await prisma.membre.updateMany({
+          where: { districtId: fromOld.id },
+          data: { districtId: already.id, regionId: yam2.id },
+        });
+        await prisma.cotisation.updateMany({
+          where: { districtId: fromOld.id },
+          data: { districtId: already.id, regionId: yam2.id },
+        });
+        await prisma.district.delete({ where: { id: fromOld.id } }).catch(() => {});
+      } else {
+        await prisma.district.update({
+          where: { id: fromOld.id },
+          data: { regionId: yam2.id },
+        });
+        await prisma.membre.updateMany({
+          where: { districtId: fromOld.id },
+          data: { regionId: yam2.id },
+        });
+        await prisma.cotisation.updateMany({
+          where: { districtId: fromOld.id },
+          data: { regionId: yam2.id },
+        });
+      }
+    }
+    console.log('✓ Yamoussoukro (YAM) → Yamoussoukro 2');
+  }
+
+  // Migrer Soubré (SOU) → Soubré 1 (SOU1)
+  const oldSou = await prisma.region.findUnique({ where: { code: 'SOU' } });
+  const sou1 = await prisma.region.findUnique({ where: { code: 'SOU1' } });
+  if (oldSou && sou1) {
+    const firstDist = await prisma.district.findFirst({
+      where: { regionId: sou1.id },
+      orderBy: { nom: 'asc' },
+    });
+    await prisma.membre.updateMany({
+      where: { regionId: oldSou.id },
+      data: { regionId: sou1.id, districtId: firstDist?.id || null },
+    });
+    await prisma.cotisation.updateMany({
+      where: { regionId: oldSou.id },
+      data: { regionId: sou1.id, districtId: firstDist?.id || null },
+    });
+    console.log('✓ Ancienne région Soubré (SOU) migrée vers Soubré 1');
+  }
+
   // Supprimer anciennes régions devenues districts (Tiassalé, Aboisso, Agboville générique déjà géré)
   for (const obsolete of [
     { code: 'TIA', label: 'Tiassalé' },
@@ -360,10 +539,11 @@ async function seed() {
         regionId: abidjan1.id,
         districtId: districtCocody?.id,
         isAdmin: true,
+        isSuperAdmin: true,
         statut: 'VALIDE',
       },
     });
-    console.log(`✓ Coordinateur général (C.G.) créé : ${adminEmail}`);
+    console.log(`✓ Super Admin créé : ${adminEmail}`);
   } else {
     await prisma.membre.update({
       where: { id: existingAdmin.id },
@@ -371,12 +551,13 @@ async function seed() {
         passwordHash: await bcrypt.hash(adminPassword, 12),
         roleId: coordinateurGeneral?.id || existingAdmin.roleId,
         isAdmin: true,
+        isSuperAdmin: true,
         statut: 'VALIDE',
         regionId: abidjan1.id,
         districtId: districtCocody?.id || existingAdmin.districtId,
       },
     });
-    console.log(`✓ Coordinateur général (C.G.) mis à jour : ${adminEmail}`);
+    console.log(`✓ Super Admin mis à jour : ${adminEmail}`);
   }
 
   console.log('✅ Seed terminé');

@@ -111,7 +111,9 @@ model Membre {
   mandatePar      Membre?   @relation("Mandat", fields: [mandateParId], references: [id])
   mandataires     Membre[]  @relation("Mandat")
   isAdmin         Boolean   @default(false) @map("is_admin")
-  statut          StatutMembre @default(EN_ATTENTE)
+  /// Unique propriétaire du SAAP : crée et supervise les autres comptes admin
+  isSuperAdmin    Boolean   @default(false) @map("is_super_admin")
+  statut          StatutMembre @default(VALIDE)
   collisionSuffix Int?      @map("collision_suffix")
   cotisations     Cotisation[]
   audits          AuditLog[] @relation("AuditActeur")

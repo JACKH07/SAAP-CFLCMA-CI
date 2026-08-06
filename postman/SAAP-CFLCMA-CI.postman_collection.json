@@ -1,0 +1,515 @@
+{
+  "info": {
+    "_postman_id": "cflcmaci-saap-api-001",
+    "name": "SAAP CFLCMA-CI API",
+    "description": "Collection complète des API SAAP Flambeaux & Lumières / CFLCMA-CI.\n\n## Utilisation\n1. Importer ce fichier + `SAAP-CFLCMA-CI.local.postman_environment.json`\n2. Sélectionner l'environnement **SAAP Local**\n3. Exécuter **Auth → Login admin** (le token JWT est enregistré automatiquement)\n4. Les autres requêtes utilisent `{{token}}`\n\nBase URL par défaut : `http://127.0.0.1:4000`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:4000" },
+    { "key": "token", "value": "" },
+    { "key": "membreId", "value": "1" },
+    { "key": "regionId", "value": "1" },
+    { "key": "districtId", "value": "1" },
+    { "key": "activiteId", "value": "1" },
+    { "key": "roleId", "value": "9" },
+    { "key": "idPaiement", "value": "EYAWA-0001" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET Health",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST Login admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) {",
+                  "  pm.collectionVariables.set('token', json.token);",
+                  "  pm.environment.set('token', json.token);",
+                  "}",
+                  "if (json.membre && json.membre.id) {",
+                  "  pm.collectionVariables.set('membreId', String(json.membre.id));",
+                  "  pm.environment.set('membreId', String(json.membre.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@flccmaci.org\",\n  \"password\": \"AdminFLCCMACI2026!\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/login",
+            "description": "Connexion admin (C.G.). Enregistre `token` et `membreId` automatiquement."
+          }
+        },
+        {
+          "name": "POST Login membre",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) {",
+                  "  pm.collectionVariables.set('token', json.token);",
+                  "  pm.environment.set('token', json.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"membre@example.com\",\n  \"password\": \"motdepasse\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/login"
+          }
+        },
+        {
+          "name": "POST Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "prenom", "value": "Jean", "type": "text" },
+                { "key": "nom", "value": "Kouassi", "type": "text" },
+                { "key": "branche", "value": "FLAMBEAUX", "type": "text" },
+                { "key": "dateNaissance", "value": "2000-05-15", "type": "text" },
+                { "key": "lieuNaissance", "value": "Abidjan", "type": "text" },
+                { "key": "contact", "value": "0700000001", "type": "text" },
+                { "key": "email", "value": "jean.kouassi@example.com", "type": "text" },
+                { "key": "password", "value": "Secret123!", "type": "text" },
+                { "key": "regionId", "value": "{{regionId}}", "type": "text" },
+                { "key": "districtId", "value": "{{districtId}}", "type": "text" },
+                { "key": "paroisseNom", "value": "Paroisse Test", "type": "text" },
+                { "key": "communauteNom", "value": "Communauté Test", "type": "text" },
+                { "key": "situationMatrimoniale", "value": "Célibataire", "type": "text" },
+                { "key": "profession", "value": "Étudiant", "type": "text" },
+                { "key": "responsabiliteBureau", "value": "", "type": "text" },
+                { "key": "photo", "type": "file", "src": [], "description": "Image optionnelle" }
+              ]
+            },
+            "url": "{{baseUrl}}/api/auth/register",
+            "description": "Inscription membre (multipart). Remplir regionId/districtId via Géo d'abord."
+          }
+        },
+        {
+          "name": "GET Me (auth)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Géo & Rôles",
+      "item": [
+        {
+          "name": "GET Regions",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/regions"
+          }
+        },
+        {
+          "name": "GET Districts by region",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/regions/{{regionId}}/districts"
+          }
+        },
+        {
+          "name": "GET Paroisses",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/paroisses?districtId={{districtId}}&search=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paroisses"],
+              "query": [
+                { "key": "districtId", "value": "{{districtId}}" },
+                { "key": "search", "value": "" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Communautes",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/communautes?paroisseId=1&search=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "communautes"],
+              "query": [
+                { "key": "paroisseId", "value": "1" },
+                { "key": "search", "value": "" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Roles",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/roles?fonctions=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "roles"],
+              "query": [{ "key": "fonctions", "value": "true" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Membres",
+      "item": [
+        {
+          "name": "GET Mon profil",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/membres/me"
+          }
+        },
+        {
+          "name": "GET Liste membres (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/membres?limit=50&statut=VALIDE&search=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "membres"],
+              "query": [
+                { "key": "limit", "value": "50" },
+                { "key": "page", "value": "1" },
+                { "key": "statut", "value": "VALIDE" },
+                { "key": "search", "value": "" },
+                { "key": "regionId", "value": "", "disabled": true },
+                { "key": "roleId", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Membre by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/membres/{{membreId}}"
+          }
+        },
+        {
+          "name": "POST Créer membre (admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prenom\": \"Aya\",\n  \"nom\": \"Traoré\",\n  \"branche\": \"LUMIERES\",\n  \"dateNaissance\": \"1998-03-20\",\n  \"lieuNaissance\": \"Bouaké\",\n  \"contact\": \"0700000002\",\n  \"email\": \"aya.traore@example.com\",\n  \"password\": \"Secret123!\",\n  \"roleId\": {{roleId}},\n  \"regionId\": {{regionId}},\n  \"districtId\": {{districtId}},\n  \"paroisseNom\": \"Paroisse Test\",\n  \"communauteNom\": \"Communauté Test\",\n  \"situationMatrimoniale\": \"Célibataire\",\n  \"profession\": \"Commerçante\",\n  \"responsabiliteBureau\": \"Secrétaire\",\n  \"statut\": \"VALIDE\"\n}"
+            },
+            "url": "{{baseUrl}}/api/membres"
+          }
+        },
+        {
+          "name": "PATCH Modifier membre (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contact\": \"0700000099\",\n  \"statut\": \"VALIDE\",\n  \"responsabiliteBureau\": \"Trésorier\"\n}"
+            },
+            "url": "{{baseUrl}}/api/membres/{{membreId}}"
+          }
+        },
+        {
+          "name": "PATCH Retirer du bureau",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"responsabiliteBureau\": null\n}"
+            },
+            "url": "{{baseUrl}}/api/membres/{{membreId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Activités",
+      "item": [
+        {
+          "name": "GET Activités actives (public)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/activites"
+          }
+        },
+        {
+          "name": "GET Activités toutes (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/activites?all=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "activites"],
+              "query": [{ "key": "all", "value": "true" }]
+            }
+          }
+        },
+        {
+          "name": "GET Activité by id (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/activites/{{activiteId}}"
+          }
+        },
+        {
+          "name": "POST Créer activité (admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nom\": \"Activité test\",\n  \"prefixeIdPaiement\": \"TEST\",\n  \"montantDefaut\": 5000,\n  \"active\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/activites"
+          }
+        },
+        {
+          "name": "PATCH Modifier activité (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"montantDefaut\": 7500,\n  \"active\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/activites/{{activiteId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cotisations",
+      "item": [
+        {
+          "name": "GET Mes cotisations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/cotisations/me"
+          }
+        },
+        {
+          "name": "GET Liste cotisations (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cotisations?limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cotisations"],
+              "query": [
+                { "key": "limit", "value": "50" },
+                { "key": "page", "value": "1" },
+                { "key": "statut", "value": "", "disabled": true },
+                { "key": "activite", "value": "", "disabled": true },
+                { "key": "regionId", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Recherche id paiement (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/cotisations/search/{{idPaiement}}"
+          }
+        },
+        {
+          "name": "POST Paiement manuel (admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "modePaiement", "value": "MANUEL", "type": "text" },
+                { "key": "membreId", "value": "{{membreId}}", "type": "text" },
+                { "key": "activiteId", "value": "{{activiteId}}", "type": "text" },
+                { "key": "montantPaye", "value": "5000", "type": "text" },
+                { "key": "justificatif", "type": "file", "src": [], "description": "Optionnel" }
+              ]
+            },
+            "url": "{{baseUrl}}/api/cotisations"
+          }
+        },
+        {
+          "name": "POST Initier Mobile Money",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"modePaiement\": \"MOBILE_MONEY\",\n  \"activiteId\": {{activiteId}},\n  \"provider\": \"ORANGE\",\n  \"phone\": \"0700000000\"\n}"
+            },
+            "url": "{{baseUrl}}/api/cotisations"
+          }
+        },
+        {
+          "name": "POST Webhook Orange",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idPaiement\": \"{{idPaiement}}\",\n  \"status\": \"SUCCESS\",\n  \"amount\": 5000,\n  \"referenceExterne\": \"OM-TXN-001\"\n}"
+            },
+            "url": "{{baseUrl}}/api/cotisations/webhooks/orange"
+          }
+        },
+        {
+          "name": "POST Webhook MTN",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idPaiement\": \"{{idPaiement}}\",\n  \"status\": \"SUCCESSFUL\",\n  \"amount\": 5000,\n  \"externalId\": \"MTN-TXN-001\"\n}"
+            },
+            "url": "{{baseUrl}}/api/cotisations/webhooks/mtn"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard (admin)",
+      "item": [
+        {
+          "name": "GET Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "stats"],
+              "query": [
+                { "key": "regionId", "value": "", "disabled": true },
+                { "key": "activiteId", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Stats districts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/stats/districts?regionId={{regionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "stats", "districts"],
+              "query": [
+                { "key": "regionId", "value": "{{regionId}}" },
+                { "key": "activiteId", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Export Excel",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/dashboard/export/excel"
+          }
+        },
+        {
+          "name": "GET Export PDF",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/dashboard/export/pdf"
+          }
+        },
+        {
+          "name": "GET Audit logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/audit?limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "audit"],
+              "query": [
+                { "key": "limit", "value": "50" },
+                { "key": "page", "value": "1" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -3,7 +3,7 @@ const config = require('../config');
 const prisma = require('../config/prisma');
 const { AppError } = require('../utils/errors');
 const { membrePublicSelect } = require('../services/authService');
-const { hasAdminAccess } = require('../utils/roles');
+const { hasAdminAccess, isSuperAdmin } = require('../utils/roles');
 
 /**
  * Vérifie le JWT et charge le membre connecté.
@@ -38,8 +38,11 @@ async function authenticate(req, _res, next) {
       throw new AppError('Compte non autorisé', 403);
     }
 
-    // Dashboard / admin : Coordinateur général (C.G.) uniquement
-    req.user = { ...membre, isAdmin: hasAdminAccess(membre) };
+    req.user = {
+      ...membre,
+      isAdmin: hasAdminAccess(membre),
+      isSuperAdmin: isSuperAdmin(membre),
+    };
     next();
   } catch (err) {
     next(err);
@@ -47,11 +50,21 @@ async function authenticate(req, _res, next) {
 }
 
 /**
- * Réservé au Coordinateur général (C.G.) — dashboard & administration.
+ * Réservé aux comptes admin (Super Admin ou Admin délégué).
  */
 function requireAdmin(req, _res, next) {
   if (!hasAdminAccess(req.user)) {
-    return next(new AppError('Accès réservé au Coordinateur général (C.G.)', 403));
+    return next(new AppError('Accès réservé aux administrateurs', 403));
+  }
+  next();
+}
+
+/**
+ * Réservé au Super Admin — création et supervision des comptes admin.
+ */
+function requireSuperAdmin(req, _res, next) {
+  if (!isSuperAdmin(req.user)) {
+    return next(new AppError('Accès réservé au Super Admin', 403));
   }
   next();
 }
@@ -126,6 +139,7 @@ function requireGeoScope(getResourceScope) {
 module.exports = {
   authenticate,
   requireAdmin,
+  requireSuperAdmin,
   restrictToSelf,
   requireGeoScope,
 };

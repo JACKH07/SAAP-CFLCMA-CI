@@ -27,7 +27,7 @@ const EMPTY_FORM = {
   situationMatrimoniale: '',
   profession: '',
   responsabiliteBureau: '',
-  statut: 'EN_ATTENTE',
+  statut: 'VALIDE',
   roleId: '',
   regionId: '',
   districtId: '',

@@ -42,7 +42,7 @@ export default function Layout({ children }) {
             <>
               <NavLink to={paths.admin}>Tableau</NavLink>
               <NavLink to={paths.adminMembres}>Membres</NavLink>
-              <NavLink to={paths.adminCotisations}>Paiements</NavLink>
+              <NavLink to={paths.adminCotisations}>Cotisations</NavLink>
               <NavLink to={paths.profil}>Profil</NavLink>
             </>
           ) : (

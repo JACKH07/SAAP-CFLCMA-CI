@@ -133,12 +133,16 @@ class DashboardService {
       const where = { regionId: region.id };
       if (activiteId) where.activiteId = Number(activiteId);
 
-      const [total, payees, membres, flambeaux, lumieres] = await Promise.all([
+      const [total, payees, membres, flambeaux, lumieres, agg] = await Promise.all([
         prisma.cotisation.count({ where }),
         prisma.cotisation.count({ where: { ...where, statut: 'PAYE' } }),
         prisma.membre.count({ where: { regionId: region.id, statut: 'VALIDE' } }),
         prisma.membre.count({ where: { regionId: region.id, statut: 'VALIDE', branche: 'FLAMBEAUX' } }),
         prisma.membre.count({ where: { regionId: region.id, statut: 'VALIDE', branche: 'LUMIERES' } }),
+        prisma.cotisation.aggregate({
+          where,
+          _sum: { montant: true, montantPaye: true },
+        }),
       ]);
 
       results.push({
@@ -151,6 +155,8 @@ class DashboardService {
         cotisations: total,
         payees,
         taux: total > 0 ? Math.round((payees / total) * 1000) / 10 : 0,
+        montantAttendu: Number(agg._sum.montant || 0),
+        montantPercu: Number(agg._sum.montantPaye || 0),
       });
     }
 
