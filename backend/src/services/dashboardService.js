@@ -26,6 +26,7 @@ class DashboardService {
       montantAgg,
       parRegion,
       parActivite,
+      parDistrict,
       derniersMembres,
       dernieresCotisations,
     ] = await Promise.all([
@@ -49,8 +50,9 @@ class DashboardService {
         where: cotisationWhere,
         _sum: { montant: true, montantPaye: true },
       }),
-      this.statsByRegion(activiteId),
+      this.statsByRegion(activiteId, regionId),
       this.statsByActivite(regionId),
+      regionId ? this.statsByDistrict(regionId, activiteId) : Promise.resolve([]),
       prisma.membre.findMany({
         where: regionId ? { regionId: Number(regionId) } : {},
         orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
@@ -119,14 +121,19 @@ class DashboardService {
         montantPercu: Number(montantAgg._sum.montantPaye || 0),
       },
       parRegion,
+      parDistrict,
       parActivite,
+      regionId: regionId ? Number(regionId) : null,
       derniersMembres,
       dernieresCotisations,
     };
   }
 
-  async statsByRegion(activiteId) {
-    const regions = await prisma.region.findMany({ orderBy: { nom: 'asc' } });
+  async statsByRegion(activiteId, regionId) {
+    const regions = await prisma.region.findMany({
+      where: regionId ? { id: Number(regionId) } : undefined,
+      orderBy: { nom: 'asc' },
+    });
     const results = [];
 
     for (const region of regions) {
@@ -206,13 +213,23 @@ class DashboardService {
     for (const d of districts) {
       const where = { districtId: d.id };
       if (activiteId) where.activiteId = Number(activiteId);
-      const [total, payees] = await Promise.all([
+      const [total, payees, membres, flambeaux, lumieres] = await Promise.all([
         prisma.cotisation.count({ where }),
         prisma.cotisation.count({ where: { ...where, statut: 'PAYE' } }),
+        prisma.membre.count({ where: { districtId: d.id, statut: 'VALIDE' } }),
+        prisma.membre.count({
+          where: { districtId: d.id, statut: 'VALIDE', branche: 'FLAMBEAUX' },
+        }),
+        prisma.membre.count({
+          where: { districtId: d.id, statut: 'VALIDE', branche: 'LUMIERES' },
+        }),
       ]);
       results.push({
         districtId: d.id,
         nom: d.nom,
+        membres,
+        flambeaux,
+        lumieres,
         total,
         payees,
         taux: total > 0 ? Math.round((payees / total) * 1000) / 10 : 0,

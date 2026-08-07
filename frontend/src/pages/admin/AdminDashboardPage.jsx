@@ -99,7 +99,19 @@ export default function AdminDashboardPage() {
       .catch(() => setError('Export impossible'));
   }
 
-  const regionChartBranded = useMemo(() => {
+  const geoChartBranded = useMemo(() => {
+    if (regionId && stats?.parDistrict?.length) {
+      return [...stats.parDistrict]
+        .sort((a, b) => (b.membres || 0) - (a.membres || 0))
+        .slice(0, 12)
+        .map((d) => ({
+          name: d.nom.length > 10 ? `${d.nom.slice(0, 9)}…` : d.nom,
+          fullName: d.nom,
+          flambeaux: d.flambeaux ?? 0,
+          lumieres: d.lumieres ?? 0,
+          payees: d.payees,
+        }));
+    }
     if (!stats?.parRegion) return [];
     return [...stats.parRegion]
       .sort((a, b) => b.membres - a.membres)
@@ -111,7 +123,7 @@ export default function AdminDashboardPage() {
         lumieres: r.lumieres ?? 0,
         payees: r.payees,
       }));
-  }, [stats]);
+  }, [stats, regionId]);
 
   const branchePie = useMemo(() => {
     if (!stats) return [];
@@ -121,14 +133,23 @@ export default function AdminDashboardPage() {
     ].filter((x) => x.value > 0);
   }, [stats]);
 
-  const sparkMembres = useMemo(
-    () => (stats?.parRegion || []).slice(0, 8).map((r) => r.membres),
-    [stats]
-  );
-  const sparkTaux = useMemo(
-    () => (stats?.parRegion || []).slice(0, 8).map((r) => r.taux),
-    [stats]
-  );
+  const sparkMembres = useMemo(() => {
+    if (regionId && stats?.parDistrict?.length) {
+      return stats.parDistrict.slice(0, 8).map((d) => d.membres || 0);
+    }
+    return (stats?.parRegion || []).slice(0, 8).map((r) => r.membres);
+  }, [stats, regionId]);
+  const sparkTaux = useMemo(() => {
+    if (regionId && stats?.parDistrict?.length) {
+      return stats.parDistrict.slice(0, 8).map((d) => d.taux || 0);
+    }
+    return (stats?.parRegion || []).slice(0, 8).map((r) => r.taux);
+  }, [stats, regionId]);
+
+  const selectedRegionName = useMemo(() => {
+    if (!regionId) return null;
+    return regions.find((r) => String(r.id) === String(regionId))?.nom || null;
+  }, [regionId, regions]);
 
   const totalMembres =
     (stats?.membres.flambeaux ?? 0) + (stats?.membres.lumieres ?? 0) || stats?.membres.total || 0;
@@ -228,8 +249,12 @@ export default function AdminDashboardPage() {
             <div className="dash-card chart-card">
               <div className="card-head">
                 <div>
-                  <h2>Effectifs par région</h2>
-                  <p>Flambeaux & Lumières (top 12)</p>
+                  <h2>{regionId ? 'Effectifs par district' : 'Effectifs par région'}</h2>
+                  <p>
+                    {regionId
+                      ? `Flambeaux & Lumières — ${selectedRegionName || 'région'}`
+                      : 'Flambeaux & Lumières (top 12)'}
+                  </p>
                 </div>
                 <div className="range-tabs" role="group" aria-label="Période">
                   {['1J', '7J', '1M', '1A'].map((r) => (
@@ -246,7 +271,7 @@ export default function AdminDashboardPage() {
               </div>
               <div className="chart-box">
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={regionChartBranded} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+                  <BarChart data={geoChartBranded} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" vertical={false} />
                     <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
