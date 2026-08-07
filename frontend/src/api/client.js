@@ -24,8 +24,14 @@ api.interceptors.response.use(
       localStorage.removeItem('saap_token');
       localStorage.removeItem('saap_user');
       const { pathname } = window.location;
-      if (!pathname.startsWith(paths.login) && !pathname.startsWith(paths.register)) {
-        window.location.href = paths.login;
+      const onAuthPage =
+        pathname.startsWith(paths.login) ||
+        pathname.startsWith(paths.adminLogin) ||
+        pathname.startsWith(paths.register);
+      // Échec de login : rester sur la page (admin_connecte ou login membre)
+      if (!onAuthPage) {
+        const isAdminArea = pathname.startsWith(paths.admin);
+        window.location.href = isAdminArea ? paths.adminLogin : paths.login;
       }
     }
     return Promise.reject(error);

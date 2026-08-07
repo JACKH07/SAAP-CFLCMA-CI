@@ -522,34 +522,39 @@ async function seed() {
   const abidjan1 = await prisma.region.findUnique({ where: { code: 'ABJ1' } });
   const districtCocody = await findDistrict(abidjan1.id, 'Cocody');
 
-  const existingAdmin = await prisma.membre.findUnique({ where: { email: adminEmail } });
+  const adminIdMembre = 'ADSY19900101';
+  const existingAdmin =
+    (await prisma.membre.findUnique({ where: { email: adminEmail } })) ||
+    (await prisma.membre.findUnique({ where: { idMembre: adminIdMembre } }));
+
+  const adminData = {
+    nom: process.env.ADMIN_NOM || 'Administrateur',
+    prenom: process.env.ADMIN_PRENOM || 'Systeme',
+    email: adminEmail,
+    contact: '0700000000',
+    passwordHash: await bcrypt.hash(adminPassword, 12),
+    dateNaissance: new Date('1990-01-01'),
+    lieuNaissance: 'Abidjan',
+    branche: 'FLAMBEAUX',
+    idMembre: adminIdMembre,
+    roleId: coordinateurGeneral?.id || membresRole.id,
+    regionId: abidjan1.id,
+    districtId: districtCocody?.id,
+    isAdmin: true,
+    isSuperAdmin: true,
+    statut: 'VALIDE',
+  };
+
   if (!existingAdmin) {
-    await prisma.membre.create({
-      data: {
-        nom: process.env.ADMIN_NOM || 'Administrateur',
-        prenom: process.env.ADMIN_PRENOM || 'Systeme',
-        email: adminEmail,
-        contact: '0700000000',
-        passwordHash: await bcrypt.hash(adminPassword, 12),
-        dateNaissance: new Date('1990-01-01'),
-        lieuNaissance: 'Abidjan',
-        branche: 'FLAMBEAUX',
-        idMembre: 'ADSY19900101',
-        roleId: coordinateurGeneral?.id || membresRole.id,
-        regionId: abidjan1.id,
-        districtId: districtCocody?.id,
-        isAdmin: true,
-        isSuperAdmin: true,
-        statut: 'VALIDE',
-      },
-    });
+    await prisma.membre.create({ data: adminData });
     console.log(`✓ Super Admin créé : ${adminEmail}`);
   } else {
     await prisma.membre.update({
       where: { id: existingAdmin.id },
       data: {
-        passwordHash: await bcrypt.hash(adminPassword, 12),
-        roleId: coordinateurGeneral?.id || existingAdmin.roleId,
+        email: adminEmail,
+        passwordHash: adminData.passwordHash,
+        roleId: adminData.roleId,
         isAdmin: true,
         isSuperAdmin: true,
         statut: 'VALIDE',
