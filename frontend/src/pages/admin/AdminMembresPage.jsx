@@ -3,7 +3,6 @@ import AdminShell from '../../components/AdminShell';
 import api from '../../api/client';
 import { useAutocomplete } from '../../hooks/useAutocomplete';
 import { useAuthStore } from '../../store/authStore';
-import { hasAdminAccess } from '../../utils/roles';
 import './AdminMembres.css';
 
 function formatDateInput(value) {
@@ -273,12 +272,12 @@ export default function AdminMembresPage() {
   }
 
   function canDeleteMembre(m) {
-    // Super Admin + sous-admins (isAdmin) peuvent supprimer
-    if (!hasAdminAccess(user)) return false;
-    // Jamais le Super Admin
-    if (!m || m.isSuperAdmin === true) return false;
+    if (!m) return false;
+    // Compte Super Admin : jamais de bouton Supprimer
+    if (m.isSuperAdmin === true || m.isSuperAdmin === 1) return false;
     // Pas soi-même
-    if (m.id === user?.id) return false;
+    if (user?.id != null && Number(m.id) === Number(user.id)) return false;
+    // Page réservée aux admins : afficher Supprimer pour tous les autres
     return true;
   }
 
@@ -406,21 +405,20 @@ export default function AdminMembresPage() {
                             ⋯
                           </button>
                           {openMenuId === m.id && (
-                            <div className="row-menu-list">
-                              <div className="row-menu-pair">
-                                <button type="button" onClick={() => { setOpenMenuId(null); openEdit(m); }}>
-                                  Modifier
+                            <div className="row-menu-list" role="menu">
+                              <button type="button" role="menuitem" onClick={() => { setOpenMenuId(null); openEdit(m); }}>
+                                Modifier
+                              </button>
+                              {canDeleteMembre(m) ? (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  className="row-menu-danger"
+                                  onClick={() => removeMembre(m)}
+                                >
+                                  Supprimer
                                 </button>
-                                {canDeleteMembre(m) && (
-                                  <button
-                                    type="button"
-                                    className="row-menu-danger"
-                                    onClick={() => removeMembre(m)}
-                                  >
-                                    Supprimer
-                                  </button>
-                                )}
-                              </div>
+                              ) : null}
                               {m.statut === 'EN_ATTENTE' && (
                                 <>
                                   <button type="button" onClick={() => { setOpenMenuId(null); quickStatut(m.id, 'VALIDE'); }}>

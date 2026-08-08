@@ -65,6 +65,7 @@
 
 .data-table-wrap {
   overflow-x: auto;
+  overflow-y: visible;
   margin: 0 -0.25rem;
 }
 
@@ -156,11 +157,13 @@
 
 .col-actions {
   position: relative;
+  overflow: visible;
 }
 
 .row-menu {
   position: relative;
   display: inline-block;
+  overflow: visible;
 }
 
 .row-menu-btn {
@@ -183,9 +186,9 @@
 .row-menu-list {
   position: absolute;
   right: 0;
-  top: 100%;
-  z-index: 20;
-  min-width: 200px;
+  top: calc(100% + 4px);
+  z-index: 80;
+  min-width: 148px;
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
@@ -205,6 +208,7 @@
   cursor: pointer;
   font-size: 0.86rem;
   color: #334155;
+  width: 100%;
 }
 
 .row-menu-list button:hover {
@@ -212,19 +216,9 @@
   color: #1c7c38;
 }
 
-.row-menu-pair {
-  display: flex;
-  gap: 0.15rem;
-}
-
-.row-menu-pair > button {
-  flex: 1;
-  text-align: center;
-  white-space: nowrap;
-}
-
 .row-menu-list button.row-menu-danger {
   color: #b91c1c;
+  font-weight: 650;
 }
 
 .row-menu-list button.row-menu-danger:hover {
