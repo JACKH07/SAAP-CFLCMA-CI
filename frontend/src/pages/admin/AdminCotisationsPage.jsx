@@ -67,6 +67,17 @@ export default function AdminCotisationsPage() {
         setMembres(m.data.items || []);
       })
       .catch((e) => setError(e.response?.data?.message || 'Erreur de chargement'));
+
+    function onFocus() {
+      loadList().catch(() => {});
+      loadStats().catch(() => {});
+    }
+    window.addEventListener('focus', onFocus);
+    const timer = setInterval(onFocus, 30000);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      clearInterval(timer);
+    };
   }, []);
 
   const montantTotal = stats?.cotisations?.montantPercu ?? 0;
@@ -355,21 +366,33 @@ export default function AdminCotisationsPage() {
           <div className="cotis-panel">
             <div className="cotis-panel-head">
               <h2>Dernières cotisations</h2>
-              <form className="cotis-search" onSubmit={searchPayment}>
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="ID paiement…"
-                  aria-label="Rechercher un ID paiement"
-                />
-                <button type="submit" className="btn btn-secondary btn-sm">
-                  OK
+              <div className="cotis-panel-tools">
+                <form className="cotis-search" onSubmit={searchPayment}>
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="ID paiement…"
+                    aria-label="Rechercher un ID paiement"
+                  />
+                  <button type="submit" className="btn btn-secondary btn-sm">
+                    OK
+                  </button>
+                </form>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    loadList().catch(() => {});
+                    loadStats().catch(() => {});
+                  }}
+                >
+                  Actualiser
                 </button>
-              </form>
+              </div>
             </div>
             <ul className="cotis-list">
               {items.length === 0 && <li className="muted">Aucune cotisation</li>}
-              {items.slice(0, 12).map((c) => (
+              {items.slice(0, 20).map((c) => (
                 <li key={c.id}>
                   <div>
                     <strong>{c.idPaiement}</strong>
@@ -379,8 +402,7 @@ export default function AdminCotisationsPage() {
                   </div>
                   <div className="cotis-list-meta">
                     <span>
-                      {Number(c.montantPaye).toLocaleString('fr-FR')} /{' '}
-                      {Number(c.montant).toLocaleString('fr-FR')} F
+                      {Number(c.montantPaye).toLocaleString('fr-FR')} F versés
                     </span>
                     <span
                       className={`badge ${

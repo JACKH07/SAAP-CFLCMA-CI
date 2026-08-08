@@ -185,7 +185,7 @@
   right: 0;
   top: 100%;
   z-index: 20;
-  min-width: 140px;
+  min-width: 200px;
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
@@ -210,6 +210,26 @@
 .row-menu-list button:hover {
   background: #f1f5f9;
   color: #1c7c38;
+}
+
+.row-menu-pair {
+  display: flex;
+  gap: 0.15rem;
+}
+
+.row-menu-pair > button {
+  flex: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.row-menu-list button.row-menu-danger {
+  color: #b91c1c;
+}
+
+.row-menu-list button.row-menu-danger:hover {
+  background: #fef2f2;
+  color: #991b1b;
 }
 
 .membre-modal-backdrop {

@@ -1,0 +1,27 @@
+.cotisation-card-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  border: 1px solid #e2e8f0;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cotisation-card-btn:hover {
+  border-color: #1c7c38;
+  box-shadow: 0 6px 18px rgba(28, 124, 56, 0.1);
+}
+
+.cotisation-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.cotisation-paye {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #1c7c38;
+}

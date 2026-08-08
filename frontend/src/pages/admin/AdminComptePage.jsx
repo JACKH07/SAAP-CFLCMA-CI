@@ -35,6 +35,9 @@ export default function AdminComptePage() {
   const [adminForm, setAdminForm] = useState(EMPTY_ADMIN_FORM);
   const [creating, setCreating] = useState(false);
 
+  const subAdminCount = admins.filter((a) => a.isAdmin && !a.isSuperAdmin).length;
+  const canCreateSubAdmin = subAdminCount < 3;
+
   async function loadAdmins() {
     if (!isSuper) return;
     setError('');
@@ -124,6 +127,24 @@ export default function AdminComptePage() {
     }
   }
 
+  async function removeAdmin(m) {
+    if (m.isSuperAdmin) {
+      setError('Le compte Super Admin ne peut pas être supprimé');
+      return;
+    }
+    const label = `${m.prenom} ${m.nom}`.trim() || m.idMembre;
+    if (!window.confirm(`Supprimer définitivement le sous-admin ${label} ?`)) return;
+    setMsg('');
+    setError('');
+    try {
+      await api.delete(`/membres/${m.id}`);
+      setMsg(`Compte admin ${label} supprimé`);
+      await loadAdmins();
+    } catch (e) {
+      setError(e.response?.data?.message || 'Suppression impossible');
+    }
+  }
+
   return (
     <AdminShell title="Compte" crumbs={['Administration', 'Compte']}>
       <section className="admin-page">
@@ -175,6 +196,8 @@ export default function AdminComptePage() {
                 <h2>Créer un compte administrateur</h2>
                 <p className="muted">
                   Ces comptes peuvent gérer le SAAP. Votre compte reste le seul Super Admin.
+                  Sous-admins : {subAdminCount}/3.
+                  {!canCreateSubAdmin && ' Limite atteinte — supprimez un compte pour en créer un autre.'}
                 </p>
               </div>
               <form className="admin-create-form" onSubmit={createAdmin}>
@@ -251,7 +274,7 @@ export default function AdminComptePage() {
                   </div>
                 </div>
                 <div className="admin-form-actions">
-                  <button type="submit" className="btn" disabled={creating}>
+                  <button type="submit" className="btn" disabled={creating || !canCreateSubAdmin}>
                     {creating ? 'Création…' : 'Créer le compte admin'}
                   </button>
                 </div>
@@ -343,9 +366,17 @@ export default function AdminComptePage() {
                                     Suspendre
                                   </button>
                                 )}
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ color: '#b91c1c' }}
+                                  onClick={() => removeAdmin(m)}
+                                >
+                                  Supprimer
+                                </button>
                               </>
                             )}
-                            {m.isSuperAdmin && <span className="muted tiny">Compte principal</span>}
+                            {m.isSuperAdmin && <span className="muted tiny">Compte principal — non supprimable</span>}
                           </td>
                         </tr>
                       ))}

@@ -1,0 +1,31 @@
+.paiement-page {
+  gap: 1rem;
+}
+
+.paiement-back {
+  border: none;
+  background: transparent;
+  color: #1c7c38;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.paiement-activite .tiny {
+  font-size: 0.78rem;
+  margin-top: 0.2rem;
+}
+
+.paiement-deja {
+  margin-top: 0.65rem;
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+.paiement-page #montant {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}

@@ -31,6 +31,7 @@ export const paths = {
   adminActivite: path(env.VITE_ADMIN_ACTIVITE_PATH, '/admin/activites'),
   profil: path(env.VITE_PROFIL_PATH, '/profil'),
   mesCotisations: path(env.VITE_MES_COTISATIONS_PATH, '/mes-cotisations'),
+  paiement: path(env.VITE_PAIEMENT_PATH, '/mes-cotisations/payer'),
 };
 
 /** Liens absolus (si VITE_APP_URL / VITE_*_URL sont définis) */

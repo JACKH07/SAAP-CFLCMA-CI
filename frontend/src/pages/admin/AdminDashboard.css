@@ -116,6 +116,19 @@
   line-height: 1.1;
 }
 
+.kpi-value--money {
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi-value--money small {
+  font-size: 0.55em;
+  font-weight: 600;
+  font-family: inherit;
+  letter-spacing: 0;
+  color: #64748b;
+  margin-left: 0.15rem;
+}
+
 .kpi-foot {
   margin-top: 0.45rem;
   font-size: 0.8rem;

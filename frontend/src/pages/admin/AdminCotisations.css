@@ -126,6 +126,13 @@
   margin: 0;
 }
 
+.cotis-panel-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .cotis-chart-box {
   width: 100%;
   min-height: 260px;

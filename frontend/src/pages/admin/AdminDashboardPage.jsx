@@ -82,6 +82,15 @@ export default function AdminDashboardPage() {
     load();
   }, []);
 
+  // Recharger les stats à chaque focus / retour sur le dashboard
+  useEffect(() => {
+    function onFocus() {
+      load(regionId).catch(() => {});
+    }
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [regionId]);
+
   function exportFile(type) {
     api
       .get(`/dashboard/export/${type}`, {
@@ -154,6 +163,9 @@ export default function AdminDashboardPage() {
   const totalMembres =
     (stats?.membres.flambeaux ?? 0) + (stats?.membres.lumieres ?? 0) || stats?.membres.total || 0;
 
+  const montantTotalPercu = Number(stats?.cotisations?.montantPercu || 0);
+  const montantAttendu = Number(stats?.cotisations?.montantAttendu || 0);
+
   return (
     <AdminShell title="Tableaux de bord" crumbs={['Tableaux de bord']}>
       <div className="dash-toolbar">
@@ -190,13 +202,19 @@ export default function AdminDashboardPage() {
           <div className="kpi-row kpi-row--4">
             <div className="dash-card kpi-card">
               <div className="kpi-head">
-                <span>Activités</span>
-                <Sparkline points={sparkMembres} color={COLORS.primary} />
+                <span>Montant total</span>
+                <Sparkline points={sparkTaux} color={COLORS.ok} />
               </div>
-              <div className="kpi-value">
-                {(stats.parActivite?.length ?? 0).toLocaleString('fr-FR')}
+              <div className="kpi-value kpi-value--money">
+                {montantTotalPercu.toLocaleString('fr-FR')}
+                <small> FCFA</small>
               </div>
-              <div className="kpi-foot ok">Activités actives</div>
+              <div className="kpi-foot ok">
+                Cotisations perçues
+                {montantAttendu > 0
+                  ? ` · attendu ${montantAttendu.toLocaleString('fr-FR')} F`
+                  : ''}
+              </div>
             </div>
 
             <div className="dash-card kpi-card">
@@ -233,14 +251,14 @@ export default function AdminDashboardPage() {
 
             <div className="dash-card kpi-card">
               <div className="kpi-head">
-                <span>Inscriptions en attente</span>
-                <Sparkline points={sparkTaux} color={COLORS.warn} />
+                <span>Cotisations payées</span>
+                <Sparkline points={sparkMembres} color={COLORS.primary} />
               </div>
-              <div className="kpi-value">{(stats.membres.enAttente ?? 0).toLocaleString('fr-FR')}</div>
+              <div className="kpi-value">
+                {(stats.cotisations?.payees ?? 0).toLocaleString('fr-FR')}
+              </div>
               <div className="kpi-foot">
-                {(stats.membres.suspendus || 0) > 0
-                  ? `${stats.membres.suspendus} suspendu(s)`
-                  : 'Dossiers à traiter'}
+                Taux {(stats.cotisations?.tauxPaiement ?? 0).toLocaleString('fr-FR')} %
               </div>
             </div>
           </div>

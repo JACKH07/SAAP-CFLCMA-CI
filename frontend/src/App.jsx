@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
 import MesCotisationsPage from './pages/MesCotisationsPage';
+import PaiementPage from './pages/PaiementPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminMembresPage from './pages/admin/AdminMembresPage';
 import AdminCotisationsPage from './pages/admin/AdminCotisationsPage';
@@ -32,6 +33,7 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route path={paths.profil} element={<ProfilePage />} />
         <Route path={paths.mesCotisations} element={<MesCotisationsPage />} />
+        <Route path={`${paths.paiement}/:activiteId`} element={<PaiementPage />} />
       </Route>
 
       <Route element={<ProtectedRoute adminOnly />}>

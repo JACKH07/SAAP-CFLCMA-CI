@@ -61,3 +61,11 @@ exports.update = asyncHandler(async (req, res) => {
   });
   res.json({ success: true, data: membre });
 });
+
+exports.remove = asyncHandler(async (req, res) => {
+  const data = await membreService.remove(req.params.id, req.user.id, {
+    ip: req.ip,
+    actorIsSuperAdmin: Boolean(req.user.isSuperAdmin),
+  });
+  res.json({ success: true, data, message: 'Membre supprimé' });
+});

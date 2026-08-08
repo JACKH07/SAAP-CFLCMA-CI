@@ -11,5 +11,6 @@ router.get('/', requireAdmin, membreController.list);
 router.post('/', requireAdmin, membreController.create);
 router.get('/:id', membreController.getById);
 router.patch('/:id', membreController.update);
+router.delete('/:id', requireAdmin, membreController.remove);
 
 module.exports = router;

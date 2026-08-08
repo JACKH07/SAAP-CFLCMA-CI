@@ -1,6 +1,7 @@
 const prisma = require('../config/prisma');
 const { AppError } = require('../utils/errors');
 const { membrePublicSelect, withAdminFlag } = require('./authService');
+const { hasAdminAccess } = require('../utils/roles');
 const membreIdService = require('./membreIdService');
 const auditService = require('./auditService');
 const lieuAutocompleteService = require('./lieuAutocompleteService');
@@ -303,6 +304,64 @@ class MembreService {
     });
 
     return withAdminFlag(membre);
+  }
+
+  /**
+   * Suppression définitive d'un membre.
+   * Droits :
+   * - Super Admin : peut supprimer n'importe quel compte (membres + sous-admins)
+   * - Sous-admin (isAdmin) : peut supprimer n'importe quel compte sauf le Super Admin
+   * - Le compte Super Admin n'est jamais supprimable
+   */
+  async remove(id, adminId, meta = {}) {
+    const actor = await this.getById(adminId);
+    if (!hasAdminAccess(actor)) {
+      throw new AppError('Seuls le Super Admin et les sous-admins peuvent supprimer un compte', 403);
+    }
+
+    const existing = await this.getById(id);
+    const membreId = Number(id);
+    const actorId = Number(adminId);
+
+    if (existing.isSuperAdmin) {
+      throw new AppError('Le compte Super Admin ne peut pas être supprimé', 403);
+    }
+
+    if (membreId === actorId) {
+      throw new AppError('Vous ne pouvez pas supprimer votre propre compte', 403);
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.cotisation.deleteMany({ where: { membreId } });
+      await tx.historiqueMandat.deleteMany({ where: { membreId } });
+      await tx.auditLog.updateMany({
+        where: { acteurId: membreId },
+        data: { acteurId: null },
+      });
+      await tx.membre.updateMany({
+        where: { mandateParId: membreId },
+        data: { mandateParId: null },
+      });
+      await tx.membre.delete({ where: { id: membreId } });
+    });
+
+    await auditService.log({
+      acteurId: actorId,
+      action: 'DELETE_MEMBRE',
+      entite: 'Membre',
+      entiteId: membreId,
+      details: {
+        idMembre: existing.idMembre,
+        nom: existing.nom,
+        prenom: existing.prenom,
+        wasAdmin: Boolean(existing.isAdmin),
+        actorIsSuperAdmin: Boolean(actor.isSuperAdmin),
+        actorIsAdmin: Boolean(actor.isAdmin),
+      },
+      ipAddress: meta.ip,
+    });
+
+    return { id: membreId, idMembre: existing.idMembre };
   }
 }
 

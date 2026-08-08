@@ -1,0 +1,137 @@
+.profile-page {
+  gap: 1rem;
+}
+
+.profile-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.profile-edit-title {
+  margin: 0 0 0.85rem;
+  font-size: 1.1rem;
+  font-family: 'Fraunces', Georgia, serif;
+  color: #1c7c38;
+}
+
+/* Fiche : cachée à l'écran, visible à l'impression */
+.fiche-print {
+  display: none;
+}
+
+.fiche-print-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 2px solid #1c7c38;
+}
+
+.fiche-print-head h2 {
+  margin: 0.35rem 0 0;
+  font-size: 1.15rem;
+  color: #0f172a;
+}
+
+.fiche-print-head strong {
+  color: #c9a227;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+}
+
+.fiche-print-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1.25rem;
+}
+
+.fiche-print-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.fiche-print-grid span {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.fiche-print-grid strong {
+  font-size: 0.95rem;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.fiche-span-2 {
+  grid-column: 1 / -1;
+}
+
+.fiche-print-foot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.fiche-print-foot span {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.fiche-sign-line {
+  margin-top: 2.5rem;
+  border-bottom: 1px solid #94a3b8;
+}
+
+.fiche-print-date {
+  margin-top: 1.5rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  .fiche-print,
+  .fiche-print * {
+    visibility: visible !important;
+  }
+
+  .fiche-print {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 1.5cm;
+    background: #fff;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  header,
+  nav,
+  footer,
+  .layout-nav,
+  .bottom-tabs {
+    display: none !important;
+  }
+}

@@ -43,13 +43,15 @@ export default function LoginPage({ mode = 'membre' }) {
 
       if (isAdminLogin && !isAdmin) {
         logout();
-        setLocalError('Accès réservé au Coordinateur général (C.G.). Utilisez la connexion membre.');
+        setLocalError(
+          'Accès réservé aux administrateurs (Super Admin ou Admin). Utilisez la connexion membre.'
+        );
         return;
       }
 
       if (!isAdminLogin && isAdmin) {
         logout();
-        setLocalError('Compte administration : utilisez la connexion Coordinateur général.');
+        setLocalError('Compte administration : utilisez la page Connexion administrateur.');
         return;
       }
 
@@ -114,7 +116,7 @@ export default function LoginPage({ mode = 'membre' }) {
         <BrandLogo size={96} className="auth-logo" />
         <p className="eyebrow">Coordination Flambeaux-Lumières CMA</p>
         <h1>Administration SAAP</h1>
-        <p className="lede">Réservé au Coordinateur général (C.G.)</p>
+        <p className="lede">Réservé au Super Admin et aux administrateurs</p>
       </div>
 
       <form className="card auth-card auth-card--admin" onSubmit={onSubmit}>

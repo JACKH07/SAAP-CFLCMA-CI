@@ -7,6 +7,8 @@ const membreIdService = require('./membreIdService');
 const auditService = require('./auditService');
 
 const SALT_ROUNDS = 12;
+/** Nombre max de sous-admins (hors Super Admin) */
+const MAX_SUB_ADMINS = 3;
 
 class AdminAccountService {
   async listAdmins({ search, statut } = {}) {
@@ -73,6 +75,13 @@ class AdminAccountService {
     });
     if (existingEmail) {
       throw new AppError('Cet email est déjà utilisé', 409);
+    }
+
+    const subAdminCount = await prisma.membre.count({
+      where: { isAdmin: true, isSuperAdmin: false },
+    });
+    if (subAdminCount >= MAX_SUB_ADMINS) {
+      throw new AppError(`Maximum ${MAX_SUB_ADMINS} sous-administrateurs autorisés`, 400);
     }
 
     const role = await prisma.role.findUnique({ where: { nom: ROLE_MEMBRES_ACTIFS } });

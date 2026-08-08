@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import AdminShell from '../../components/AdminShell';
 import api from '../../api/client';
 import { useAutocomplete } from '../../hooks/useAutocomplete';
+import { useAuthStore } from '../../store/authStore';
+import { hasAdminAccess } from '../../utils/roles';
 import './AdminMembres.css';
 
 function formatDateInput(value) {
@@ -34,6 +36,7 @@ const EMPTY_FORM = {
 };
 
 export default function AdminMembresPage() {
+  const { user } = useAuthStore();
   const [data, setData] = useState({ items: [], total: 0 });
   const [filters, setFilters] = useState({ id: '', nom: '', region: '' });
   const [applied, setApplied] = useState({ id: '', nom: '', region: '' });
@@ -243,6 +246,42 @@ export default function AdminMembresPage() {
     }
   }
 
+  async function removeMembre(m) {
+    if (m.isSuperAdmin) {
+      setError('Le compte Super Admin ne peut pas être supprimé');
+      setOpenMenuId(null);
+      return;
+    }
+    if (m.id === user?.id) {
+      setError('Vous ne pouvez pas supprimer votre propre compte');
+      setOpenMenuId(null);
+      return;
+    }
+    const label = `${m.prenom} ${m.nom}`.trim() || m.idMembre;
+    if (!window.confirm(`Supprimer définitivement ${label} ?`)) return;
+    setMsg('');
+    setError('');
+    setOpenMenuId(null);
+    try {
+      await api.delete(`/membres/${m.id}`);
+      setMsg(`Membre ${label} supprimé`);
+      if (editing?.id === m.id) closeEdit();
+      await load();
+    } catch (e) {
+      setError(e.response?.data?.message || 'Suppression impossible');
+    }
+  }
+
+  function canDeleteMembre(m) {
+    // Super Admin + sous-admins (isAdmin) peuvent supprimer
+    if (!hasAdminAccess(user)) return false;
+    // Jamais le Super Admin
+    if (!m || m.isSuperAdmin === true) return false;
+    // Pas soi-même
+    if (m.id === user?.id) return false;
+    return true;
+  }
+
   const items = useMemo(() => {
     let list = data.items || [];
     const idQ = applied.id.trim().toLowerCase();
@@ -368,9 +407,20 @@ export default function AdminMembresPage() {
                           </button>
                           {openMenuId === m.id && (
                             <div className="row-menu-list">
-                              <button type="button" onClick={() => { setOpenMenuId(null); openEdit(m); }}>
-                                Modifier
-                              </button>
+                              <div className="row-menu-pair">
+                                <button type="button" onClick={() => { setOpenMenuId(null); openEdit(m); }}>
+                                  Modifier
+                                </button>
+                                {canDeleteMembre(m) && (
+                                  <button
+                                    type="button"
+                                    className="row-menu-danger"
+                                    onClick={() => removeMembre(m)}
+                                  >
+                                    Supprimer
+                                  </button>
+                                )}
+                              </div>
                               {m.statut === 'EN_ATTENTE' && (
                                 <>
                                   <button type="button" onClick={() => { setOpenMenuId(null); quickStatut(m.id, 'VALIDE'); }}>
