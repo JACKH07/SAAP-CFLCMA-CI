@@ -199,15 +199,20 @@ class CotisationService {
   }
 
   /**
-   * Initie un paiement mobile money (stub API — prêt pour intégration réelle).
+   * Initie un paiement mobile money.
+   * Le montant est libre (saisi par le membre) — pas de montant fixe d'activité.
    */
-  async initiateMobileMoney({ membreId, activiteId, provider, phone }, acteurId) {
+  async initiateMobileMoney({ membreId, activiteId, provider, phone, montant }, acteurId) {
     const membre = await prisma.membre.findUnique({ where: { id: Number(membreId) } });
     if (!membre) throw new AppError('Membre introuvable', 404);
 
-    // Un membre ne peut payer que pour lui-même (sauf admin — contrôlé en amont)
     const activite = await prisma.activite.findUnique({ where: { id: Number(activiteId) } });
     if (!activite) throw new AppError('Activité introuvable', 404);
+
+    const payAmount = Number(montant);
+    if (!Number.isFinite(payAmount) || payAmount <= 0) {
+      throw new AppError('Indiquez un montant valide (FCFA)', 400);
+    }
 
     const idPaiement = membreIdService.buildPaymentId(
       activite.prefixeIdPaiement,
@@ -221,7 +226,9 @@ class CotisationService {
           membreId: membre.id,
           activiteId: activite.id,
           idPaiement,
-          montant: activite.montantDefaut || 0,
+          // Objectif = montant saisi (libre) ; sera ajusté à chaque versement
+          montant: payAmount,
+          montantPaye: 0,
           statut: 'EN_ATTENTE',
           modePaiement: 'MOBILE_MONEY',
           provider: provider || 'ORANGE',
@@ -231,24 +238,26 @@ class CotisationService {
           communauteId: membre.communauteId,
         },
       });
-    } else {
-      cotisation = await prisma.cotisation.update({
-        where: { id: cotisation.id },
-        data: {
-          modePaiement: 'MOBILE_MONEY',
-          provider: provider || cotisation.provider || 'ORANGE',
-        },
-      });
     }
 
-    const reste = Number(cotisation.montant) - Number(cotisation.montantPaye);
-    if (reste <= 0) throw new AppError('Cette cotisation est déjà soldée', 400);
-
-    // Stub : en production, appeler Orange Money / MTN MoMo ici
+    const dejaPaye = Number(cotisation.montantPaye || 0);
+    const nouvelAttendu = Math.max(Number(cotisation.montant || 0), dejaPaye + payAmount);
     const referenceExterne = `MM-${Date.now()}-${cotisation.id}`;
-    await prisma.cotisation.update({
+
+    // Stub : en attendant les webhooks Orange/MTN, on enregistre le versement
+    const nouveauMontantPaye = dejaPaye + payAmount;
+    cotisation = await prisma.cotisation.update({
       where: { id: cotisation.id },
-      data: { referenceExterne },
+      data: {
+        montant: nouvelAttendu,
+        montantPaye: nouveauMontantPaye,
+        statut: this.computeStatut(nouvelAttendu, nouveauMontantPaye),
+        modePaiement: 'MOBILE_MONEY',
+        provider: provider || cotisation.provider || 'ORANGE',
+        referenceExterne,
+        datePaiement: new Date(),
+      },
+      include: { activite: true },
     });
 
     await auditService.log({
@@ -256,18 +265,19 @@ class CotisationService {
       action: 'INIT_MOBILE_MONEY',
       entite: 'Cotisation',
       entiteId: cotisation.id,
-      details: { provider, phone, referenceExterne, montant: reste },
+      details: { provider, phone, referenceExterne, montant: payAmount },
     });
 
     return {
       cotisationId: cotisation.id,
       idPaiement: cotisation.idPaiement,
       referenceExterne,
-      montant: reste,
+      montant: payAmount,
+      totalPaye: nouveauMontantPaye,
       provider: provider || 'ORANGE',
-      status: 'PENDING',
-      message:
-        'Paiement mobile money initié. Le statut sera mis à jour via webhook de confirmation.',
+      status: 'SUCCESS',
+      message: `Paiement de ${payAmount.toLocaleString('fr-FR')} FCFA enregistré pour ${activite.nom}.`,
+      cotisation,
     };
   }
 

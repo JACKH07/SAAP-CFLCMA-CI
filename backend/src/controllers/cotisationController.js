@@ -52,6 +52,7 @@ exports.create = asyncHandler(async (req, res) => {
       activiteId: req.body.activiteId,
       provider: req.body.provider,
       phone: req.body.phone || req.user.contact,
+      montant: req.body.montant,
     },
     req.user.id
   );
