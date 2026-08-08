@@ -10,6 +10,6 @@ router.get('/me', membreController.getMe);
 router.get('/', requireAdmin, membreController.list);
 router.post('/', requireAdmin, membreController.create);
 router.get('/:id', membreController.getById);
-router.patch('/:id', requireAdmin, membreController.update);
+router.patch('/:id', membreController.update);
 
 module.exports = router;

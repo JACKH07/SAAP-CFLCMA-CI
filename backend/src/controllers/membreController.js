@@ -1,5 +1,16 @@
 const membreService = require('../services/membreService');
 const { asyncHandler, AppError } = require('../utils/errors');
+const { hasAdminAccess } = require('../utils/roles');
+
+const SELF_EDITABLE_FIELDS = [
+  'contact',
+  'email',
+  'situationMatrimoniale',
+  'profession',
+  'responsabiliteBureau',
+  'lieuNaissance',
+  'password',
+];
 
 exports.getMe = asyncHandler(async (req, res) => {
   const membre = await membreService.getById(req.user.id);
@@ -12,7 +23,7 @@ exports.list = asyncHandler(async (req, res) => {
 });
 
 exports.getById = asyncHandler(async (req, res) => {
-  if (!req.user.isAdmin && Number(req.params.id) !== req.user.id) {
+  if (!hasAdminAccess(req.user) && Number(req.params.id) !== req.user.id) {
     throw new AppError('Accès limité à votre propre profil', 403);
   }
   const membre = await membreService.getById(req.params.id);
@@ -25,8 +36,28 @@ exports.create = asyncHandler(async (req, res) => {
 });
 
 exports.update = asyncHandler(async (req, res) => {
-  const membre = await membreService.update(req.params.id, req.body, req.user.id, {
+  const targetId = Number(req.params.id);
+  const isSelf = targetId === req.user.id;
+  const isAdmin = hasAdminAccess(req.user);
+
+  if (!isAdmin && !isSelf) {
+    throw new AppError('Accès limité à votre propre profil', 403);
+  }
+
+  let body = req.body;
+  if (!isAdmin) {
+    body = {};
+    for (const key of SELF_EDITABLE_FIELDS) {
+      if (req.body[key] !== undefined) body[key] = req.body[key];
+    }
+    if (!Object.keys(body).length) {
+      throw new AppError('Aucun champ modifiable fourni', 400);
+    }
+  }
+
+  const membre = await membreService.update(targetId, body, req.user.id, {
     ip: req.ip,
+    actorIsSuperAdmin: Boolean(req.user.isSuperAdmin),
   });
   res.json({ success: true, data: membre });
 });

@@ -1,21 +1,10 @@
 const prisma = require('../config/prisma');
 const { AppError } = require('../utils/errors');
 const { membrePublicSelect, withAdminFlag } = require('./authService');
-const { ROLE_COORDINATEUR_GENERAL } = require('../utils/roles');
 const membreIdService = require('./membreIdService');
 const auditService = require('./auditService');
 const lieuAutocompleteService = require('./lieuAutocompleteService');
 const bcrypt = require('bcryptjs');
-
-async function resolveIsAdminForRole(roleId, explicitIsAdmin) {
-  if (roleId) {
-    const role = await prisma.role.findUnique({ where: { id: Number(roleId) } });
-    if (role?.nom === ROLE_COORDINATEUR_GENERAL) return true;
-    // Retirer isAdmin si on quitte le rôle Coordinateur général
-    if (explicitIsAdmin === undefined) return false;
-  }
-  return Boolean(explicitIsAdmin);
-}
 
 class MembreService {
   async getById(id) {
@@ -80,7 +69,6 @@ class MembreService {
       communauteNom,
       communauteId,
       roleId,
-      isAdmin = false,
       statut = 'VALIDE',
       mandateParId,
       situationMatrimoniale,
@@ -93,6 +81,14 @@ class MembreService {
     }
     if (!branche || !['FLAMBEAUX', 'LUMIERES'].includes(branche)) {
       throw new AppError('Sélectionnez Flambeaux (Hommes) ou Lumières (Femmes)', 400);
+    }
+
+    // Création de membres classiques uniquement — les sous-admins passent par /api/admins
+    if (payload.isAdmin || payload.isSuperAdmin) {
+      throw new AppError(
+        'Seuls le Super Admin peut créer un compte administrateur (page Compte / API /admins)',
+        403
+      );
     }
 
     let finalParoisseId = paroisseId ? Number(paroisseId) : null;
@@ -138,7 +134,7 @@ class MembreService {
         paroisseId: finalParoisseId,
         communauteId: finalCommunauteId,
         mandateParId: mandateParId ? Number(mandateParId) : null,
-        isAdmin: await resolveIsAdminForRole(roleId, isAdmin),
+        isAdmin: false,
         isSuperAdmin: false,
         statut,
       },
@@ -198,6 +194,7 @@ class MembreService {
   async update(id, payload, adminId, meta = {}) {
     const existing = await this.getById(id);
     const data = {};
+    const actorIsSuperAdmin = Boolean(meta.actorIsSuperAdmin);
 
     const stringFields = [
       'nom', 'prenom', 'contact', 'email', 'lieuNaissance', 'branche', 'statut',
@@ -267,13 +264,7 @@ class MembreService {
       data.communauteId = finalCommunauteId;
     }
 
-    const nextRoleId = data.roleId != null ? Number(data.roleId) : existing.roleId;
-    data.isAdmin = await resolveIsAdminForRole(
-      nextRoleId,
-      payload.isAdmin !== undefined ? payload.isAdmin : undefined
-    );
-
-    // Le Super Admin ne peut jamais être rétrogradé via PATCH /membres
+    // Droits admin SAAP : seuls le Super Admin peut les modifier (via Compte /admins de préférence)
     if (existing.isSuperAdmin) {
       data.isAdmin = true;
       data.isSuperAdmin = true;
@@ -283,8 +274,12 @@ class MembreService {
       if (payload.statut && ['SUSPENDU', 'REJETE'].includes(payload.statut)) {
         throw new AppError('Le compte Super Admin ne peut pas être suspendu ainsi', 403);
       }
+    } else if (actorIsSuperAdmin && payload.isAdmin !== undefined) {
+      data.isAdmin = Boolean(payload.isAdmin);
+      data.isSuperAdmin = false;
     } else {
-      // Empêcher l'élévation au Super Admin via cette route
+      // Conserver le flag existant — pas d'élévation via rôle C.G. ou PATCH membre
+      data.isAdmin = Boolean(existing.isAdmin);
       delete data.isSuperAdmin;
     }
 
