@@ -76,7 +76,7 @@ class DashboardService {
       }),
       prisma.cotisation.findMany({
         where: cotisationWhere,
-        orderBy: { updatedAt: 'desc' },
+        orderBy: [{ datePaiement: 'desc' }, { updatedAt: 'desc' }],
         take: 6,
         include: {
           membre: {

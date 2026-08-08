@@ -65,7 +65,7 @@ class CotisationService {
         where,
         skip,
         take: Number(limit),
-        orderBy: { updatedAt: 'desc' },
+        orderBy: [{ datePaiement: 'desc' }, { updatedAt: 'desc' }],
         include: {
           activite: true,
           membre: {
@@ -150,9 +150,9 @@ class CotisationService {
           membreId: membre.id,
           activiteId: activite.id,
           idPaiement,
-          montant: activite.montantDefaut || paye,
+          montant: paye,
           montantPaye: paye,
-          statut: this.computeStatut(activite.montantDefaut || paye, paye),
+          statut: 'PAYE',
           modePaiement: 'MANUEL',
           datePaiement: datePaiement ? new Date(datePaiement) : new Date(),
           regionId: membre.regionId,
@@ -170,8 +170,9 @@ class CotisationService {
       cotisation = await prisma.cotisation.update({
         where: { id: cotisation.id },
         data: {
+          montant: nouveauMontantPaye,
           montantPaye: nouveauMontantPaye,
-          statut: this.computeStatut(cotisation.montant, nouveauMontantPaye),
+          statut: 'PAYE',
           modePaiement: 'MANUEL',
           datePaiement: datePaiement ? new Date(datePaiement) : new Date(),
           saisiParId: acteurId,
@@ -241,31 +242,42 @@ class CotisationService {
     }
 
     const dejaPaye = Number(cotisation.montantPaye || 0);
-    const nouvelAttendu = Math.max(Number(cotisation.montant || 0), dejaPaye + payAmount);
     const referenceExterne = `MM-${Date.now()}-${cotisation.id}`;
 
-    // Stub : en attendant les webhooks Orange/MTN, on enregistre le versement
+    // Versement libre : le montant payé augmente, le statut passe à PAYE (validé)
     const nouveauMontantPaye = dejaPaye + payAmount;
     cotisation = await prisma.cotisation.update({
       where: { id: cotisation.id },
       data: {
-        montant: nouvelAttendu,
+        // Attendu = cumul versé (pas de plafond fixe d'activité)
+        montant: nouveauMontantPaye,
         montantPaye: nouveauMontantPaye,
-        statut: this.computeStatut(nouvelAttendu, nouveauMontantPaye),
+        statut: 'PAYE',
         modePaiement: 'MOBILE_MONEY',
         provider: provider || cotisation.provider || 'ORANGE',
         referenceExterne,
         datePaiement: new Date(),
       },
-      include: { activite: true },
+      include: {
+        activite: true,
+        membre: {
+          select: {
+            id: true,
+            nom: true,
+            prenom: true,
+            idMembre: true,
+            contact: true,
+          },
+        },
+      },
     });
 
     await auditService.log({
       acteurId,
-      action: 'INIT_MOBILE_MONEY',
+      action: 'PAIEMENT_MOBILE_MONEY_VALIDE',
       entite: 'Cotisation',
       entiteId: cotisation.id,
-      details: { provider, phone, referenceExterne, montant: payAmount },
+      details: { provider, phone, referenceExterne, montant: payAmount, totalPaye: nouveauMontantPaye },
     });
 
     return {
@@ -276,7 +288,8 @@ class CotisationService {
       totalPaye: nouveauMontantPaye,
       provider: provider || 'ORANGE',
       status: 'SUCCESS',
-      message: `Paiement de ${payAmount.toLocaleString('fr-FR')} FCFA enregistré pour ${activite.nom}.`,
+      statut: 'PAYE',
+      message: `Paiement de ${payAmount.toLocaleString('fr-FR')} FCFA validé pour ${activite.nom}.`,
       cotisation,
     };
   }
