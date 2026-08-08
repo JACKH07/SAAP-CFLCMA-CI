@@ -63,11 +63,11 @@ const ROLE_MIGRATIONS = {
 };
 
 const ACTIVITES = [
-  { nom: 'Évangélique', prefixeIdPaiement: 'EYAWA', montantDefaut: 5000 },
-  { nom: 'Mission', prefixeIdPaiement: 'NGLIÈ', montantDefaut: 5000 },
-  { nom: 'Investissement / Siège (Écolet Motel)', prefixeIdPaiement: 'SIEGE', montantDefaut: 10000 },
-  { nom: 'Activité sociale', prefixeIdPaiement: 'SOCIAL', montantDefaut: 3000 },
-  { nom: 'Journée Nationale', prefixeIdPaiement: 'JN', montantDefaut: 2000 },
+  { nom: 'Évangélique', prefixeIdPaiement: 'EYAWA', montantDefaut: 0 },
+  { nom: 'Mission', prefixeIdPaiement: 'NGLIÈ', montantDefaut: 0 },
+  { nom: 'Investissement / Siège (Écolet Motel)', prefixeIdPaiement: 'SIEGE', montantDefaut: 0 },
+  { nom: 'Activité sociale', prefixeIdPaiement: 'SOCIAL', montantDefaut: 0 },
+  { nom: 'Journée Nationale', prefixeIdPaiement: 'JN', montantDefaut: 0 },
 ];
 
 async function upsertParoisse(districtId, nom) {
@@ -565,7 +565,7 @@ async function seed() {
     console.log(`✓ Super Admin mis à jour : ${adminEmail}`);
   }
 
-  console.log('✅ Seed terminé');
+  console.log(' Seed terminé');
 }
 
 seed()

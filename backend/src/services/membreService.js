@@ -161,23 +161,8 @@ class MembreService {
       },
     });
 
-    const activites = await prisma.activite.findMany({ where: { active: true } });
-    if (activites.length) {
-      await prisma.cotisation.createMany({
-        data: activites.map((a) => ({
-          membreId: membre.id,
-          activiteId: a.id,
-          idPaiement: membreIdService.buildPaymentId(a.prefixeIdPaiement, membre.idMembre),
-          montant: a.montantDefaut || 0,
-          statut: 'EN_ATTENTE',
-          regionId: membre.regionId,
-          districtId: membre.districtId,
-          paroisseId: membre.paroisseId,
-          communauteId: membre.communauteId,
-        })),
-        skipDuplicates: true,
-      });
-    }
+    // Pas de cotisation « en attente » à la création :
+    // le paiement se crée au moment du versement (montant libre).
 
     await auditService.log({
       acteurId: adminId,

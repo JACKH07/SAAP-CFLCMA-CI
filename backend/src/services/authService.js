@@ -222,24 +222,8 @@ class AuthService {
       ipAddress: meta.ip,
     });
 
-    // Créer les cotisations en attente pour chaque activité active
-    const activites = await prisma.activite.findMany({ where: { active: true } });
-    if (activites.length > 0) {
-      await prisma.cotisation.createMany({
-        data: activites.map((a) => ({
-          membreId: membre.id,
-          activiteId: a.id,
-          idPaiement: membreIdService.buildPaymentId(a.prefixeIdPaiement, membre.idMembre),
-          montant: a.montantDefaut || 0,
-          statut: 'EN_ATTENTE',
-          regionId: membre.regionId,
-          districtId: membre.districtId,
-          paroisseId: membre.paroisseId,
-          communauteId: membre.communauteId,
-        })),
-        skipDuplicates: true,
-      });
-    }
+    // Pas de cotisation « en attente » à l'inscription :
+    // le paiement se crée au moment du versement (montant libre).
 
     const token = this.signToken(membre);
     return {
