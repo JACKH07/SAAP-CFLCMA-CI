@@ -238,7 +238,7 @@ class AuthService {
     };
   }
 
-  async login({ email, contact, password, idMembre }, meta = {}) {
+  async login({ email, contact, password, idMembre, portal, requireAdmin }, meta = {}) {
     if (!password) throw new AppError('Mot de passe requis', 400);
 
     let membre = null;
@@ -280,9 +280,24 @@ class AuthService {
       })
     );
 
+    const wantsAdminPortal =
+      portal === 'admin' ||
+      requireAdmin === true ||
+      requireAdmin === 'true' ||
+      requireAdmin === 1 ||
+      requireAdmin === '1';
+
+    // Les membres simples n'ont pas le droit de se connecter sur la page admin
+    if (wantsAdminPortal && !hasAdminAccess(publicMembre)) {
+      throw new AppError(
+        'Accès réservé aux administrateurs. Utilisez la page Connexion membre.',
+        403
+      );
+    }
+
     await auditService.log({
       acteurId: membre.id,
-      action: 'LOGIN',
+      action: wantsAdminPortal ? 'LOGIN_ADMIN' : 'LOGIN',
       entite: 'Membre',
       entiteId: membre.id,
       ipAddress: meta.ip,
