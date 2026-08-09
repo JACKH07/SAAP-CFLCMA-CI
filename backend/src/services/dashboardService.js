@@ -1,6 +1,7 @@
 const prisma = require('../config/prisma');
 const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
+const { absolutizePhotoUrl } = require('../utils/uploads');
 
 class DashboardService {
   async getStats({ regionId, activiteId } = {}) {
@@ -124,7 +125,10 @@ class DashboardService {
       parDistrict,
       parActivite,
       regionId: regionId ? Number(regionId) : null,
-      derniersMembres,
+      derniersMembres: (derniersMembres || []).map((m) => ({
+        ...m,
+        photoUrl: absolutizePhotoUrl(m.photoUrl),
+      })),
       dernieresCotisations,
     };
   }

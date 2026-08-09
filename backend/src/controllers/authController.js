@@ -1,8 +1,9 @@
 const authService = require('../services/authService');
 const { asyncHandler } = require('../utils/errors');
+const { publicUploadUrl } = require('../utils/uploads');
 
 exports.register = asyncHandler(async (req, res) => {
-  const photoUrl = req.file ? `/uploads/${req.file.filename}` : null;
+  const photoUrl = req.file ? publicUploadUrl(req.file.filename) : null;
   const result = await authService.register(
     { ...req.body, photoUrl },
     { ip: req.ip }

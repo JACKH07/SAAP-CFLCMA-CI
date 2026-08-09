@@ -1,5 +1,6 @@
 const cotisationService = require('../services/cotisationService');
 const { asyncHandler, AppError } = require('../utils/errors');
+const { publicUploadUrl } = require('../utils/uploads');
 
 exports.listMine = asyncHandler(async (req, res) => {
   const data = await cotisationService.listMine(req.user.id);
@@ -27,7 +28,7 @@ exports.create = asyncHandler(async (req, res) => {
       throw new AppError('La saisie manuelle est réservée au Coordinateur général (C.G.)', 403);
     }
     const justificatifUrl = req.file
-      ? `/uploads/${req.file.filename}`
+      ? publicUploadUrl(req.file.filename)
       : req.body.justificatifUrl || null;
 
     const data = await cotisationService.recordManualPayment(

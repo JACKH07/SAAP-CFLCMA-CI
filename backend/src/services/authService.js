@@ -7,6 +7,7 @@ const { ROLE_MEMBRES_ACTIFS, ROLE_COORDINATEUR_GENERAL, hasAdminAccess } = requi
 const membreIdService = require('./membreIdService');
 const lieuAutocompleteService = require('./lieuAutocompleteService');
 const auditService = require('./auditService');
+const { absolutizePhotoUrl } = require('../utils/uploads');
 
 const SALT_ROUNDS = 12;
 
@@ -44,6 +45,7 @@ function withAdminFlag(membre) {
   if (!membre) return membre;
   return {
     ...membre,
+    photoUrl: absolutizePhotoUrl(membre.photoUrl),
     isAdmin: hasAdminAccess(membre),
     isSuperAdmin: Boolean(membre.isSuperAdmin),
   };
