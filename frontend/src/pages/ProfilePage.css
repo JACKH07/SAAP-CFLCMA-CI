@@ -14,6 +14,7 @@
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.75rem;
+  width: 100%;
 }
 
 .profile-edit-title {
@@ -103,6 +104,37 @@
   color: #94a3b8;
 }
 
+@media (max-width: 640px) {
+  .profile-header {
+    align-items: center;
+    text-align: center;
+  }
+
+  .profile-header h1 {
+    font-size: 1.45rem;
+  }
+
+  .profile-photo {
+    width: 96px;
+    height: 96px;
+    margin-inline: auto;
+  }
+
+  .profile-actions {
+    justify-content: stretch;
+  }
+
+  .profile-actions .btn,
+  .profile-actions .btn-secondary {
+    flex: 1 1 calc(50% - 0.25rem);
+    min-width: 0;
+  }
+
+  .profile-page .card .form-row {
+    gap: 0 !important;
+  }
+}
+
 @media print {
   body * {
     visibility: hidden !important;
@@ -119,19 +151,11 @@
     left: 0;
     top: 0;
     width: 100%;
-    padding: 1.5cm;
+    padding: 1.5rem;
     background: #fff;
   }
 
-  .no-print {
-    display: none !important;
-  }
-
-  header,
-  nav,
-  footer,
-  .layout-nav,
-  .bottom-tabs {
-    display: none !important;
+  .fiche-print-grid {
+    grid-template-columns: 1fr 1fr;
   }
 }

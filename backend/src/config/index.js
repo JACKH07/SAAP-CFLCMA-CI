@@ -38,6 +38,7 @@ module.exports = {
     adminActivite: process.env.ADMIN_ACTIVITE_URL || `${frontendUrl}/admin/activites`,
     profil: process.env.PROFIL_URL || `${frontendUrl}/profil`,
     mesCotisations: process.env.MES_COTISATIONS_URL || `${frontendUrl}/mes-cotisations`,
+    resetPasswordPath: process.env.RESET_PASSWORD_PATH || '/reset-password',
   },
   jwt: {
     secret: process.env.JWT_SECRET || 'dev-secret-change-me',
@@ -47,13 +48,41 @@ module.exports = {
     dir: process.env.UPLOAD_DIR || 'uploads',
     maxFileSizeMb: parseInt(process.env.MAX_FILE_SIZE_MB || '5', 10),
   },
+  passwordReset: {
+    ttlMs: parseInt(process.env.PASSWORD_RESET_TTL_MS || `${60 * 60 * 1000}`, 10),
+    // true en local par défaut pour tester sans SMTP
+    exposeLink:
+      process.env.PASSWORD_RESET_EXPOSE_LINK === 'true' ||
+      (process.env.PASSWORD_RESET_EXPOSE_LINK !== 'false' &&
+        (appEnv === 'development' || nodeEnv === 'development')),
+  },
   orangeMoney: {
     apiUrl: process.env.ORANGE_MONEY_API_URL,
     clientId: process.env.ORANGE_MONEY_CLIENT_ID,
     clientSecret: process.env.ORANGE_MONEY_CLIENT_SECRET,
     merchantKey: process.env.ORANGE_MONEY_MERCHANT_KEY,
     webhookSecret: process.env.ORANGE_MONEY_WEBHOOK_SECRET,
+    returnUrl: process.env.ORANGE_MONEY_RETURN_URL,
+    cancelUrl: process.env.ORANGE_MONEY_CANCEL_URL,
+    notifUrl:
+      process.env.ORANGE_MONEY_NOTIF_URL ||
+      process.env.ORANGE_MONEY_CALLBACK_URL ||
+      `${process.env.API_PUBLIC_URL || `http://localhost:${process.env.PORT || 4000}/api`}/cotisations/webhooks/orange`,
+    callbackUrl:
+      process.env.ORANGE_MONEY_CALLBACK_URL ||
+      `${process.env.API_PUBLIC_URL || `http://localhost:${process.env.PORT || 4000}/api`}/cotisations/webhooks/orange`,
   },
+  wave: {
+    apiUrl: process.env.WAVE_API_URL || 'https://api.wave.com',
+    apiKey: process.env.WAVE_API_KEY,
+    webhookSecret: process.env.WAVE_WEBHOOK_SECRET,
+    successUrl: process.env.WAVE_SUCCESS_URL,
+    errorUrl: process.env.WAVE_ERROR_URL,
+    callbackUrl:
+      process.env.WAVE_CALLBACK_URL ||
+      `${process.env.API_PUBLIC_URL || `http://localhost:${process.env.PORT || 4000}/api`}/cotisations/webhooks/wave`,
+  },
+  /** MTN MoMo — prêt pour une future activation */
   mtnMomo: {
     apiUrl: process.env.MTN_MOMO_API_URL,
     subscriptionKey: process.env.MTN_MOMO_SUBSCRIPTION_KEY,
@@ -62,5 +91,16 @@ module.exports = {
     targetEnvironment: process.env.MTN_MOMO_TARGET_ENVIRONMENT || 'sandbox',
     callbackUrl: process.env.MTN_MOMO_CALLBACK_URL,
     webhookSecret: process.env.MTN_MOMO_WEBHOOK_SECRET,
+  },
+  payment: {
+    // true | false | undefined (auto : mock si pas de credentials)
+    mockMode:
+      process.env.PAYMENT_MOCK_MODE === 'true'
+        ? true
+        : process.env.PAYMENT_MOCK_MODE === 'false'
+          ? false
+          : undefined,
+    // success | pending | failed | timeout
+    mockResult: process.env.PAYMENT_MOCK_RESULT || 'success',
   },
 };

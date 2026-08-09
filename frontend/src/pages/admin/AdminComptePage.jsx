@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import AdminShell from '../../components/AdminShell';
+import PasswordInput from '../../components/PasswordInput';
 import api from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 import { isSuperAdmin as checkSuperAdmin } from '../../utils/roles';
@@ -161,28 +162,26 @@ export default function AdminComptePage() {
             </p>
           </div>
           <form className="admin-form-inline" onSubmit={changePassword}>
-            <div className="form-group">
-              <label htmlFor="new-pwd">Nouveau mot de passe</label>
-              <input
-                id="new-pwd"
-                type="password"
-                value={pwdForm.password}
-                onChange={(e) => setPwdForm((f) => ({ ...f, password: e.target.value }))}
-                minLength={6}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="confirm-pwd">Confirmer</label>
-              <input
-                id="confirm-pwd"
-                type="password"
-                value={pwdForm.confirm}
-                onChange={(e) => setPwdForm((f) => ({ ...f, confirm: e.target.value }))}
-                minLength={6}
-                required
-              />
-            </div>
+            <PasswordInput
+              id="new-pwd"
+              name="password"
+              label="Nouveau mot de passe"
+              value={pwdForm.password}
+              onChange={(e) => setPwdForm((f) => ({ ...f, password: e.target.value }))}
+              minLength={6}
+              required
+              autoComplete="new-password"
+            />
+            <PasswordInput
+              id="confirm-pwd"
+              name="confirm"
+              label="Confirmer"
+              value={pwdForm.confirm}
+              onChange={(e) => setPwdForm((f) => ({ ...f, confirm: e.target.value }))}
+              minLength={6}
+              required
+              autoComplete="new-password"
+            />
             <button type="submit" className="btn" disabled={savingPwd}>
               {savingPwd ? 'Enregistrement…' : 'Changer le mot de passe'}
             </button>
@@ -250,28 +249,26 @@ export default function AdminComptePage() {
                       <option value="LUMIERES">Lumières</option>
                     </select>
                   </div>
-                  <div className="form-group">
-                    <label htmlFor="admin-pwd">Mot de passe</label>
-                    <input
-                      id="admin-pwd"
-                      type="password"
-                      value={adminForm.password}
-                      onChange={(e) => setAdminForm((f) => ({ ...f, password: e.target.value }))}
-                      minLength={6}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="admin-pwd2">Confirmer le mot de passe</label>
-                    <input
-                      id="admin-pwd2"
-                      type="password"
-                      value={adminForm.confirm}
-                      onChange={(e) => setAdminForm((f) => ({ ...f, confirm: e.target.value }))}
-                      minLength={6}
-                      required
-                    />
-                  </div>
+                  <PasswordInput
+                    id="admin-pwd"
+                    name="password"
+                    label="Mot de passe"
+                    value={adminForm.password}
+                    onChange={(e) => setAdminForm((f) => ({ ...f, password: e.target.value }))}
+                    minLength={6}
+                    required
+                    autoComplete="new-password"
+                  />
+                  <PasswordInput
+                    id="admin-pwd2"
+                    name="confirm"
+                    label="Confirmer le mot de passe"
+                    value={adminForm.confirm}
+                    onChange={(e) => setAdminForm((f) => ({ ...f, confirm: e.target.value }))}
+                    minLength={6}
+                    required
+                    autoComplete="new-password"
+                  />
                 </div>
                 <div className="admin-form-actions">
                   <button type="submit" className="btn" disabled={creating || !canCreateSubAdmin}>
@@ -306,7 +303,7 @@ export default function AdminComptePage() {
                 <p className="muted">Chargement…</p>
               ) : (
                 <div className="data-table-wrap">
-                  <table className="data-table">
+                  <table className="data-table data-table-responsive">
                     <thead>
                       <tr>
                         <th>Administrateur</th>
@@ -320,32 +317,32 @@ export default function AdminComptePage() {
                     <tbody>
                       {admins.map((m) => (
                         <tr key={m.id}>
-                          <td>
+                          <td data-label="Administrateur">
                             <strong>
                               {m.prenom} {m.nom}
                             </strong>
                             <div className="muted tiny">{m.idMembre}</div>
                           </td>
-                          <td>
+                          <td data-label="Email / contact">
                             <div>{m.email || '—'}</div>
                             <div className="muted tiny">{m.contact || ''}</div>
                           </td>
-                          <td>
+                          <td data-label="Niveau">
                             {m.isSuperAdmin ? (
                               <span className="badge badge-super">Super Admin</span>
                             ) : (
                               <span className="badge badge-admin">Admin</span>
                             )}
                           </td>
-                          <td>
+                          <td data-label="Statut">
                             <span className={`badge ${statutClass(m.statut)}`}>{m.statut}</span>
                           </td>
-                          <td className="muted tiny">
+                          <td className="muted tiny" data-label="Créé le">
                             {m.createdAt
                               ? new Date(m.createdAt).toLocaleDateString('fr-FR')
                               : '—'}
                           </td>
-                          <td className="actions-cell">
+                          <td className="actions-cell" data-label="Actions">
                             {!m.isSuperAdmin && m.id !== user?.id && (
                               <>
                                 {m.statut !== 'VALIDE' && (

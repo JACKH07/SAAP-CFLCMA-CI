@@ -5,6 +5,8 @@ import { hasAdminAccess } from './utils/roles';
 import { paths } from './config/env';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import ProfilePage from './pages/ProfilePage';
 import MesCotisationsPage from './pages/MesCotisationsPage';
 import PaiementPage from './pages/PaiementPage';
@@ -16,9 +18,13 @@ import AdminComptePage from './pages/admin/AdminComptePage';
 import AdminActivitePage from './pages/admin/AdminActivitePage';
 
 function HomeRedirect() {
-  const { token, user } = useAuthStore();
+  const { token, user, portal } = useAuthStore();
   if (!token) return <Navigate to={paths.login} replace />;
-  return <Navigate to={hasAdminAccess(user) ? paths.admin : paths.profil} replace />;
+  // Dashboard uniquement si connexion via portail admin
+  if (hasAdminAccess(user) && portal === 'admin') {
+    return <Navigate to={paths.admin} replace />;
+  }
+  return <Navigate to={paths.profil} replace />;
 }
 
 export default function App() {
@@ -29,6 +35,8 @@ export default function App() {
       <Route path={paths.adminLogin} element={<LoginPage mode="admin" />} />
       <Route path="/admin/login" element={<Navigate to={paths.adminLogin} replace />} />
       <Route path={paths.register} element={<RegisterPage />} />
+      <Route path={paths.forgotPassword} element={<ForgotPasswordPage />} />
+      <Route path={paths.resetPassword} element={<ResetPasswordPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route path={paths.profil} element={<ProfilePage />} />

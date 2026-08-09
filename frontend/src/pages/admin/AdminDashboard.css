@@ -242,6 +242,7 @@
 .chart-box {
   width: 100%;
   min-height: 280px;
+  min-width: 0;
 }
 
 .summary-strip {
@@ -675,6 +676,24 @@
 }
 
 @media (max-width: 640px) {
+  .dash-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dash-select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .dash-actions {
+    width: 100%;
+  }
+
+  .dash-actions .dash-btn {
+    flex: 1;
+  }
+
   .kpi-row--4 {
     grid-template-columns: 1fr;
   }
@@ -685,5 +704,18 @@
 
   .summary-strip {
     gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+
+  .dash-card {
+    padding: 0.9rem;
+  }
+
+  .kpi-value {
+    font-size: 1.55rem;
+  }
+
+  .chart-box {
+    min-height: 220px;
   }
 }

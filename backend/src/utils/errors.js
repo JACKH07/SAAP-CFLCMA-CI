@@ -2,8 +2,16 @@ class AppError extends Error {
   constructor(message, statusCode = 500, details = null) {
     super(message);
     this.statusCode = statusCode;
-    this.details = details;
     this.isOperational = true;
+    if (typeof details === 'string') {
+      this.code = details;
+      this.details = null;
+    } else {
+      this.details = details;
+      if (details && typeof details === 'object' && details.code) {
+        this.code = details.code;
+      }
+    }
   }
 }
 
@@ -19,6 +27,10 @@ function errorHandler(err, req, res, _next) {
     success: false,
     message: err.message || 'Erreur interne du serveur',
   };
+
+  if (err.code && typeof err.code === 'string' && !String(err.code).startsWith('P')) {
+    payload.code = err.code;
+  }
 
   if (err.details) {
     payload.details = err.details;

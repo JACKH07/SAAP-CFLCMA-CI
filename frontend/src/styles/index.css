@@ -124,6 +124,7 @@ h1, h2, h3 {
   border-radius: var(--radius);
   padding: 1.25rem;
   box-shadow: var(--shadow);
+  overflow-wrap: anywhere;
 }
 
 .form-group {
@@ -162,8 +163,51 @@ h1, h2, h3 {
   font-size: 0.9rem;
 }
 
-.form-group input[type='date'] {
+.form-group input[type='date'],
+.form-group input[type='datetime-local'],
+.form-group input[type='time'],
+.form-group input[type='month'] {
+  display: block;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
   min-height: 48px;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.form-group--date {
+  max-width: 100%;
+}
+
+.form-group--date input[type='text'] {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.form-group--date input::placeholder {
+  color: #94a3b8;
+  letter-spacing: 0.04em;
+}
+
+/* Alignement du texte date (WebKit / Chrome mobile) */
+.form-group input[type='date']::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+  min-height: 1.4em;
+  width: 100%;
+}
+
+.form-group input[type='date']::-webkit-calendar-picker-indicator {
+  margin-left: auto;
+  margin-right: 0;
+  padding: 0.15rem;
+  cursor: pointer;
+  opacity: 0.65;
+  flex-shrink: 0;
 }
 
 @media (min-width: 640px) {
@@ -349,4 +393,68 @@ table.data th {
   font-size: 0.8rem;
   color: var(--color-muted);
   margin-top: 0.25rem;
+}
+
+/* ——— Responsive global ——— */
+html {
+  overflow-x: clip;
+}
+
+img, video, svg, canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+@media (max-width: 640px) {
+  .container {
+    width: min(1100px, calc(100% - 1.1rem));
+  }
+
+  h1 {
+    font-size: clamp(1.35rem, 7vw, 1.75rem);
+  }
+
+  h2 {
+    font-size: clamp(1.1rem, 5vw, 1.35rem);
+  }
+
+  .card {
+    padding: 0.95rem 0.9rem;
+  }
+
+  .btn,
+  .btn-secondary {
+    width: 100%;
+  }
+
+  .btn-sm {
+    width: auto;
+    min-height: 36px;
+    padding: 0.35rem 0.65rem;
+  }
+
+  .profile-actions .btn,
+  .profile-actions .btn-secondary,
+  .membre-modal-actions .btn,
+  .membre-modal-actions .btn-secondary,
+  .admin-form-actions .btn,
+  .admin-form-actions .btn-secondary,
+  .dash-actions .dash-btn {
+    width: auto;
+    flex: 1 1 auto;
+  }
+
+  .grid-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-card .value {
+    font-size: 1.35rem;
+  }
+
+  .table-wrap,
+  .data-table-wrap {
+    margin-inline: -0.25rem;
+    padding-bottom: 0.25rem;
+  }
 }

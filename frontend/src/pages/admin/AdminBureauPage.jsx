@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import AdminShell from '../../components/AdminShell';
 import api from '../../api/client';
 import { useAutocomplete } from '../../hooks/useAutocomplete';
+import DateInputFr from '../../components/DateInputFr';
+import PasswordInput from '../../components/PasswordInput';
 import './AdminPages.css';
 
 const RESPONSABILITES = [
@@ -346,14 +348,13 @@ export default function AdminBureauPage() {
                     <option value="LUMIERES">Lumières (Femmes)</option>
                   </select>
                 </div>
-                <div className="form-group">
+                <div className="form-group form-group--date">
                   <label htmlFor="bureau-naissance">
                     Date de naissance <span className="req">*</span>
                   </label>
-                  <input
+                  <DateInputFr
                     id="bureau-naissance"
                     name="dateNaissance"
-                    type="date"
                     value={createForm.dateNaissance}
                     onChange={onCreateChange}
                     required
@@ -390,20 +391,20 @@ export default function AdminBureauPage() {
                     onChange={onCreateChange}
                   />
                 </div>
-                <div className="form-group">
-                  <label htmlFor="bureau-password">
-                    Mot de passe <span className="req">*</span>
-                  </label>
-                  <input
-                    id="bureau-password"
-                    name="password"
-                    type="password"
-                    value={createForm.password}
-                    onChange={onCreateChange}
-                    minLength={6}
-                    required
-                  />
-                </div>
+                <PasswordInput
+                  id="bureau-password"
+                  name="password"
+                  label={
+                    <>
+                      Mot de passe <span className="req">*</span>
+                    </>
+                  }
+                  value={createForm.password}
+                  onChange={onCreateChange}
+                  minLength={6}
+                  required
+                  autoComplete="new-password"
+                />
                 <div className="form-group">
                   <label htmlFor="bureau-role">
                     Titre <span className="req">*</span>
@@ -610,7 +611,7 @@ export default function AdminBureauPage() {
             <p className="muted">Aucun membre dans le bureau. Ajoutez-en via le formulaire ci-dessus.</p>
           ) : (
             <div className="data-table-wrap">
-              <table className="data-table">
+              <table className="data-table data-table-responsive">
                 <thead>
                   <tr>
                     <th>Membre</th>
@@ -625,18 +626,18 @@ export default function AdminBureauPage() {
                 <tbody>
                   {bureauMembres.map((m) => (
                     <tr key={m.id}>
-                      <td>
+                      <td data-label="Membre">
                         <strong>
                           {m.prenom} {m.nom}
                         </strong>
                         <div className="muted tiny">{m.idMembre}</div>
                       </td>
-                      <td>{m.responsabiliteBureau}</td>
-                      <td>{m.branche === 'LUMIERES' ? 'Lumières' : 'Flambeaux'}</td>
-                      <td>{m.region?.nom || '—'}</td>
-                      <td>{m.district?.nom || '—'}</td>
-                      <td>{m.paroisse?.nom || '—'}</td>
-                      <td>
+                      <td data-label="Responsabilité">{m.responsabiliteBureau}</td>
+                      <td data-label="Branche">{m.branche === 'LUMIERES' ? 'Lumières' : 'Flambeaux'}</td>
+                      <td data-label="Région">{m.region?.nom || '—'}</td>
+                      <td data-label="District">{m.district?.nom || '—'}</td>
+                      <td data-label="Paroisse">{m.paroisse?.nom || '—'}</td>
+                      <td className="actions-cell" data-label="Action">
                         <button
                           type="button"
                           className="btn btn-secondary btn-sm"

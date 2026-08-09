@@ -7,6 +7,7 @@ const router = Router();
 
 // Webhooks publics (sécurisés via secret côté provider en prod)
 router.post('/webhooks/orange', cotisationController.webhookOrange);
+router.post('/webhooks/wave', cotisationController.webhookWave);
 router.post('/webhooks/mtn', cotisationController.webhookMtn);
 
 router.use(authenticate);

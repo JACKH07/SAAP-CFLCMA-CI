@@ -5,6 +5,9 @@ import { useAuthStore } from '../store/authStore';
 import { useAutocomplete } from '../hooks/useAutocomplete';
 import { paths } from '../config/env';
 import BrandLogo from '../components/BrandLogo';
+import DateInputFr from '../components/DateInputFr';
+import ProfilePhotoCapture from '../components/ProfilePhotoCapture';
+import PasswordInput from '../components/PasswordInput';
 import './Auth.css';
 
 const INITIAL = {
@@ -27,7 +30,7 @@ const INITIAL = {
 
 export default function RegisterPage() {
   const navigate = useNavigate();
-  const { register, loading, error } = useAuthStore();
+  const { register, logout, loading, error } = useAuthStore();
   const [form, setForm] = useState(INITIAL);
   const [regions, setRegions] = useState([]);
   const [districts, setDistricts] = useState([]);
@@ -84,18 +87,6 @@ export default function RegisterPage() {
     }
   }
 
-  function onPhotoChange(e) {
-    const file = e.target.files?.[0] || null;
-    if (file && !file.type.startsWith('image/')) {
-      setLocalError('Veuillez choisir une image (JPG, PNG, WEBP)');
-      setPhoto(null);
-      e.target.value = '';
-      return;
-    }
-    setPhoto(file);
-    setLocalError('');
-  }
-
   async function onSubmit(e) {
     e.preventDefault();
     setLocalError('');
@@ -111,6 +102,10 @@ export default function RegisterPage() {
     }
     if (!form.branche) {
       setLocalError('Sélectionnez Flambeaux ou Lumières');
+      return;
+    }
+    if (!form.dateNaissance) {
+      setLocalError('Indiquez la date de naissance au format JJ/MM/AAAA');
       return;
     }
 
@@ -188,14 +183,13 @@ export default function RegisterPage() {
               <option value="LUMIERES">Lumières (Femmes)</option>
             </select>
           </div>
-          <div className="form-group">
+          <div className="form-group form-group--date">
             <label htmlFor="dateNaissance">
               Date de naissance <span className="req">*</span>
             </label>
-            <input
+            <DateInputFr
               id="dateNaissance"
               name="dateNaissance"
-              type="date"
               value={form.dateNaissance}
               onChange={onChange}
               required
@@ -267,21 +261,20 @@ export default function RegisterPage() {
               placeholder="07 XX XX XX XX"
             />
           </div>
-          <div className="form-group">
-            <label htmlFor="password">
-              Mot de passe <span className="req">*</span>
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              value={form.password}
-              onChange={onChange}
-              required
-              minLength={6}
-            />
-          </div>
+          <PasswordInput
+            id="password"
+            name="password"
+            label={
+              <>
+                Mot de passe <span className="req">*</span>
+              </>
+            }
+            value={form.password}
+            onChange={onChange}
+            autoComplete="new-password"
+            required
+            minLength={6}
+          />
           <div className="form-group">
             <label htmlFor="fonctionId">Titre</label>
             <select id="fonctionId" name="fonctionId" value={form.fonctionId} onChange={onChange}>
@@ -391,19 +384,11 @@ export default function RegisterPage() {
             <textarea id="notes" name="notes" rows={4} placeholder="Informations complémentaires…" />
           </div>
           <div className="form-group form-span-2">
-            <label htmlFor="photo">Télécharger la photo du membre (150px × 150px)</label>
-            <div className="file-upload-box">
-              <input
-                id="photo"
-                name="photo"
-                type="file"
-                accept="image/*"
-                onChange={onPhotoChange}
-              />
-              <p className="muted file-chosen">
-                {photo ? photo.name : 'Aucun fichier choisi'}
-              </p>
-            </div>
+            <ProfilePhotoCapture
+              value={photo}
+              onChange={setPhoto}
+              onError={(msg) => setLocalError(msg || '')}
+            />
           </div>
         </div>
 
@@ -412,7 +397,15 @@ export default function RegisterPage() {
         </button>
 
         <p className="auth-footer muted">
-          Déjà inscrit ? <Link to={paths.login}>Se connecter</Link>
+          Déjà inscrit ?{' '}
+          <Link
+            to={paths.login}
+            onClick={() => {
+              logout();
+            }}
+          >
+            Se connecter
+          </Link>
         </p>
       </form>
     </div>

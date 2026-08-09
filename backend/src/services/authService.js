@@ -43,10 +43,12 @@ const membrePublicSelect = {
 
 function withAdminFlag(membre) {
   if (!membre) return membre;
+  const isAdminAccount = hasAdminAccess(membre);
   return {
     ...membre,
-    photoUrl: absolutizePhotoUrl(membre.photoUrl),
-    isAdmin: hasAdminAccess(membre),
+    // Photo de profil réservée aux comptes utilisateur (pas Super Admin / sous-admins)
+    photoUrl: isAdminAccount ? null : absolutizePhotoUrl(membre.photoUrl),
+    isAdmin: isAdminAccount,
     isSuperAdmin: Boolean(membre.isSuperAdmin),
   };
 }

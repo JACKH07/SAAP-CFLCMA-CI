@@ -14,6 +14,7 @@ import {
 } from 'recharts';
 import { Link } from 'react-router-dom';
 import AdminShell from '../../components/AdminShell';
+import MemberAvatar from '../../components/MemberAvatar';
 import api from '../../api/client';
 import { paths } from '../../config/env';
 import './AdminDashboard.css';
@@ -413,13 +414,13 @@ export default function AdminDashboardPage() {
                     <tr key={m.id}>
                       <td>
                         <div className="person-cell">
-                          {m.photoUrl ? (
-                            <img src={m.photoUrl} alt="" className="avatar-sm" />
-                          ) : (
-                            <span className="avatar-sm avatar-sm--ph">
-                              {initials(m.prenom, m.nom)}
-                            </span>
-                          )}
+                          <MemberAvatar
+                            photoUrl={m.photoUrl}
+                            prenom={m.prenom}
+                            nom={m.nom}
+                            isAdmin={m.isAdmin}
+                            isSuperAdmin={m.isSuperAdmin}
+                          />
                           <div>
                             <strong>
                               {m.prenom} {m.nom}

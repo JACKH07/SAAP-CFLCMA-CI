@@ -161,12 +161,16 @@
 .auth-page--register .form-grid,
 .auth-page--register .form-grid--4 {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0 0.9rem;
+  width: 100%;
+  max-width: 100%;
 }
 
 .auth-page--register .form-grid--4 > .form-group {
   margin-bottom: 1rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .auth-page--register .auth-card--grid input,
@@ -176,6 +180,19 @@
   border-color: #e2e8f0;
   border-radius: 8px;
   min-height: 44px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.auth-page--register .auth-card--grid input[type='date'] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .auth-page--register .auth-card--grid label {
@@ -238,6 +255,22 @@
   line-height: 1.4;
 }
 
+.auth-forgot {
+  margin: -0.35rem 0 0.85rem;
+  text-align: right;
+  font-size: 0.88rem;
+}
+
+.auth-forgot a {
+  color: #1c7c38;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-forgot a:hover {
+  text-decoration: underline;
+}
+
 .auth-footer-secondary {
   margin-top: 0.45rem;
   font-size: 0.88rem;
@@ -275,5 +308,27 @@
 
   .form-group label {
     font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .auth-page--register {
+    padding-inline: 0.65rem;
+  }
+
+  .auth-card--grid .form-card-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  .auth-page--register .btn-block {
+    width: 100%;
+    min-height: 52px;
+  }
+
+  .file-upload-box {
+    min-height: 100px;
+    padding: 0.75rem;
   }
 }

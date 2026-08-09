@@ -68,6 +68,8 @@ class DashboardService {
           branche: true,
           statut: true,
           photoUrl: true,
+          isAdmin: true,
+          isSuperAdmin: true,
           role: { select: { nom: true } },
           region: { select: { nom: true } },
           district: { select: { nom: true } },
@@ -87,6 +89,8 @@ class DashboardService {
               prenom: true,
               idMembre: true,
               photoUrl: true,
+              isAdmin: true,
+              isSuperAdmin: true,
               role: { select: { nom: true } },
               region: { select: { nom: true } },
               district: { select: { nom: true } },
@@ -127,9 +131,21 @@ class DashboardService {
       regionId: regionId ? Number(regionId) : null,
       derniersMembres: (derniersMembres || []).map((m) => ({
         ...m,
-        photoUrl: absolutizePhotoUrl(m.photoUrl),
+        photoUrl:
+          m.isAdmin || m.isSuperAdmin ? null : absolutizePhotoUrl(m.photoUrl),
       })),
-      dernieresCotisations,
+      dernieresCotisations: (dernieresCotisations || []).map((c) => ({
+        ...c,
+        membre: c.membre
+          ? {
+              ...c.membre,
+              photoUrl:
+                c.membre.isAdmin || c.membre.isSuperAdmin
+                  ? null
+                  : absolutizePhotoUrl(c.membre.photoUrl),
+            }
+          : c.membre,
+      })),
     };
   }
 

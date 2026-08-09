@@ -3,6 +3,9 @@ import AdminShell from '../../components/AdminShell';
 import api from '../../api/client';
 import { useAutocomplete } from '../../hooks/useAutocomplete';
 import { useAuthStore } from '../../store/authStore';
+import DateInputFr from '../../components/DateInputFr';
+import MemberAvatar from '../../components/MemberAvatar';
+import PasswordInput from '../../components/PasswordInput';
 import './AdminMembres.css';
 
 function formatDateInput(value) {
@@ -281,6 +284,48 @@ export default function AdminMembresPage() {
     return true;
   }
 
+  function renderActionsMenu(m) {
+    return (
+      <div className="row-menu">
+        <button
+          type="button"
+          className="row-menu-btn"
+          aria-label="Actions"
+          onClick={() => setOpenMenuId(openMenuId === m.id ? null : m.id)}
+        >
+          ⋯
+        </button>
+        {openMenuId === m.id && (
+          <div className="row-menu-list" role="menu">
+            <button type="button" role="menuitem" onClick={() => { setOpenMenuId(null); openEdit(m); }}>
+              Modifier
+            </button>
+            {canDeleteMembre(m) ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="row-menu-danger"
+                onClick={() => removeMembre(m)}
+              >
+                Supprimer
+              </button>
+            ) : null}
+            {m.statut === 'EN_ATTENTE' && (
+              <>
+                <button type="button" onClick={() => { setOpenMenuId(null); quickStatut(m.id, 'VALIDE'); }}>
+                  Valider
+                </button>
+                <button type="button" onClick={() => { setOpenMenuId(null); quickStatut(m.id, 'REJETE'); }}>
+                  Rejeter
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const items = useMemo(() => {
     let list = data.items || [];
     const idQ = applied.id.trim().toLowerCase();
@@ -338,113 +383,137 @@ export default function AdminMembresPage() {
           {loading ? (
             <p className="muted">Chargement…</p>
           ) : (
-            <div className="data-table-wrap">
-              <table className="membres-data-table membres-data-table--rich">
-                <thead>
-                  <tr>
-                    <th className="col-check">
-                      <input
-                        type="checkbox"
-                        checked={allSelected}
-                        onChange={(e) => toggleAll(e.target.checked, allIds)}
-                        aria-label="Tout sélectionner"
-                      />
-                    </th>
-                    <th>ID</th>
-                    <th>Photo</th>
-                    <th>Nom</th>
-                    <th>Branche</th>
-                    <th>Région</th>
-                    <th>District</th>
-                    <th>Paroisse</th>
-                    <th>Date de naissance</th>
-                    <th>Téléphone</th>
-                    <th>E-mail</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((m) => (
-                    <tr key={m.id}>
-                      <td className="col-check">
+            <>
+              {/* Desktop / tablette : tableau */}
+              <div className="data-table-wrap membres-desktop-only">
+                <table className="membres-data-table membres-data-table--rich">
+                  <thead>
+                    <tr>
+                      <th className="col-check">
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          onChange={(e) => toggleAll(e.target.checked, allIds)}
+                          aria-label="Tout sélectionner"
+                        />
+                      </th>
+                      <th>ID</th>
+                      <th>Photo</th>
+                      <th>Nom</th>
+                      <th>Branche</th>
+                      <th>Région</th>
+                      <th>District</th>
+                      <th>Paroisse</th>
+                      <th>Date de naissance</th>
+                      <th>Téléphone</th>
+                      <th>E-mail</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((m) => (
+                      <tr key={m.id}>
+                        <td className="col-check">
+                          <input
+                            type="checkbox"
+                            checked={selected.has(m.id)}
+                            onChange={() => toggleOne(m.id)}
+                            aria-label={`Sélectionner ${m.prenom} ${m.nom}`}
+                          />
+                        </td>
+                        <td className="col-id">#{m.idMembre}</td>
+                        <td>
+                          <MemberAvatar
+                            photoUrl={m.photoUrl}
+                            prenom={m.prenom}
+                            nom={m.nom}
+                            isAdmin={m.isAdmin}
+                            isSuperAdmin={m.isSuperAdmin}
+                          />
+                        </td>
+                        <td className="col-name">
+                          {m.prenom} {m.nom}
+                        </td>
+                        <td>{brancheLabel(m.branche)}</td>
+                        <td>{m.region?.nom || '—'}</td>
+                        <td>{m.district?.nom || '—'}</td>
+                        <td>{m.paroisse?.nom || '—'}</td>
+                        <td>{formatDateFr(m.dateNaissance)}</td>
+                        <td>{m.contact || '—'}</td>
+                        <td className="col-email">{m.email || '—'}</td>
+                        <td className="col-actions">{renderActionsMenu(m)}</td>
+                      </tr>
+                    ))}
+                    {!items.length && (
+                      <tr>
+                        <td colSpan={12} className="muted empty-row">
+                          Aucun membre trouvé.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile : cartes */}
+              <div className="membres-cards membres-mobile-only">
+                {!items.length && <p className="muted empty-row">Aucun membre trouvé.</p>}
+                {items.map((m) => (
+                  <article key={m.id} className="membre-card">
+                    <div className="membre-card-top">
+                      <label className="membre-card-check">
                         <input
                           type="checkbox"
                           checked={selected.has(m.id)}
                           onChange={() => toggleOne(m.id)}
                           aria-label={`Sélectionner ${m.prenom} ${m.nom}`}
                         />
-                      </td>
-                      <td className="col-id">#{m.idMembre}</td>
-                      <td>
-                        {m.photoUrl ? (
-                          <img src={m.photoUrl} alt="" className="avatar-sm" />
-                        ) : (
-                          <span className="avatar-sm avatar-sm--ph">
-                            {initials(m.prenom, m.nom)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="col-name">
-                        {m.prenom} {m.nom}
-                      </td>
-                      <td>{brancheLabel(m.branche)}</td>
-                      <td>{m.region?.nom || '—'}</td>
-                      <td>{m.district?.nom || '—'}</td>
-                      <td>{m.paroisse?.nom || '—'}</td>
-                      <td>{formatDateFr(m.dateNaissance)}</td>
-                      <td>{m.contact || '—'}</td>
-                      <td className="col-email">{m.email || '—'}</td>
-                      <td className="col-actions">
-                        <div className="row-menu">
-                          <button
-                            type="button"
-                            className="row-menu-btn"
-                            aria-label="Actions"
-                            onClick={() => setOpenMenuId(openMenuId === m.id ? null : m.id)}
-                          >
-                            ⋯
-                          </button>
-                          {openMenuId === m.id && (
-                            <div className="row-menu-list" role="menu">
-                              <button type="button" role="menuitem" onClick={() => { setOpenMenuId(null); openEdit(m); }}>
-                                Modifier
-                              </button>
-                              {canDeleteMembre(m) ? (
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  className="row-menu-danger"
-                                  onClick={() => removeMembre(m)}
-                                >
-                                  Supprimer
-                                </button>
-                              ) : null}
-                              {m.statut === 'EN_ATTENTE' && (
-                                <>
-                                  <button type="button" onClick={() => { setOpenMenuId(null); quickStatut(m.id, 'VALIDE'); }}>
-                                    Valider
-                                  </button>
-                                  <button type="button" onClick={() => { setOpenMenuId(null); quickStatut(m.id, 'REJETE'); }}>
-                                    Rejeter
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {!items.length && (
-                    <tr>
-                      <td colSpan={12} className="muted empty-row">
-                        Aucun membre trouvé.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                      </label>
+                      <MemberAvatar
+                        photoUrl={m.photoUrl}
+                        prenom={m.prenom}
+                        nom={m.nom}
+                        isAdmin={m.isAdmin}
+                        isSuperAdmin={m.isSuperAdmin}
+                      />
+                      <div className="membre-card-identity">
+                        <strong>
+                          {m.prenom} {m.nom}
+                        </strong>
+                        <span className="membre-card-id">#{m.idMembre}</span>
+                      </div>
+                      <div className="col-actions">{renderActionsMenu(m)}</div>
+                    </div>
+                    <dl className="membre-card-meta">
+                      <div>
+                        <dt>Branche</dt>
+                        <dd>{brancheLabel(m.branche)}</dd>
+                      </div>
+                      <div>
+                        <dt>Région</dt>
+                        <dd>{m.region?.nom || '—'}</dd>
+                      </div>
+                      <div>
+                        <dt>District</dt>
+                        <dd>{m.district?.nom || '—'}</dd>
+                      </div>
+                      <div>
+                        <dt>Paroisse</dt>
+                        <dd>{m.paroisse?.nom || '—'}</dd>
+                      </div>
+                      <div>
+                        <dt>Téléphone</dt>
+                        <dd>{m.contact || '—'}</dd>
+                      </div>
+                      <div className="membre-card-meta-full">
+                        <dt>E-mail</dt>
+                        <dd>{m.email || '—'}</dd>
+                      </div>
+                    </dl>
+                  </article>
+                ))}
+              </div>
+            </>
           )}
 
           <div className="table-foot">
@@ -512,12 +581,11 @@ export default function AdminMembresPage() {
                   </div>
                 </div>
                 <div className="form-row">
-                  <div className="form-group">
+                  <div className="form-group form-group--date">
                     <label htmlFor="dateNaissance">Date de naissance</label>
-                    <input
+                    <DateInputFr
                       id="dateNaissance"
                       name="dateNaissance"
-                      type="date"
                       value={form.dateNaissance}
                       onChange={onChange}
                       required
@@ -546,18 +614,16 @@ export default function AdminMembresPage() {
                   <label htmlFor="email">Email</label>
                   <input id="email" name="email" type="email" value={form.email} onChange={onChange} />
                 </div>
-                <div className="form-group">
-                  <label htmlFor="password">Nouveau mot de passe (optionnel)</label>
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    value={form.password}
-                    onChange={onChange}
-                    minLength={6}
-                    placeholder="Laisser vide pour ne pas changer"
-                  />
-                </div>
+                <PasswordInput
+                  id="password"
+                  name="password"
+                  label="Nouveau mot de passe (optionnel)"
+                  value={form.password}
+                  onChange={onChange}
+                  minLength={6}
+                  autoComplete="new-password"
+                  placeholder="Laisser vide pour ne pas changer"
+                />
                 <div className="form-group">
                   <label htmlFor="situationMatrimoniale">Situation matrimoniale</label>
                   <select

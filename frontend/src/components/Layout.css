@@ -118,3 +118,42 @@
     padding: 0.45rem;
   }
 }
+
+@media (max-width: 640px) {
+  .topbar-inner {
+    min-height: 56px;
+    padding-inline: 0.15rem;
+  }
+
+  .brand-logo--nav {
+    width: 36px;
+    height: 36px;
+  }
+
+  .brand-text strong {
+    font-size: 1rem;
+  }
+
+  .brand-text small {
+    display: none;
+  }
+
+  .btn-logout {
+    font-size: 0.82rem;
+    padding: 0.4rem 0.45rem;
+  }
+
+  .main-content {
+    padding: 0.85rem 0 1.25rem;
+  }
+
+  .bottom-nav {
+    padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
+  }
+
+  .bottom-nav a {
+    font-size: 0.72rem;
+    gap: 0.15rem;
+    min-height: 56px;
+  }
+}

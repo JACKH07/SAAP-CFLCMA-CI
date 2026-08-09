@@ -1,4 +1,5 @@
 const cotisationService = require('../services/cotisationService');
+const paymentGateway = require('../services/payment');
 const { asyncHandler, AppError } = require('../utils/errors');
 const { publicUploadUrl } = require('../utils/uploads');
 
@@ -18,8 +19,6 @@ exports.findByPaymentId = asyncHandler(async (req, res) => {
 });
 
 exports.create = asyncHandler(async (req, res) => {
-  // Secrétaire général : saisie manuelle
-  // Membre : initiation mobile money pour soi-même
   const isSg = Boolean(req.user.isAdmin);
   const mode = req.body.modePaiement || (isSg ? 'MANUEL' : 'MOBILE_MONEY');
 
@@ -39,9 +38,7 @@ exports.create = asyncHandler(async (req, res) => {
     return res.status(201).json({ success: true, data });
   }
 
-  const membreId = isSg && req.body.membreId
-    ? Number(req.body.membreId)
-    : req.user.id;
+  const membreId = isSg && req.body.membreId ? Number(req.body.membreId) : req.user.id;
 
   if (!isSg && membreId !== req.user.id) {
     throw new AppError('Vous ne pouvez payer que pour vous-même', 403);
@@ -60,21 +57,35 @@ exports.create = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, data });
 });
 
-exports.webhookOrange = asyncHandler(async (req, res) => {
+async function handleProviderWebhook(provider, req, res) {
+  if (!paymentGateway.verifyWebhook(provider, req)) {
+    throw new AppError('Signature webhook invalide', 401);
+  }
+  const parsed = paymentGateway.parseWebhook(provider, req.body || {});
   const data = await cotisationService.confirmWebhook({
-    idPaiement: req.body.idPaiement || req.body.order_id,
-    referenceExterne: req.body.referenceExterne || req.body.txnid,
-    status: req.body.status || req.body.payment_status,
-    amount: req.body.amount,
-    provider: 'ORANGE',
+    idPaiement: parsed.idPaiement,
+    referenceExterne: parsed.referenceExterne,
+    status: parsed.status,
+    amount: parsed.amount,
+    provider: parsed.provider || provider,
   });
   res.json({ success: true, data });
+}
+
+exports.webhookOrange = asyncHandler(async (req, res) => {
+  await handleProviderWebhook('ORANGE', req, res);
 });
 
+exports.webhookWave = asyncHandler(async (req, res) => {
+  await handleProviderWebhook('WAVE', req, res);
+});
+
+/** Conservé pour compatibilité / future MTN MoMo */
 exports.webhookMtn = asyncHandler(async (req, res) => {
   const data = await cotisationService.confirmWebhook({
     idPaiement: req.body.idPaiement,
-    referenceExterne: req.body.externalId || req.body.referenceExterne || req.body.financialTransactionId,
+    referenceExterne:
+      req.body.externalId || req.body.referenceExterne || req.body.financialTransactionId,
     status: req.body.status,
     amount: req.body.amount,
     provider: 'MTN',

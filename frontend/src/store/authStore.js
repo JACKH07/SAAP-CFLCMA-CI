@@ -1,29 +1,48 @@
 import { create } from 'zustand';
 import api from '../api/client';
 
+const PORTAL_KEY = 'saap_portal';
+
 export const useAuthStore = create((set, get) => ({
   token: localStorage.getItem('saap_token'),
   user: JSON.parse(localStorage.getItem('saap_user') || 'null'),
+  portal: localStorage.getItem(PORTAL_KEY) || null,
   loading: false,
   error: null,
 
-  setSession(token, user) {
+  setSession(token, user, portal) {
     localStorage.setItem('saap_token', token);
     localStorage.setItem('saap_user', JSON.stringify(user));
-    set({ token, user, error: null });
+    if (portal === 'admin' || portal === 'membre') {
+      localStorage.setItem(PORTAL_KEY, portal);
+    }
+    set({
+      token,
+      user,
+      error: null,
+      portal: portal === 'admin' || portal === 'membre' ? portal : get().portal,
+    });
+  },
+
+  setPortal(portal) {
+    if (portal === 'admin' || portal === 'membre') {
+      localStorage.setItem(PORTAL_KEY, portal);
+      set({ portal });
+    }
   },
 
   logout() {
     localStorage.removeItem('saap_token');
     localStorage.removeItem('saap_user');
-    set({ token: null, user: null });
+    localStorage.removeItem(PORTAL_KEY);
+    set({ token: null, user: null, portal: null });
   },
 
-  async login(payload) {
+  async login(payload, portal) {
     set({ loading: true, error: null });
     try {
       const { data } = await api.post('/auth/login', payload);
-      get().setSession(data.token, data.membre);
+      get().setSession(data.token, data.membre, portal);
       set({ loading: false });
       return data;
     } catch (err) {
@@ -53,7 +72,7 @@ export const useAuthStore = create((set, get) => ({
             })();
 
       const { data } = await api.post('/auth/register', body);
-      get().setSession(data.token, data.membre);
+      get().setSession(data.token, data.membre, 'membre');
       set({ loading: false });
       return data;
     } catch (err) {

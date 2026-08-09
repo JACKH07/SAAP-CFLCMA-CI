@@ -89,7 +89,7 @@ function NavIcon({ type }) {
 }
 
 export default function AdminShell({ children, title = 'Analytique', crumbs = ['Tableaux de bord', 'Analytique'] }) {
-  const { user, logout } = useAuthStore();
+  const { user, logout, setPortal } = useAuthStore();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
@@ -119,7 +119,11 @@ export default function AdminShell({ children, title = 'Analytique', crumbs = ['
                   to={item.to}
                   end={item.end}
                   className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                  onClick={() => setOpen(false)}
+                  onClick={() => {
+                    setOpen(false);
+                    if (item.to === paths.profil) setPortal('membre');
+                    else setPortal('admin');
+                  }}
                 >
                   <span className="nav-ico"><NavIcon type={item.icon} /></span>
                   {item.label}
@@ -164,7 +168,10 @@ export default function AdminShell({ children, title = 'Analytique', crumbs = ['
               </div>
             </div>
             <button type="button" className="btn-logout-sm" onClick={handleLogout}>
-              Déconnexion
+              <span className="logout-label">Déconnexion</span>
+              <span className="logout-icon" aria-hidden>
+                ⎋
+              </span>
             </button>
           </div>
         </header>

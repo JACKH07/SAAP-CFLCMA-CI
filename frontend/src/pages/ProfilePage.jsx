@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import Layout from '../components/Layout';
 import BrandLogo from '../components/BrandLogo';
+import PasswordInput from '../components/PasswordInput';
+import { mediaUrl } from '../utils/mediaUrl';
 import api from '../api/client';
 import { useAuthStore } from '../store/authStore';
+import { hasAdminAccess } from '../utils/roles';
 import './Auth.css';
 import './ProfilePage.css';
 
@@ -131,15 +134,21 @@ export default function ProfilePage() {
     ? new Date(profile.dateNaissance).toLocaleDateString('fr-FR')
     : '—';
 
+  // Photo de profil : uniquement pour les comptes utilisateur (pas les admins)
+  const showMemberPhoto = Boolean(profile.photoUrl) && !hasAdminAccess(profile);
+
   return (
     <Layout>
       <section className="stack profile-page">
         <div className="profile-header no-print">
-          {profile.photoUrl && (
+          {showMemberPhoto && (
             <img
-              src={profile.photoUrl}
+              src={mediaUrl(profile.photoUrl)}
               alt={`${profile.prenom} ${profile.nom}`}
               className="profile-photo"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
             />
           )}
           <p className="muted" style={{ margin: 0 }}>
@@ -236,28 +245,24 @@ export default function ProfilePage() {
               </div>
             </div>
             <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="pf-pwd">Nouveau mot de passe (optionnel)</label>
-                <input
-                  id="pf-pwd"
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                  minLength={6}
-                  autoComplete="new-password"
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="pf-pwd2">Confirmer</label>
-                <input
-                  id="pf-pwd2"
-                  type="password"
-                  value={form.confirm}
-                  onChange={(e) => setForm((f) => ({ ...f, confirm: e.target.value }))}
-                  minLength={6}
-                  autoComplete="new-password"
-                />
-              </div>
+              <PasswordInput
+                id="pf-pwd"
+                name="password"
+                label="Nouveau mot de passe (optionnel)"
+                value={form.password}
+                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                minLength={6}
+                autoComplete="new-password"
+              />
+              <PasswordInput
+                id="pf-pwd2"
+                name="confirm"
+                label="Confirmer"
+                value={form.confirm}
+                onChange={(e) => setForm((f) => ({ ...f, confirm: e.target.value }))}
+                minLength={6}
+                autoComplete="new-password"
+              />
             </div>
             <div className="profile-actions">
               <button type="submit" className="btn" disabled={saving}>

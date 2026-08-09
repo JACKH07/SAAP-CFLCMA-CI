@@ -11,6 +11,7 @@
   padding: 0;
   cursor: pointer;
   align-self: flex-start;
+  min-height: 44px;
 }
 
 .paiement-activite .tiny {
@@ -28,4 +29,63 @@
   font-size: 1.35rem;
   font-weight: 700;
   letter-spacing: 0.02em;
+}
+
+.paiement-methods-fieldset {
+  border: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.paiement-methods-fieldset legend {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.55rem;
+  color: #1e293b;
+}
+
+.alert-pending {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  color: #9a3412;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+}
+
+.alert-pending p {
+  margin: 0.35rem 0 0;
+}
+
+.alert-pending a {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-weight: 600;
+  color: #c2410c;
+}
+
+.alert-pending .tiny {
+  font-size: 0.78rem;
+}
+
+@media (max-width: 640px) {
+  .paiement-page h1 {
+    font-size: 1.45rem;
+  }
+
+  .paiement-page .card {
+    padding: 1rem 0.9rem;
+  }
+
+  .paiement-page #montant {
+    font-size: 1.55rem;
+  }
+
+  .paiement-page .btn {
+    width: 100%;
+    min-height: 52px;
+  }
+
+  .paiement-page .form-row {
+    grid-template-columns: 1fr;
+  }
 }

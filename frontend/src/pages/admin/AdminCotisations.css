@@ -223,4 +223,46 @@
   .cotis-kpi-text strong {
     font-size: 1.35rem;
   }
+
+  .cotis-panel,
+  .cotis-dash .card {
+    padding: 0.85rem;
+  }
+
+  .cotis-panel-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cotis-panel-tools {
+    width: 100%;
+  }
+
+  .cotis-search {
+    width: 100%;
+  }
+
+  .cotis-search input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .cotis-chart-box {
+    min-height: 220px;
+  }
+
+  .cotis-list li {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.45rem;
+  }
+
+  .cotis-list-meta {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .cotis-form .btn {
+    width: 100%;
+  }
 }

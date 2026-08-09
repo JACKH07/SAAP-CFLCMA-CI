@@ -23,6 +23,8 @@ export const paths = {
   login: path(env.VITE_LOGIN_PATH, '/login'),
   adminLogin: path(env.VITE_ADMIN_LOGIN_PATH, '/admin_connecte'),
   register: path(env.VITE_REGISTER_PATH, '/register'),
+  forgotPassword: path(env.VITE_FORGOT_PASSWORD_PATH, '/mot-de-passe-oublie'),
+  resetPassword: path(env.VITE_RESET_PASSWORD_PATH, '/reset-password'),
   admin: path(env.VITE_ADMIN_PATH, '/admin'),
   adminMembres: path(env.VITE_ADMIN_MEMBRES_PATH, '/admin/membres'),
   adminCotisations: path(env.VITE_ADMIN_COTISATIONS_PATH, '/admin/cotisations'),

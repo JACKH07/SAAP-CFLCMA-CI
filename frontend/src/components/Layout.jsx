@@ -6,9 +6,11 @@ import BrandLogo from './BrandLogo';
 import './Layout.css';
 
 export default function Layout({ children }) {
-  const { user, logout } = useAuthStore();
+  const { user, logout, portal, setPortal } = useAuthStore();
   const navigate = useNavigate();
-  const isAdmin = hasAdminAccess(user);
+  const canAdmin = hasAdminAccess(user);
+  // Navigation membre sauf si on est explicitement en portail admin
+  const inAdminPortal = canAdmin && portal === 'admin';
 
   function handleLogout() {
     logout();
@@ -19,7 +21,7 @@ export default function Layout({ children }) {
     <div className="app-shell">
       <header className="topbar">
         <div className="container topbar-inner">
-          <NavLink to={isAdmin ? paths.admin : paths.profil} className="brand">
+          <NavLink to={paths.profil} className="brand">
             <BrandLogo size={42} className="brand-logo--nav" />
             <span className="brand-text">
               <strong>SAAP</strong>
@@ -38,12 +40,16 @@ export default function Layout({ children }) {
 
       {user && (
         <nav className="bottom-nav" aria-label="Navigation principale">
-          {isAdmin ? (
+          {inAdminPortal ? (
             <>
-              <NavLink to={paths.admin}>Tableau</NavLink>
+              <NavLink to={paths.admin} onClick={() => setPortal('admin')}>
+                Tableau
+              </NavLink>
               <NavLink to={paths.adminMembres}>Membres</NavLink>
               <NavLink to={paths.adminCotisations}>Cotisations</NavLink>
-              <NavLink to={paths.profil}>Profil</NavLink>
+              <NavLink to={paths.profil} onClick={() => setPortal('membre')}>
+                Profil
+              </NavLink>
             </>
           ) : (
             <>

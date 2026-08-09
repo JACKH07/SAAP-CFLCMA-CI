@@ -1,10 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
+import PaymentMethodCard from '../components/PaymentMethodCard';
 import api from '../api/client';
 import { useAuthStore } from '../store/authStore';
 import { paths } from '../config/env';
+import { enabledPaymentMethods } from '../payments/paymentMethods';
 import './PaiementPage.css';
+
+const METHODS = enabledPaymentMethods();
+
+function mapPaymentError(error) {
+  const code = error.response?.data?.code;
+  const msg = error.response?.data?.message;
+  if (code === 'PAYMENT_REFUSED') return 'Paiement refusé par l’opérateur.';
+  if (code === 'PAYMENT_TIMEOUT') return 'Délai dépassé. Réessayez le paiement.';
+  if (code === 'PAYMENT_PENDING') return msg || 'Paiement en attente de confirmation.';
+  if (code === 'PROVIDER_UNAVAILABLE') {
+    return 'Service de paiement temporairement indisponible.';
+  }
+  return msg || 'Échec du paiement';
+}
 
 export default function PaiementPage() {
   const { activiteId: paramId } = useParams();
@@ -16,12 +32,13 @@ export default function PaiementPage() {
   const [activite, setActivite] = useState(null);
   const [cotisation, setCotisation] = useState(null);
   const [montant, setMontant] = useState('');
-  const [provider, setProvider] = useState('ORANGE');
+  const [provider, setProvider] = useState(METHODS[0]?.id || 'ORANGE');
   const [phone, setPhone] = useState(user?.contact || '');
   const [loading, setLoading] = useState(false);
   const [loadingMeta, setLoadingMeta] = useState(true);
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
+  const [pendingInfo, setPendingInfo] = useState(null);
 
   useEffect(() => {
     if (!activiteId) {
@@ -37,23 +54,45 @@ export default function PaiementPage() {
         setActivite(found || null);
         if (!found) setErr('Activité introuvable');
         const mine = (cRes.data.data || []).find(
-          (c) => String(c.activiteId) === String(activiteId) || String(c.activite?.id) === String(activiteId)
+          (c) =>
+            String(c.activiteId) === String(activiteId) ||
+            String(c.activite?.id) === String(activiteId)
         );
         setCotisation(mine || null);
       })
-      .catch(() => setErr('Impossible de charger l\'activité'))
+      .catch(() => setErr("Impossible de charger l'activité"))
       .finally(() => setLoadingMeta(false));
   }, [activiteId]);
 
   const dejaPaye = useMemo(() => Number(cotisation?.montantPaye || 0), [cotisation]);
+  const selectedMethod = useMemo(
+    () => METHODS.find((m) => m.id === provider),
+    [provider]
+  );
+
+  async function refreshCotisation() {
+    const cRes = await api.get('/cotisations/me');
+    const mine = (cRes.data.data || []).find(
+      (c) =>
+        String(c.activiteId) === String(activiteId) ||
+        String(c.activite?.id) === String(activiteId)
+    );
+    setCotisation(mine || null);
+    return mine;
+  }
 
   async function onSubmit(e) {
     e.preventDefault();
     setErr('');
     setMsg('');
+    setPendingInfo(null);
     const value = Number(montant);
     if (!Number.isFinite(value) || value <= 0) {
       setErr('Saisissez un montant valide en FCFA');
+      return;
+    }
+    if (!provider) {
+      setErr('Choisissez un moyen de paiement');
       return;
     }
     setLoading(true);
@@ -65,18 +104,40 @@ export default function PaiementPage() {
         phone,
         montant: value,
       });
-      setMsg(data.data?.message || 'Paiement enregistré');
-      setMontant('');
-      if (data.data?.cotisation) setCotisation(data.data.cotisation);
-      else {
-        const cRes = await api.get('/cotisations/me');
-        const mine = (cRes.data.data || []).find(
-          (c) => String(c.activiteId) === String(activiteId) || String(c.activite?.id) === String(activiteId)
-        );
-        setCotisation(mine || null);
+      const result = data.data || {};
+      const status = String(result.status || '').toUpperCase();
+
+      if (result.paymentUrl) {
+        setPendingInfo({
+          message:
+            result.message ||
+            'Redirection vers l’opérateur… Confirmez le paiement sur votre téléphone.',
+          paymentUrl: result.paymentUrl,
+          reference: result.referenceExterne,
+        });
+        // Ouverture opérateur (WebPay / Wave Checkout) si URL fournie
+        window.open(result.paymentUrl, '_blank', 'noopener,noreferrer');
       }
+
+      if (status === 'SUCCESS' || status === 'SUCCESSFUL') {
+        setMsg(result.message || 'Paiement enregistré');
+        setMontant('');
+      } else if (status === 'FAILED') {
+        setErr(result.message || 'Paiement refusé');
+      } else {
+        setPendingInfo((prev) => ({
+          ...(prev || {}),
+          message:
+            result.message ||
+            'Paiement en attente de confirmation par l’opérateur.',
+          reference: result.referenceExterne || prev?.reference,
+        }));
+      }
+
+      if (result.cotisation) setCotisation(result.cotisation);
+      else await refreshCotisation();
     } catch (error) {
-      setErr(error.response?.data?.message || 'Échec du paiement');
+      setErr(mapPaymentError(error));
     } finally {
       setLoading(false);
     }
@@ -85,7 +146,11 @@ export default function PaiementPage() {
   return (
     <Layout>
       <section className="stack paiement-page">
-        <button type="button" className="paiement-back" onClick={() => navigate(paths.mesCotisations)}>
+        <button
+          type="button"
+          className="paiement-back"
+          onClick={() => navigate(paths.mesCotisations)}
+        >
           ← Mes cotisations
         </button>
 
@@ -97,6 +162,20 @@ export default function PaiementPage() {
         {loadingMeta && <p className="muted">Chargement…</p>}
         {msg && <div className="alert alert-success">{msg}</div>}
         {err && <div className="alert alert-error">{err}</div>}
+        {pendingInfo && (
+          <div className="alert alert-pending">
+            <strong>En attente</strong>
+            <p>{pendingInfo.message}</p>
+            {pendingInfo.reference && (
+              <p className="muted tiny">Réf. {pendingInfo.reference}</p>
+            )}
+            {pendingInfo.paymentUrl && (
+              <a href={pendingInfo.paymentUrl} target="_blank" rel="noreferrer">
+                Ouvrir la page de paiement
+              </a>
+            )}
+          </div>
+        )}
 
         {activite && (
           <>
@@ -125,33 +204,42 @@ export default function PaiementPage() {
                 />
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="provider">Opérateur</label>
-                  <select
-                    id="provider"
-                    value={provider}
-                    onChange={(e) => setProvider(e.target.value)}
-                  >
-                    <option value="ORANGE">Orange Money</option>
-                    <option value="MTN">MTN MoMo</option>
-                  </select>
+              <fieldset className="paiement-methods-fieldset">
+                <legend>Moyen de paiement</legend>
+                <div className="payment-methods" role="radiogroup" aria-label="Moyen de paiement">
+                  {METHODS.map((method) => (
+                    <PaymentMethodCard
+                      key={method.id}
+                      method={method}
+                      selected={provider === method.id}
+                      onSelect={setProvider}
+                      disabled={loading}
+                    />
+                  ))}
                 </div>
-                <div className="form-group">
-                  <label htmlFor="phone">Numéro</label>
-                  <input
-                    id="phone"
-                    type="tel"
-                    inputMode="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    required
-                  />
-                </div>
+              </fieldset>
+
+              <div className="form-group">
+                <label htmlFor="phone">
+                  Numéro {selectedMethod ? `(${selectedMethod.shortName})` : ''}
+                </label>
+                <input
+                  id="phone"
+                  type="tel"
+                  inputMode="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="07 XX XX XX XX"
+                  required
+                />
               </div>
 
               <button className="btn btn-block" type="submit" disabled={loading}>
-                {loading ? 'Paiement…' : 'Payer par Mobile Money'}
+                {loading
+                  ? 'Paiement…'
+                  : selectedMethod
+                    ? `Payer avec ${selectedMethod.name}`
+                    : 'Payer par Mobile Money'}
               </button>
             </form>
           </>

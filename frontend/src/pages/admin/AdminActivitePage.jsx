@@ -168,7 +168,7 @@ export default function AdminActivitePage() {
             <p className="muted">Chargement…</p>
           ) : (
             <div className="data-table-wrap">
-              <table className="data-table">
+              <table className="data-table data-table-responsive">
                 <thead>
                   <tr>
                     <th>Nom</th>
@@ -182,24 +182,24 @@ export default function AdminActivitePage() {
                 <tbody>
                   {items.map((a) => (
                     <tr key={a.id}>
-                      <td>
+                      <td data-label="Nom">
                         <strong>{a.nom}</strong>
                       </td>
-                      <td>
+                      <td data-label="Préfixe">
                         <code className="id-code">{a.prefixeIdPaiement}</code>
                       </td>
-                      <td>
+                      <td data-label="Montant">
                         {a.montantDefaut != null
                           ? `${Number(a.montantDefaut).toLocaleString('fr-FR')} FCFA`
                           : '—'}
                       </td>
-                      <td>{a._count?.cotisations ?? 0}</td>
-                      <td>
+                      <td data-label="Cotisations">{a._count?.cotisations ?? 0}</td>
+                      <td data-label="Statut">
                         <span className={`badge ${a.active ? 'badge-valide' : 'badge-attente'}`}>
                           {a.active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="actions-cell">
+                      <td className="actions-cell" data-label="Actions">
                         <button type="button" className="btn btn-secondary btn-sm" onClick={() => startEdit(a)}>
                           Modifier
                         </button>
