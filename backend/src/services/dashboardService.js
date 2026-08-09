@@ -3,68 +3,151 @@ const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
 const { absolutizePhotoUrl } = require('../utils/uploads');
 
-class DashboardService {
-  async getStats({ regionId, activiteId } = {}) {
-    const membreWhere = { statut: 'VALIDE' };
-    if (regionId) membreWhere.regionId = Number(regionId);
+/** Cache court (évite de recalculer à chaque focus / navigation) */
+const STATS_CACHE_TTL_MS = 20_000;
+const statsCache = new Map();
 
-    const cotisationWhere = {};
-    if (regionId) cotisationWhere.regionId = Number(regionId);
-    if (activiteId) cotisationWhere.activiteId = Number(activiteId);
+function cacheKey(filters = {}) {
+  return `${filters.regionId || ''}:${filters.activiteId || ''}`;
+}
+
+class DashboardService {
+  invalidateStatsCache() {
+    statsCache.clear();
+  }
+
+  async getStats(filters = {}) {
+    const key = cacheKey(filters);
+    const hit = statsCache.get(key);
+    if (hit && Date.now() - hit.at < STATS_CACHE_TTL_MS) {
+      return hit.data;
+    }
+    const data = await this.computeStats(filters);
+    statsCache.set(key, { at: Date.now(), data });
+    return data;
+  }
+
+  /**
+   * Agrégations groupBy (peu de requêtes) au lieu de boucles N×count.
+   */
+  async computeStats({ regionId, activiteId } = {}) {
+    const rid = regionId ? Number(regionId) : null;
+    const aid = activiteId ? Number(activiteId) : null;
+
+    const membreValideWhere = {
+      statut: 'VALIDE',
+      ...(rid ? { regionId: rid } : {}),
+    };
+    const cotisationWhere = {
+      ...(rid ? { regionId: rid } : {}),
+      ...(aid ? { activiteId: aid } : {}),
+    };
+    const membreStatutWhere = rid ? { regionId: rid } : {};
 
     const [
-      totalMembres,
-      flambeaux,
-      lumieres,
-      membresBureau,
-      membresEnAttente,
-      membresRejetes,
-      membresSuspendus,
-      totalCotisations,
-      payees,
-      partielles,
-      enAttente,
-      montantAgg,
-      parRegion,
-      parActivite,
-      parDistrict,
+      membresBranche,
+      membresStatut,
+      bureauCount,
+      cotStatut,
+      regions,
+      membresParRegionBranche,
+      cotParRegion,
+      activites,
+      cotParActivite,
+      districts,
+      membresParDistrictBranche,
+      cotParDistrict,
       derniersMembres,
-      dernieresCotisations,
     ] = await Promise.all([
-      prisma.membre.count({ where: membreWhere }),
-      prisma.membre.count({ where: { ...membreWhere, branche: 'FLAMBEAUX' } }),
-      prisma.membre.count({ where: { ...membreWhere, branche: 'LUMIERES' } }),
+      prisma.membre.groupBy({
+        by: ['branche'],
+        where: membreValideWhere,
+        _count: { _all: true },
+      }),
+      prisma.membre.groupBy({
+        by: ['statut'],
+        where: membreStatutWhere,
+        _count: { _all: true },
+      }),
       prisma.membre.count({
         where: {
-          ...membreWhere,
+          ...membreValideWhere,
           responsabiliteBureau: { not: null },
         },
       }),
-      prisma.membre.count({ where: { statut: 'EN_ATTENTE', ...(regionId ? { regionId: Number(regionId) } : {}) } }),
-      prisma.membre.count({ where: { statut: 'REJETE', ...(regionId ? { regionId: Number(regionId) } : {}) } }),
-      prisma.membre.count({ where: { statut: 'SUSPENDU', ...(regionId ? { regionId: Number(regionId) } : {}) } }),
-      prisma.cotisation.count({ where: cotisationWhere }),
-      prisma.cotisation.count({ where: { ...cotisationWhere, statut: 'PAYE' } }),
-      prisma.cotisation.count({ where: { ...cotisationWhere, statut: 'PARTIEL' } }),
-      prisma.cotisation.count({ where: { ...cotisationWhere, statut: 'EN_ATTENTE' } }),
-      prisma.cotisation.aggregate({
+      prisma.cotisation.groupBy({
+        by: ['statut'],
         where: cotisationWhere,
+        _count: { _all: true },
         _sum: { montant: true, montantPaye: true },
       }),
-      this.statsByRegion(activiteId, regionId),
-      this.statsByActivite(regionId),
-      regionId ? this.statsByDistrict(regionId, activiteId) : Promise.resolve([]),
+      prisma.region.findMany({
+        orderBy: { nom: 'asc' },
+        select: { id: true, nom: true, code: true },
+      }),
+      prisma.membre.groupBy({
+        by: ['regionId', 'branche'],
+        where: { statut: 'VALIDE', regionId: { not: null }, ...(rid ? { regionId: rid } : {}) },
+        _count: { _all: true },
+      }),
+      prisma.cotisation.groupBy({
+        by: ['regionId', 'statut'],
+        where: {
+          regionId: { not: null },
+          ...(rid ? { regionId: rid } : {}),
+          ...(aid ? { activiteId: aid } : {}),
+        },
+        _count: { _all: true },
+        _sum: { montant: true, montantPaye: true },
+      }),
+      prisma.activite.findMany({
+        where: { active: true },
+        select: { id: true, nom: true, prefixeIdPaiement: true },
+        orderBy: { nom: 'asc' },
+      }),
+      prisma.cotisation.groupBy({
+        by: ['activiteId', 'statut'],
+        where: {
+          ...(rid ? { regionId: rid } : {}),
+          ...(aid ? { activiteId: aid } : {}),
+        },
+        _count: { _all: true },
+        _sum: { montant: true, montantPaye: true },
+      }),
+      rid
+        ? prisma.district.findMany({
+            where: { regionId: rid },
+            orderBy: { nom: 'asc' },
+            select: { id: true, nom: true },
+          })
+        : Promise.resolve([]),
+      rid
+        ? prisma.membre.groupBy({
+            by: ['districtId', 'branche'],
+            where: { statut: 'VALIDE', regionId: rid, districtId: { not: null } },
+            _count: { _all: true },
+          })
+        : Promise.resolve([]),
+      rid
+        ? prisma.cotisation.groupBy({
+            by: ['districtId', 'statut'],
+            where: {
+              regionId: rid,
+              districtId: { not: null },
+              ...(aid ? { activiteId: aid } : {}),
+            },
+            _count: { _all: true },
+          })
+        : Promise.resolve([]),
       prisma.membre.findMany({
-        where: regionId ? { regionId: Number(regionId) } : {},
-        orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
-        take: 50,
+        where: rid ? { regionId: rid } : {},
+        orderBy: { createdAt: 'desc' },
+        take: 12,
         select: {
           id: true,
           nom: true,
           prenom: true,
           idMembre: true,
-          email: true,
-          contact: true,
           branche: true,
           statut: true,
           photoUrl: true,
@@ -77,31 +160,151 @@ class DashboardService {
           communaute: { select: { nom: true } },
         },
       }),
-      prisma.cotisation.findMany({
-        where: cotisationWhere,
-        orderBy: [{ datePaiement: 'desc' }, { updatedAt: 'desc' }],
-        take: 6,
-        include: {
-          membre: {
-            select: {
-              id: true,
-              nom: true,
-              prenom: true,
-              idMembre: true,
-              photoUrl: true,
-              isAdmin: true,
-              isSuperAdmin: true,
-              role: { select: { nom: true } },
-              region: { select: { nom: true } },
-              district: { select: { nom: true } },
-              paroisse: { select: { nom: true } },
-              communaute: { select: { nom: true } },
-            },
-          },
-          activite: { select: { nom: true, prefixeIdPaiement: true } },
-        },
-      }),
     ]);
+
+    const brancheMap = Object.fromEntries(
+      membresBranche.map((r) => [r.branche, r._count._all])
+    );
+    const statutMap = Object.fromEntries(
+      membresStatut.map((r) => [r.statut, r._count._all])
+    );
+
+    let totalCotisations = 0;
+    let payees = 0;
+    let partielles = 0;
+    let enAttente = 0;
+    let montantAttendu = 0;
+    let montantPercu = 0;
+    for (const row of cotStatut) {
+      const n = row._count._all;
+      totalCotisations += n;
+      if (row.statut === 'PAYE') payees = n;
+      else if (row.statut === 'PARTIEL') partielles = n;
+      else if (row.statut === 'EN_ATTENTE') enAttente = n;
+      montantAttendu += Number(row._sum.montant || 0);
+      montantPercu += Number(row._sum.montantPaye || 0);
+    }
+
+    const flambeaux = brancheMap.FLAMBEAUX || 0;
+    const lumieres = brancheMap.LUMIERES || 0;
+    const totalMembres = flambeaux + lumieres;
+
+    // --- par région ---
+    const memReg = new Map(); // regionId -> { flambeaux, lumieres }
+    for (const row of membresParRegionBranche) {
+      if (row.regionId == null) continue;
+      const cur = memReg.get(row.regionId) || { flambeaux: 0, lumieres: 0 };
+      if (row.branche === 'FLAMBEAUX') cur.flambeaux = row._count._all;
+      if (row.branche === 'LUMIERES') cur.lumieres = row._count._all;
+      memReg.set(row.regionId, cur);
+    }
+    const cotReg = new Map(); // regionId -> { total, payees, montantAttendu, montantPercu }
+    for (const row of cotParRegion) {
+      if (row.regionId == null) continue;
+      const cur = cotReg.get(row.regionId) || {
+        total: 0,
+        payees: 0,
+        montantAttendu: 0,
+        montantPercu: 0,
+      };
+      cur.total += row._count._all;
+      if (row.statut === 'PAYE') cur.payees += row._count._all;
+      cur.montantAttendu += Number(row._sum.montant || 0);
+      cur.montantPercu += Number(row._sum.montantPaye || 0);
+      cotReg.set(row.regionId, cur);
+    }
+
+    const parRegion = (rid ? regions.filter((r) => r.id === rid) : regions).map((region) => {
+      const m = memReg.get(region.id) || { flambeaux: 0, lumieres: 0 };
+      const c = cotReg.get(region.id) || {
+        total: 0,
+        payees: 0,
+        montantAttendu: 0,
+        montantPercu: 0,
+      };
+      return {
+        regionId: region.id,
+        nom: region.nom,
+        code: region.code,
+        membres: m.flambeaux + m.lumieres,
+        flambeaux: m.flambeaux,
+        lumieres: m.lumieres,
+        cotisations: c.total,
+        payees: c.payees,
+        taux: c.total > 0 ? Math.round((c.payees / c.total) * 1000) / 10 : 0,
+        montantAttendu: c.montantAttendu,
+        montantPercu: c.montantPercu,
+      };
+    });
+
+    // --- par activité ---
+    const cotAct = new Map();
+    for (const row of cotParActivite) {
+      const cur = cotAct.get(row.activiteId) || {
+        total: 0,
+        payees: 0,
+        montantAttendu: 0,
+        montantPercu: 0,
+      };
+      cur.total += row._count._all;
+      if (row.statut === 'PAYE') cur.payees += row._count._all;
+      cur.montantAttendu += Number(row._sum.montant || 0);
+      cur.montantPercu += Number(row._sum.montantPaye || 0);
+      cotAct.set(row.activiteId, cur);
+    }
+    const parActivite = activites.map((a) => {
+      const c = cotAct.get(a.id) || {
+        total: 0,
+        payees: 0,
+        montantAttendu: 0,
+        montantPercu: 0,
+      };
+      return {
+        activiteId: a.id,
+        nom: a.nom,
+        prefixe: a.prefixeIdPaiement,
+        total: c.total,
+        payees: c.payees,
+        taux: c.total > 0 ? Math.round((c.payees / c.total) * 1000) / 10 : 0,
+        montantAttendu: c.montantAttendu,
+        montantPercu: c.montantPercu,
+      };
+    });
+
+    // --- par district (si filtre région) ---
+    let parDistrict = [];
+    if (rid && districts.length) {
+      const memDist = new Map();
+      for (const row of membresParDistrictBranche) {
+        if (row.districtId == null) continue;
+        const cur = memDist.get(row.districtId) || { flambeaux: 0, lumieres: 0 };
+        if (row.branche === 'FLAMBEAUX') cur.flambeaux = row._count._all;
+        if (row.branche === 'LUMIERES') cur.lumieres = row._count._all;
+        memDist.set(row.districtId, cur);
+      }
+      const cotDist = new Map();
+      for (const row of cotParDistrict) {
+        if (row.districtId == null) continue;
+        const cur = cotDist.get(row.districtId) || { total: 0, payees: 0 };
+        cur.total += row._count._all;
+        if (row.statut === 'PAYE') cur.payees += row._count._all;
+        cotDist.set(row.districtId, cur);
+      }
+      parDistrict = districts.map((d) => {
+        const m = memDist.get(d.id) || { flambeaux: 0, lumieres: 0 };
+        const c = cotDist.get(d.id) || { total: 0, payees: 0 };
+        return {
+          districtId: d.id,
+          nom: d.nom,
+          membres: m.flambeaux + m.lumieres,
+          flambeaux: m.flambeaux,
+          lumieres: m.lumieres,
+          total: c.total,
+          payees: c.payees,
+          taux: c.total > 0 ? Math.round((c.payees / c.total) * 1000) / 10 : 0,
+        };
+      });
+    }
 
     const tauxPaiement =
       totalCotisations > 0 ? Math.round((payees / totalCotisations) * 1000) / 10 : 0;
@@ -111,10 +314,10 @@ class DashboardService {
         total: totalMembres,
         flambeaux,
         lumieres,
-        bureau: membresBureau,
-        enAttente: membresEnAttente,
-        rejetes: membresRejetes,
-        suspendus: membresSuspendus,
+        bureau: bureauCount,
+        enAttente: statutMap.EN_ATTENTE || 0,
+        rejetes: statutMap.REJETE || 0,
+        suspendus: statutMap.SUSPENDU || 0,
       },
       cotisations: {
         total: totalCotisations,
@@ -122,144 +325,42 @@ class DashboardService {
         partielles,
         enAttente,
         tauxPaiement,
-        montantAttendu: Number(montantAgg._sum.montant || 0),
-        montantPercu: Number(montantAgg._sum.montantPaye || 0),
+        montantAttendu,
+        montantPercu,
       },
       parRegion,
       parDistrict,
       parActivite,
-      regionId: regionId ? Number(regionId) : null,
+      regionId: rid,
+      regions, // pour le filtre UI sans second appel
       derniersMembres: (derniersMembres || []).map((m) => ({
         ...m,
         photoUrl:
           m.isAdmin || m.isSuperAdmin ? null : absolutizePhotoUrl(m.photoUrl),
       })),
-      dernieresCotisations: (dernieresCotisations || []).map((c) => ({
-        ...c,
-        membre: c.membre
-          ? {
-              ...c.membre,
-              photoUrl:
-                c.membre.isAdmin || c.membre.isSuperAdmin
-                  ? null
-                  : absolutizePhotoUrl(c.membre.photoUrl),
-            }
-          : c.membre,
-      })),
+      // Dernières cotisations : chargées à la demande (endpoint secondaire) — omises ici pour accélérer
+      dernieresCotisations: [],
     };
   }
 
+  // Conservé pour compatibilité éventuelle
   async statsByRegion(activiteId, regionId) {
-    const regions = await prisma.region.findMany({
-      where: regionId ? { id: Number(regionId) } : undefined,
-      orderBy: { nom: 'asc' },
-    });
-    const results = [];
-
-    for (const region of regions) {
-      const where = { regionId: region.id };
-      if (activiteId) where.activiteId = Number(activiteId);
-
-      const [total, payees, membres, flambeaux, lumieres, agg] = await Promise.all([
-        prisma.cotisation.count({ where }),
-        prisma.cotisation.count({ where: { ...where, statut: 'PAYE' } }),
-        prisma.membre.count({ where: { regionId: region.id, statut: 'VALIDE' } }),
-        prisma.membre.count({ where: { regionId: region.id, statut: 'VALIDE', branche: 'FLAMBEAUX' } }),
-        prisma.membre.count({ where: { regionId: region.id, statut: 'VALIDE', branche: 'LUMIERES' } }),
-        prisma.cotisation.aggregate({
-          where,
-          _sum: { montant: true, montantPaye: true },
-        }),
-      ]);
-
-      results.push({
-        regionId: region.id,
-        nom: region.nom,
-        code: region.code,
-        membres,
-        flambeaux,
-        lumieres,
-        cotisations: total,
-        payees,
-        taux: total > 0 ? Math.round((payees / total) * 1000) / 10 : 0,
-        montantAttendu: Number(agg._sum.montant || 0),
-        montantPercu: Number(agg._sum.montantPaye || 0),
-      });
-    }
-
-    return results;
+    const stats = await this.getStats({ activiteId, regionId });
+    return stats.parRegion;
   }
 
   async statsByActivite(regionId) {
-    const activites = await prisma.activite.findMany({ where: { active: true } });
-    const results = [];
-
-    for (const activite of activites) {
-      const where = { activiteId: activite.id };
-      if (regionId) where.regionId = Number(regionId);
-
-      const [total, payees, agg] = await Promise.all([
-        prisma.cotisation.count({ where }),
-        prisma.cotisation.count({ where: { ...where, statut: 'PAYE' } }),
-        prisma.cotisation.aggregate({
-          where,
-          _sum: { montant: true, montantPaye: true },
-        }),
-      ]);
-
-      results.push({
-        activiteId: activite.id,
-        nom: activite.nom,
-        prefixe: activite.prefixeIdPaiement,
-        total,
-        payees,
-        taux: total > 0 ? Math.round((payees / total) * 1000) / 10 : 0,
-        montantAttendu: Number(agg._sum.montant || 0),
-        montantPercu: Number(agg._sum.montantPaye || 0),
-      });
-    }
-
-    return results;
+    const stats = await this.getStats({ regionId });
+    return stats.parActivite;
   }
 
   async statsByDistrict(regionId, activiteId) {
-    if (!regionId) return [];
-    const districts = await prisma.district.findMany({
-      where: { regionId: Number(regionId) },
-      orderBy: { nom: 'asc' },
-    });
-
-    const results = [];
-    for (const d of districts) {
-      const where = { districtId: d.id };
-      if (activiteId) where.activiteId = Number(activiteId);
-      const [total, payees, membres, flambeaux, lumieres] = await Promise.all([
-        prisma.cotisation.count({ where }),
-        prisma.cotisation.count({ where: { ...where, statut: 'PAYE' } }),
-        prisma.membre.count({ where: { districtId: d.id, statut: 'VALIDE' } }),
-        prisma.membre.count({
-          where: { districtId: d.id, statut: 'VALIDE', branche: 'FLAMBEAUX' },
-        }),
-        prisma.membre.count({
-          where: { districtId: d.id, statut: 'VALIDE', branche: 'LUMIERES' },
-        }),
-      ]);
-      results.push({
-        districtId: d.id,
-        nom: d.nom,
-        membres,
-        flambeaux,
-        lumieres,
-        total,
-        payees,
-        taux: total > 0 ? Math.round((payees / total) * 1000) / 10 : 0,
-      });
-    }
-    return results;
+    const stats = await this.getStats({ regionId, activiteId });
+    return stats.parDistrict;
   }
 
   async exportExcel(filters = {}) {
-    const stats = await this.getStats(filters);
+    const stats = await this.computeStats(filters);
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'SAAP CFLCMA-CI';
 
@@ -296,7 +397,7 @@ class DashboardService {
   }
 
   async exportPdf(filters = {}) {
-    const stats = await this.getStats(filters);
+    const stats = await this.computeStats(filters);
 
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({ margin: 40 });

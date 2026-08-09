@@ -3,6 +3,7 @@ const { AppError } = require('../utils/errors');
 const membreIdService = require('./membreIdService');
 const auditService = require('./auditService');
 const paymentGateway = require('./payment');
+const dashboardService = require('./dashboardService');
 const path = require('path');
 const fs = require('fs');
 const config = require('../config');
@@ -197,6 +198,7 @@ class CotisationService {
       ipAddress: meta.ip,
     });
 
+    dashboardService.invalidateStatsCache();
     return cotisation;
   }
 
@@ -324,6 +326,8 @@ class CotisationService {
           mock: Boolean(providerResult.mock),
         },
       });
+
+      dashboardService.invalidateStatsCache();
 
       return {
         cotisationId: cotisation.id,
@@ -481,6 +485,7 @@ class CotisationService {
       details: { status: statusUp, amount, provider, idPaiement: cotisation.idPaiement },
     });
 
+    dashboardService.invalidateStatsCache();
     return cotisation;
   }
 

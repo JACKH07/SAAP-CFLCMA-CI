@@ -18,38 +18,46 @@ class MembreService {
   }
 
   async list({ page = 1, limit = 20, search, regionId, statut, roleId } = {}) {
-    const skip = (page - 1) * limit;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const take = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+    const skip = (pageNum - 1) * take;
     const where = {};
 
     if (regionId) where.regionId = Number(regionId);
     if (statut) where.statut = statut;
     if (roleId) where.roleId = Number(roleId);
     if (search) {
-      where.OR = [
-        { nom: { contains: search } },
-        { prenom: { contains: search } },
-        { idMembre: { contains: search } },
-        { contact: { contains: search } },
-        { email: { contains: search } },
-      ];
+      const q = String(search).trim();
+      if (q) {
+        where.OR = [
+          { nom: { contains: q } },
+          { prenom: { contains: q } },
+          { idMembre: { contains: q } },
+          { contact: { contains: q } },
+          { email: { contains: q } },
+        ];
+      }
     }
 
     const [items, total] = await Promise.all([
       prisma.membre.findMany({
         where,
         skip,
-        take: Number(limit),
+        take,
         orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
         select: membrePublicSelect,
       }),
       prisma.membre.count({ where }),
     ]);
 
+    const totalPages = Math.max(1, Math.ceil(total / take) || 1);
+
     return {
       items: items.map(withAdminFlag),
       total,
-      page: Number(page),
-      limit: Number(limit),
+      page: pageNum,
+      limit: take,
+      totalPages,
     };
   }
 

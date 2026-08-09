@@ -9,7 +9,7 @@ const lieuAutocompleteService = require('./lieuAutocompleteService');
 const auditService = require('./auditService');
 const { absolutizePhotoUrl } = require('../utils/uploads');
 
-const SALT_ROUNDS = 12;
+const SALT_ROUNDS = Number(process.env.BCRYPT_ROUNDS || 10);
 
 const membrePublicSelect = {
   id: true,
@@ -99,6 +99,7 @@ class AuthService {
       branche,
       regionId,
       districtId,
+      paroisseId,
       paroisseNom,
       communauteNom,
       fonctionId,
@@ -113,52 +114,59 @@ class AuthService {
     if (!branche || !['FLAMBEAUX', 'LUMIERES'].includes(branche)) {
       throw new AppError('Sélectionnez Flambeaux (Hommes) ou Lumières (Femmes)', 400);
     }
-    if (!regionId || !districtId || !paroisseNom || !communauteNom) {
+    if (!regionId || !districtId || (!paroisseId && !paroisseNom) || !communauteNom) {
       throw new AppError('Rattachement géographique incomplet', 400);
-    }
-
-    const district = await prisma.district.findUnique({
-      where: { id: Number(districtId) },
-    });
-    if (!district || district.regionId !== Number(regionId)) {
-      throw new AppError('Le district ne correspond pas à la région sélectionnée', 400);
-    }
-
-    if (email) {
-      const existingEmail = await prisma.membre.findFirst({
-        where: { email: email.trim().toLowerCase() },
-      });
-      if (existingEmail) {
-        throw new AppError(
-          'Vous êtes déjà inscrit avec cet email. Connectez-vous à votre compte.',
-          409
-        );
-      }
-    }
-
-    const contactNorm = contact ? String(contact).replace(/\s+/g, '').trim() : '';
-    if (contactNorm) {
-      const existingContact = await prisma.membre.findFirst({
-        where: { contact: contactNorm },
-      });
-      if (existingContact) {
-        throw new AppError(
-          'Vous êtes déjà inscrit avec ce numéro de contact. Connectez-vous à votre compte.',
-          409
-        );
-      }
     }
 
     const nomTrim = nom.trim();
     const prenomTrim = prenom.trim();
     const dateNaiss = new Date(dateNaissance);
-    const existingIdentity = await prisma.membre.findFirst({
-      where: {
-        nom: { equals: nomTrim },
-        prenom: { equals: prenomTrim },
-        dateNaissance: dateNaiss,
-      },
-    });
+    const emailNorm = email ? email.trim().toLowerCase() : '';
+    const contactNorm = contact ? String(contact).replace(/\s+/g, '').trim() : '';
+
+    // Validations + hash en parallèle (bcrypt ~100–200ms)
+    const [district, existingEmail, existingContact, existingIdentity, passwordHash, roleId] =
+      await Promise.all([
+        prisma.district.findUnique({ where: { id: Number(districtId) } }),
+        emailNorm
+          ? prisma.membre.findUnique({
+              where: { email: emailNorm },
+              select: { id: true },
+            })
+          : Promise.resolve(null),
+        contactNorm
+          ? prisma.membre.findFirst({
+              where: { contact: contactNorm },
+              select: { id: true },
+            })
+          : Promise.resolve(null),
+        prisma.membre.findFirst({
+          where: {
+            nom: nomTrim,
+            prenom: prenomTrim,
+            dateNaissance: dateNaiss,
+          },
+          select: { id: true },
+        }),
+        bcrypt.hash(password, SALT_ROUNDS),
+        this.resolveRoleId(fonctionId),
+      ]);
+
+    if (!district || district.regionId !== Number(regionId)) {
+      throw new AppError('Le district ne correspond pas à la région sélectionnée', 400);
+    }
+    if (existingEmail) {
+      throw new AppError(
+        'Vous êtes déjà inscrit avec cet email. Connectez-vous à votre compte.',
+        409
+      );
+    }
+    if (existingContact) {
+      throw new AppError(
+        'Vous êtes déjà inscrit avec ce numéro de contact. Connectez-vous à votre compte.',
+        409
+      );
+    }
     if (existingIdentity) {
       throw new AppError(
         'Cette personne est déjà inscrite. Connectez-vous avec votre ID membre, contact ou email.',
@@ -166,25 +174,31 @@ class AuthService {
       );
     }
 
-    const { paroisse } = await lieuAutocompleteService.findOrCreateParoisse(
-      paroisseNom,
-      Number(districtId)
-    );
-    const { communaute } = await lieuAutocompleteService.findOrCreateCommunaute(
-      communauteNom,
-      paroisse.id
-    );
+    // Paroisse déjà choisie dans la liste → pas de findOrCreate
+    let paroisse;
+    if (paroisseId) {
+      paroisse = await prisma.paroisse.findUnique({ where: { id: Number(paroisseId) } });
+      if (!paroisse || paroisse.districtId !== Number(districtId)) {
+        throw new AppError('Paroisse invalide pour ce district', 400);
+      }
+    } else {
+      ({ paroisse } = await lieuAutocompleteService.findOrCreateParoisse(
+        paroisseNom,
+        Number(districtId)
+      ));
+    }
 
-    const idResult = await membreIdService.generateUniqueId(nomTrim, prenomTrim, dateNaissance);
-    const roleId = await this.resolveRoleId(fonctionId);
-    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    const [{ communaute }, idResult] = await Promise.all([
+      lieuAutocompleteService.findOrCreateCommunaute(communauteNom, paroisse.id),
+      membreIdService.generateUniqueId(nomTrim, prenomTrim, dateNaissance),
+    ]);
 
     const membre = await prisma.membre.create({
       data: {
         nom: nomTrim,
         prenom: prenomTrim,
         contact: contactNorm || null,
-        email: email ? email.trim().toLowerCase() : null,
+        email: emailNorm || null,
         passwordHash,
         dateNaissance: dateNaiss,
         lieuNaissance: lieuNaissance.trim(),
@@ -206,33 +220,38 @@ class AuthService {
       select: membrePublicSelect,
     });
 
-    if (idResult.collision) {
-      await membreIdService.notifyCollision({
-        idMembre: idResult.idMembre,
-        baseId: idResult.baseId,
-        suffix: idResult.suffix,
-      });
-    }
+    const token = this.signToken(membre);
+    const publicMembre = withAdminFlag(membre);
 
-    await auditService.log({
-      acteurId: membre.id,
-      action: 'INSCRIPTION',
-      entite: 'Membre',
-      entiteId: membre.id,
-      details: {
-        idMembre: membre.idMembre,
-        collision: idResult.collision,
-      },
-      ipAddress: meta.ip,
+    // Traitements secondaires hors chemin critique (réponse immédiate)
+    setImmediate(() => {
+      auditService
+        .log({
+          acteurId: membre.id,
+          action: 'INSCRIPTION',
+          entite: 'Membre',
+          entiteId: membre.id,
+          details: {
+            idMembre: membre.idMembre,
+            collision: idResult.collision,
+          },
+          ipAddress: meta.ip,
+        })
+        .catch(() => {});
+      if (idResult.collision) {
+        membreIdService
+          .notifyCollision({
+            idMembre: idResult.idMembre,
+            baseId: idResult.baseId,
+            suffix: idResult.suffix,
+          })
+          .catch(() => {});
+      }
     });
 
-    // Pas de cotisation « en attente » à l'inscription :
-    // le paiement se crée au moment du versement (montant libre).
-
-    const token = this.signToken(membre);
     return {
       token,
-      membre: withAdminFlag(membre),
+      membre: publicMembre,
       collision: idResult.collision,
       message: idResult.collision
         ? `Inscription réussie. Un ID de collision a été généré : ${membre.idMembre}`
