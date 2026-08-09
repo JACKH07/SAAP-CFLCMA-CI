@@ -1,5 +1,6 @@
 const prisma = require('../config/prisma');
 const lieuAutocompleteService = require('../services/lieuAutocompleteService');
+const geoAdminService = require('../services/geoAdminService');
 const { asyncHandler } = require('../utils/errors');
 
 exports.listRegions = asyncHandler(async (_req, res) => {
@@ -15,7 +16,16 @@ exports.listDistricts = asyncHandler(async (req, res) => {
   res.json({ success: true, data: districts });
 });
 
+exports.listAllDistricts = asyncHandler(async (_req, res) => {
+  const data = await geoAdminService.listDistrictsAll();
+  res.json({ success: true, data });
+});
+
 exports.searchParoisses = asyncHandler(async (req, res) => {
+  if (req.query.all === 'true' || req.query.all === '1') {
+    const data = await geoAdminService.listParoissesAll();
+    return res.json({ success: true, data });
+  }
   const data = await lieuAutocompleteService.searchParoisses(req.query.search || '', {
     districtId: req.query.districtId,
     limit: req.query.limit ? Number(req.query.limit) : 15,
@@ -32,7 +42,6 @@ exports.searchCommunautes = asyncHandler(async (req, res) => {
 });
 
 exports.listRoles = asyncHandler(async (req, res) => {
-  // À l'inscription : exclure uniquement le Coordinateur général (réservé)
   const excludeAdmin = req.query.fonctions === 'true';
   const roles = await prisma.role.findMany({
     where: excludeAdmin
@@ -41,4 +50,19 @@ exports.listRoles = asyncHandler(async (req, res) => {
     orderBy: { niveauHierarchique: 'asc' },
   });
   res.json({ success: true, data: roles });
+});
+
+exports.createRegion = asyncHandler(async (req, res) => {
+  const data = await geoAdminService.createRegion(req.body);
+  res.status(201).json({ success: true, data });
+});
+
+exports.createDistrict = asyncHandler(async (req, res) => {
+  const data = await geoAdminService.createDistrict(req.body);
+  res.status(201).json({ success: true, data });
+});
+
+exports.createParoisse = asyncHandler(async (req, res) => {
+  const data = await geoAdminService.createParoisse(req.body);
+  res.status(201).json({ success: true, data });
 });

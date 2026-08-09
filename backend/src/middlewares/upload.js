@@ -24,9 +24,12 @@ const upload = multer({
   fileFilter(_req, file, cb) {
     // Photos profil : images uniquement
     if (file.fieldname === 'photo') {
-      const okExt = /\.(jpe?g|png|gif|webp)$/i.test(path.extname(file.originalname || ''));
-      const okMime = Boolean(file.mimetype?.startsWith('image/'));
-      if (!okExt && !okMime) {
+      const okExt = /\.(jpe?g|png|gif|webp|heic|heif)$/i.test(path.extname(file.originalname || ''));
+      const okMime =
+        Boolean(file.mimetype?.startsWith('image/')) ||
+        file.mimetype === 'application/octet-stream';
+      // Caméra mobile : parfois pas d’extension / mime vide → accepter si fichier non vide
+      if (!okExt && !okMime && file.originalname) {
         return cb(new Error('La photo doit être une image (JPG, PNG, WEBP)'));
       }
       return cb(null, true);

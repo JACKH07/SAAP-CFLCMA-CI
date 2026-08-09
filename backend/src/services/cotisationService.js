@@ -489,6 +489,45 @@ class CotisationService {
     return cotisation;
   }
 
+  /**
+   * Supprime un paiement / cotisation (admin uniquement).
+   */
+  async remove(id, acteurId, meta = {}) {
+    const cotisationId = Number(id);
+    const existing = await prisma.cotisation.findUnique({
+      where: { id: cotisationId },
+      include: {
+        membre: { select: { id: true, nom: true, prenom: true, idMembre: true } },
+        activite: { select: { id: true, nom: true } },
+      },
+    });
+    if (!existing) throw new AppError('Paiement introuvable', 404);
+
+    await prisma.cotisation.delete({ where: { id: cotisationId } });
+
+    await auditService.log({
+      acteurId,
+      action: 'SUPPRESSION_PAIEMENT',
+      entite: 'Cotisation',
+      entiteId: cotisationId,
+      details: {
+        idPaiement: existing.idPaiement,
+        montantPaye: existing.montantPaye,
+        membreId: existing.membreId,
+        idMembre: existing.membre?.idMembre,
+        activite: existing.activite?.nom,
+      },
+      ipAddress: meta.ip,
+    });
+
+    dashboardService.invalidateStatsCache();
+    return {
+      id: cotisationId,
+      idPaiement: existing.idPaiement,
+      deleted: true,
+    };
+  }
+
   ensureUploadDir() {
     const dir = path.resolve(config.upload.dir);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
