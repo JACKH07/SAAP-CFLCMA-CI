@@ -12,12 +12,13 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AdminShell from '../../components/AdminShell';
 import MemberAvatar from '../../components/MemberAvatar';
 import api from '../../api/client';
-import { paths } from '../../config/env';
+import { paths, adminMembreProfilPath } from '../../config/env';
 import './AdminDashboard.css';
+import './AdminMembreProfil.css';
 
 const COLORS = {
   primary: '#1c7c38',
@@ -57,40 +58,42 @@ function Sparkline({ points, color }) {
 }
 
 export default function AdminDashboardPage() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [regionId, setRegionId] = useState('');
   const [regions, setRegions] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [range, setRange] = useState('1A');
 
-  async function load(rid = regionId) {
+  async function load(rid = regionId, { soft = false } = {}) {
     setError('');
-    setLoading(true);
+    if (soft && stats) setRefreshing(true);
+    else setLoading(true);
     try {
       const params = rid ? { regionId: rid } : {};
       const { data } = await api.get('/dashboard/stats', { params });
-      setStats(data.data);
+      const payload = data.data;
+      setStats(payload);
+      if (payload?.regions?.length) {
+        setRegions(payload.regions);
+      } else if (!regions.length) {
+        const r = await api.get('/regions');
+        setRegions(r.data.data || []);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Impossible de charger les stats');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }
 
   useEffect(() => {
-    api.get('/regions').then((r) => setRegions(r.data.data || []));
-    load();
+    load('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Recharger les stats à chaque focus / retour sur le dashboard
-  useEffect(() => {
-    function onFocus() {
-      load(regionId).catch(() => {});
-    }
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
-  }, [regionId]);
 
   function exportFile(type) {
     api
@@ -175,7 +178,7 @@ export default function AdminDashboardPage() {
           value={regionId}
           onChange={(e) => {
             setRegionId(e.target.value);
-            load(e.target.value);
+            load(e.target.value, { soft: true });
           }}
         >
           <option value="">Toutes les régions</option>
@@ -196,10 +199,34 @@ export default function AdminDashboardPage() {
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
-      {loading && !stats && <p className="muted">Chargement des indicateurs…</p>}
+
+      {loading && !stats && (
+        <div className="dash-skeleton" aria-busy="true" aria-label="Chargement du tableau de bord">
+          <div className="kpi-row kpi-row--4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="dash-card skeleton-card">
+                <div className="skeleton-line w-40" />
+                <div className="skeleton-line w-60 lg" />
+                <div className="skeleton-line w-50" />
+              </div>
+            ))}
+          </div>
+          <div className="dash-row-2">
+            <div className="dash-card skeleton-card skeleton-chart" />
+            <div className="dash-card skeleton-card skeleton-chart" />
+          </div>
+          <div className="dash-card skeleton-card skeleton-table" />
+        </div>
+      )}
+
+      {refreshing && stats && (
+        <p className="dash-refresh-hint muted" aria-live="polite">
+          Mise à jour…
+        </p>
+      )}
 
       {stats && (
-        <>
+        <div className={refreshing ? 'dash-content is-refreshing' : 'dash-content'}>
           <div className="kpi-row kpi-row--4">
             <div className="dash-card kpi-card">
               <div className="kpi-head">
@@ -411,7 +438,11 @@ export default function AdminDashboardPage() {
                 </thead>
                 <tbody>
                   {(stats.derniersMembres || []).map((m) => (
-                    <tr key={m.id}>
+                    <tr
+                      key={m.id}
+                      className="membre-row-link"
+                      onClick={() => navigate(adminMembreProfilPath(m.id))}
+                    >
                       <td>
                         <div className="person-cell">
                           <MemberAvatar
@@ -452,7 +483,7 @@ export default function AdminDashboardPage() {
               </span>
             </div>
           </div>
-        </>
+        </div>
       )}
     </AdminShell>
   );

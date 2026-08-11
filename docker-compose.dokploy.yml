@@ -1,0 +1,81 @@
+# Déploiement Dokploy (VPS) — stack complète
+# Dans Dokploy : type "Compose", fichier docker-compose.dokploy.yml
+
+name: saap-cflcma
+
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD requis}
+      MYSQL_DATABASE: saap_cflcma_prod
+      MYSQL_USER: saap_prod
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD requis}
+    volumes:
+      - saap_db_data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-p${MYSQL_ROOT_PASSWORD}']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - saap_internal
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: mysql://saap_prod:${MYSQL_PASSWORD}@db:3306/saap_cflcma_prod
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET requis}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      CORS_ORIGIN: ${CORS_ORIGIN:?CORS_ORIGIN requis}
+      FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL requis}
+      API_PUBLIC_URL: ${API_PUBLIC_URL}
+      UPLOAD_DIR: uploads
+      PAYMENT_MOCK_MODE: ${PAYMENT_MOCK_MODE:-true}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@flccmaci.org}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_NOM: ${ADMIN_NOM:-Administrateur}
+      ADMIN_PRENOM: ${ADMIN_PRENOM:-Systeme}
+    volumes:
+      - saap_uploads:/app/uploads
+    networks:
+      - saap_internal
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_APP_ENV: production
+        VITE_APP_NAME: SAAP CFLCMA-CI
+        VITE_APP_URL: ${FRONTEND_URL:?FRONTEND_URL requis}
+        VITE_API_URL: /api
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - '${HTTP_PORT:-3000}:80'
+    networks:
+      - saap_internal
+
+volumes:
+  saap_db_data:
+  saap_uploads:
+
+networks:
+  saap_internal:
+    driver: bridge

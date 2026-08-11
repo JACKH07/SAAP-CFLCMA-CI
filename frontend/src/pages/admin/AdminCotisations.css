@@ -202,6 +202,27 @@
   flex-shrink: 0;
 }
 
+.btn-cotis-delete {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 36px;
+}
+
+.btn-cotis-delete:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+.btn-cotis-delete:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
 @media (max-width: 1100px) {
   .cotis-kpi-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));

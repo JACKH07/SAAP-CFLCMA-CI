@@ -27,10 +27,12 @@ export const paths = {
   resetPassword: path(env.VITE_RESET_PASSWORD_PATH, '/reset-password'),
   admin: path(env.VITE_ADMIN_PATH, '/admin'),
   adminMembres: path(env.VITE_ADMIN_MEMBRES_PATH, '/admin/membres'),
+  adminMembreProfil: path(env.VITE_ADMIN_MEMBRE_PROFIL_PATH, '/admin/membres'),
   adminCotisations: path(env.VITE_ADMIN_COTISATIONS_PATH, '/admin/cotisations'),
   adminBureau: path(env.VITE_ADMIN_BUREAU_PATH, '/admin/bureau'),
   adminCompte: path(env.VITE_ADMIN_COMPTE_PATH, '/admin/compte'),
   adminActivite: path(env.VITE_ADMIN_ACTIVITE_PATH, '/admin/activites'),
+  adminGeo: path(env.VITE_ADMIN_GEO_PATH, '/admin/territoire'),
   profil: path(env.VITE_PROFIL_PATH, '/profil'),
   mesCotisations: path(env.VITE_MES_COTISATIONS_PATH, '/mes-cotisations'),
   paiement: path(env.VITE_PAIEMENT_PATH, '/mes-cotisations/payer'),
@@ -55,8 +57,14 @@ export const links = {
   adminBureau: env.VITE_ADMIN_BUREAU_URL || joinUrl(APP_URL, paths.adminBureau),
   adminCompte: env.VITE_ADMIN_COMPTE_URL || joinUrl(APP_URL, paths.adminCompte),
   adminActivite: env.VITE_ADMIN_ACTIVITE_URL || joinUrl(APP_URL, paths.adminActivite),
+  adminGeo: env.VITE_ADMIN_GEO_URL || joinUrl(APP_URL, paths.adminGeo),
   profil: env.VITE_PROFIL_URL || joinUrl(APP_URL, paths.profil),
   mesCotisations: env.VITE_MES_COTISATIONS_URL || joinUrl(APP_URL, paths.mesCotisations),
 };
 
-export default { APP_ENV, APP_NAME, APP_URL, API_URL, paths, links };
+/** Chemin profil d’un membre (admin) */
+export function adminMembreProfilPath(id) {
+  return `${paths.adminMembres}/${id}`;
+}
+
+export default { APP_ENV, APP_NAME, APP_URL, API_URL, paths, links, adminMembreProfilPath };

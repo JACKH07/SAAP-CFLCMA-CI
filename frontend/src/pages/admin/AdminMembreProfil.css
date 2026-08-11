@@ -1,0 +1,123 @@
+.admin-membre-profil {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.profil-back {
+  border: none;
+  background: transparent;
+  color: #1c7c38;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0;
+  cursor: pointer;
+  align-self: flex-start;
+  min-height: 44px;
+}
+
+.profil-view {
+  padding: 1.25rem;
+}
+
+.profil-view-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.profil-view-titles {
+  flex: 1;
+  min-width: 160px;
+}
+
+.profil-view-titles h1 {
+  margin: 0.15rem 0 0.45rem;
+  font-size: 1.45rem;
+  color: #0f172a;
+}
+
+.profil-view-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.profil-view-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.25rem;
+}
+
+.profil-view-span {
+  grid-column: 1 / -1;
+}
+
+.profil-view-grid .tiny {
+  font-size: 0.75rem;
+  margin-bottom: 0.2rem;
+}
+
+.id-big {
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+}
+
+.avatar-lg {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8f5ec;
+  color: #1c7c38;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.membre-row-link {
+  cursor: pointer;
+}
+
+.membre-row-link:hover {
+  background: #f8fafc;
+}
+
+.person-cell-link,
+.name-link {
+  cursor: pointer;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+}
+
+.person-cell-link:hover strong,
+.name-link:hover {
+  color: #1c7c38;
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .profil-view-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profil-view-actions {
+    width: 100%;
+  }
+
+  .profil-view-actions .btn,
+  .profil-view-actions .btn-secondary {
+    flex: 1;
+    text-align: center;
+  }
+}

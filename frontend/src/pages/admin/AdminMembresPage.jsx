@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import AdminShell from '../../components/AdminShell';
 import api from '../../api/client';
 import { useAutocomplete } from '../../hooks/useAutocomplete';
 import { useAuthStore } from '../../store/authStore';
+import { adminMembreProfilPath } from '../../config/env';
 import DateInputFr from '../../components/DateInputFr';
 import MemberAvatar from '../../components/MemberAvatar';
 import PasswordInput from '../../components/PasswordInput';
 import './AdminMembres.css';
+import './AdminMembreProfil.css';
 
 function formatDateInput(value) {
   if (!value) return '';
@@ -18,6 +21,8 @@ function formatDateInput(value) {
 function initials(prenom, nom) {
   return `${prenom?.[0] || ''}${nom?.[0] || ''}`.toUpperCase() || '?';
 }
+
+const PAGE_SIZE = 20;
 
 const EMPTY_FORM = {
   nom: '',
@@ -39,7 +44,16 @@ const EMPTY_FORM = {
 
 export default function AdminMembresPage() {
   const { user } = useAuthStore();
-  const [data, setData] = useState({ items: [], total: 0 });
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [data, setData] = useState({
+    items: [],
+    total: 0,
+    page: 1,
+    limit: PAGE_SIZE,
+    totalPages: 1,
+  });
+  const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ id: '', nom: '', region: '' });
   const [applied, setApplied] = useState({ id: '', nom: '', region: '' });
   const [selected, setSelected] = useState(() => new Set());
@@ -67,17 +81,45 @@ export default function AdminMembresPage() {
     params: paroisseId ? { paroisseId } : {},
   });
 
-  async function load(searchNom = applied.nom) {
+  async function load({
+    pageNum = page,
+    filtersOverride = applied,
+    regionsList = regions,
+  } = {}) {
     setError('');
     setLoading(true);
     try {
+      const idQ = (filtersOverride.id || '').trim();
+      const nomQ = (filtersOverride.nom || '').trim();
+      const regionQ = (filtersOverride.region || '').trim().toLowerCase();
+      const search = idQ || nomQ || undefined;
+
+      let regionId;
+      if (regionQ && regionsList.length) {
+        const match = regionsList.find((r) =>
+          String(r.nom || '')
+            .toLowerCase()
+            .includes(regionQ)
+        );
+        regionId = match?.id;
+      }
+
       const { data: res } = await api.get('/membres', {
         params: {
-          search: searchNom || undefined,
-          limit: 200,
+          page: pageNum,
+          limit: PAGE_SIZE,
+          search,
+          regionId: regionId || undefined,
         },
       });
-      setData(res);
+      setData({
+        items: res.items || [],
+        total: res.total || 0,
+        page: res.page || pageNum,
+        limit: res.limit || PAGE_SIZE,
+        totalPages: res.totalPages || Math.max(1, Math.ceil((res.total || 0) / PAGE_SIZE)),
+      });
+      setPage(res.page || pageNum);
       setSelected(new Set());
     } catch (e) {
       setError(e.response?.data?.message || 'Erreur de chargement');
@@ -87,11 +129,13 @@ export default function AdminMembresPage() {
   }
 
   useEffect(() => {
-    load();
     Promise.all([api.get('/regions'), api.get('/roles')]).then(([r, rolesRes]) => {
-      setRegions(r.data.data || []);
+      const regs = r.data.data || [];
+      setRegions(regs);
       setRoles(rolesRes.data.data || []);
+      load({ pageNum: 1, regionsList: regs });
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -104,11 +148,48 @@ export default function AdminMembresPage() {
     });
   }, [form.regionId]);
 
+  // Ouverture modification depuis la page profil (bouton Modifier)
+  useEffect(() => {
+    const editId = location.state?.editMembreId;
+    if (!editId) return;
+
+    const local = data.items.find((x) => Number(x.id) === Number(editId));
+    if (local) {
+      openEdit(local);
+      navigate(location.pathname, { replace: true, state: {} });
+      return;
+    }
+
+    api
+      .get(`/membres/${editId}`)
+      .then((res) => {
+        if (res.data?.data) openEdit(res.data.data);
+        navigate(location.pathname, { replace: true, state: {} });
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
+
   function runSearch(e) {
     e?.preventDefault();
     const next = { ...filters };
     setApplied(next);
-    load(next.nom);
+    setPage(1);
+    load({ pageNum: 1, filtersOverride: next });
+  }
+
+  function goPrev() {
+    if (page <= 1) return;
+    const next = page - 1;
+    setPage(next);
+    load({ pageNum: next });
+  }
+
+  function goNext() {
+    if (page >= (data.totalPages || 1)) return;
+    const next = page + 1;
+    setPage(next);
+    load({ pageNum: next });
   }
 
   function formatDateFr(value) {
@@ -141,6 +222,7 @@ export default function AdminMembresPage() {
     setMsg('');
     setError('');
     setEditing(m);
+    setOpenMenuId(null);
     setForm({
       nom: m.nom || '',
       prenom: m.prenom || '',
@@ -224,7 +306,7 @@ export default function AdminMembresPage() {
       await api.patch(`/membres/${editing.id}`, payload);
       setMsg('Membre mis à jour');
       closeEdit();
-      await load();
+      await load({ pageNum: page });
     } catch (err) {
       setError(err.response?.data?.message || 'Échec de la mise à jour');
     } finally {
@@ -242,7 +324,7 @@ export default function AdminMembresPage() {
         setForm((f) => ({ ...f, statut: nextStatut }));
         setEditing((m) => (m ? { ...m, statut: nextStatut } : m));
       }
-      await load();
+      await load({ pageNum: page });
     } catch (e) {
       setError(e.response?.data?.message || 'Échec');
     }
@@ -268,10 +350,17 @@ export default function AdminMembresPage() {
       await api.delete(`/membres/${m.id}`);
       setMsg(`Membre ${label} supprimé`);
       if (editing?.id === m.id) closeEdit();
-      await load();
+      const nextPage = items.length <= 1 && page > 1 ? page - 1 : page;
+      setPage(nextPage);
+      await load({ pageNum: nextPage });
     } catch (e) {
       setError(e.response?.data?.message || 'Suppression impossible');
     }
+  }
+
+  function openProfil(m) {
+    setOpenMenuId(null);
+    navigate(adminMembreProfilPath(m.id));
   }
 
   function canDeleteMembre(m) {
@@ -297,6 +386,9 @@ export default function AdminMembresPage() {
         </button>
         {openMenuId === m.id && (
           <div className="row-menu-list" role="menu">
+            <button type="button" role="menuitem" onClick={() => openProfil(m)}>
+              Voir le profil
+            </button>
             <button type="button" role="menuitem" onClick={() => { setOpenMenuId(null); openEdit(m); }}>
               Modifier
             </button>
@@ -326,19 +418,11 @@ export default function AdminMembresPage() {
     );
   }
 
-  const items = useMemo(() => {
-    let list = data.items || [];
-    const idQ = applied.id.trim().toLowerCase();
-    const regionQ = applied.region.trim().toLowerCase();
-    if (idQ) {
-      list = list.filter((m) => (m.idMembre || '').toLowerCase().includes(idQ));
-    }
-    if (regionQ) {
-      list = list.filter((m) => (m.region?.nom || '').toLowerCase().includes(regionQ));
-    }
-    return list;
-  }, [data.items, applied]);
-
+  const items = data.items || [];
+  const total = data.total || 0;
+  const totalPages = data.totalPages || Math.max(1, Math.ceil(total / PAGE_SIZE) || 1);
+  const rangeFrom = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const rangeTo = Math.min(page * PAGE_SIZE, total);
   const allIds = items.map((m) => m.id);
   const allSelected = allIds.length > 0 && allIds.every((id) => selected.has(id));
 
@@ -383,144 +467,119 @@ export default function AdminMembresPage() {
           {loading ? (
             <p className="muted">Chargement…</p>
           ) : (
-            <>
-              {/* Desktop / tablette : tableau */}
-              <div className="data-table-wrap membres-desktop-only">
-                <table className="membres-data-table membres-data-table--rich">
-                  <thead>
-                    <tr>
-                      <th className="col-check">
-                        <input
-                          type="checkbox"
-                          checked={allSelected}
-                          onChange={(e) => toggleAll(e.target.checked, allIds)}
-                          aria-label="Tout sélectionner"
-                        />
-                      </th>
-                      <th>ID</th>
-                      <th>Photo</th>
-                      <th>Nom</th>
-                      <th>Branche</th>
-                      <th>Région</th>
-                      <th>District</th>
-                      <th>Paroisse</th>
-                      <th>Date de naissance</th>
-                      <th>Téléphone</th>
-                      <th>E-mail</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((m) => (
-                      <tr key={m.id}>
-                        <td className="col-check">
-                          <input
-                            type="checkbox"
-                            checked={selected.has(m.id)}
-                            onChange={() => toggleOne(m.id)}
-                            aria-label={`Sélectionner ${m.prenom} ${m.nom}`}
-                          />
-                        </td>
-                        <td className="col-id">#{m.idMembre}</td>
-                        <td>
-                          <MemberAvatar
-                            photoUrl={m.photoUrl}
-                            prenom={m.prenom}
-                            nom={m.nom}
-                            isAdmin={m.isAdmin}
-                            isSuperAdmin={m.isSuperAdmin}
-                          />
-                        </td>
-                        <td className="col-name">
-                          {m.prenom} {m.nom}
-                        </td>
-                        <td>{brancheLabel(m.branche)}</td>
-                        <td>{m.region?.nom || '—'}</td>
-                        <td>{m.district?.nom || '—'}</td>
-                        <td>{m.paroisse?.nom || '—'}</td>
-                        <td>{formatDateFr(m.dateNaissance)}</td>
-                        <td>{m.contact || '—'}</td>
-                        <td className="col-email">{m.email || '—'}</td>
-                        <td className="col-actions">{renderActionsMenu(m)}</td>
-                      </tr>
-                    ))}
-                    {!items.length && (
-                      <tr>
-                        <td colSpan={12} className="muted empty-row">
-                          Aucun membre trouvé.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile : cartes */}
-              <div className="membres-cards membres-mobile-only">
-                {!items.length && <p className="muted empty-row">Aucun membre trouvé.</p>}
-                {items.map((m) => (
-                  <article key={m.id} className="membre-card">
-                    <div className="membre-card-top">
-                      <label className="membre-card-check">
+            <div className="data-table-wrap">
+              <table className="membres-data-table membres-data-table--rich">
+                <thead>
+                  <tr>
+                    <th className="col-check">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={(e) => toggleAll(e.target.checked, allIds)}
+                        aria-label="Tout sélectionner"
+                      />
+                    </th>
+                    <th>ID</th>
+                    <th>Photo</th>
+                    <th>Nom</th>
+                    <th>Branche</th>
+                    <th>Région</th>
+                    <th>District</th>
+                    <th>Paroisse</th>
+                    <th>Date de naissance</th>
+                    <th>Téléphone</th>
+                    <th>E-mail</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((m) => (
+                    <tr
+                      key={m.id}
+                      className="membre-row-link"
+                      onClick={(e) => {
+                        // Ne pas ouvrir le profil si clic sur checkbox / menu
+                        if (e.target.closest('input, button, .row-menu, .col-actions, .col-check')) {
+                          return;
+                        }
+                        openProfil(m);
+                      }}
+                    >
+                      <td className="col-check">
                         <input
                           type="checkbox"
                           checked={selected.has(m.id)}
                           onChange={() => toggleOne(m.id)}
                           aria-label={`Sélectionner ${m.prenom} ${m.nom}`}
                         />
-                      </label>
-                      <MemberAvatar
-                        photoUrl={m.photoUrl}
-                        prenom={m.prenom}
-                        nom={m.nom}
-                        isAdmin={m.isAdmin}
-                        isSuperAdmin={m.isSuperAdmin}
-                      />
-                      <div className="membre-card-identity">
-                        <strong>
+                      </td>
+                      <td className="col-id">#{m.idMembre}</td>
+                      <td>
+                        <MemberAvatar
+                          photoUrl={m.photoUrl}
+                          prenom={m.prenom}
+                          nom={m.nom}
+                          isAdmin={m.isAdmin}
+                          isSuperAdmin={m.isSuperAdmin}
+                        />
+                      </td>
+                      <td className="col-name">
+                        <button
+                          type="button"
+                          className="name-link"
+                          onClick={() => openProfil(m)}
+                        >
                           {m.prenom} {m.nom}
-                        </strong>
-                        <span className="membre-card-id">#{m.idMembre}</span>
-                      </div>
-                      <div className="col-actions">{renderActionsMenu(m)}</div>
-                    </div>
-                    <dl className="membre-card-meta">
-                      <div>
-                        <dt>Branche</dt>
-                        <dd>{brancheLabel(m.branche)}</dd>
-                      </div>
-                      <div>
-                        <dt>Région</dt>
-                        <dd>{m.region?.nom || '—'}</dd>
-                      </div>
-                      <div>
-                        <dt>District</dt>
-                        <dd>{m.district?.nom || '—'}</dd>
-                      </div>
-                      <div>
-                        <dt>Paroisse</dt>
-                        <dd>{m.paroisse?.nom || '—'}</dd>
-                      </div>
-                      <div>
-                        <dt>Téléphone</dt>
-                        <dd>{m.contact || '—'}</dd>
-                      </div>
-                      <div className="membre-card-meta-full">
-                        <dt>E-mail</dt>
-                        <dd>{m.email || '—'}</dd>
-                      </div>
-                    </dl>
-                  </article>
-                ))}
-              </div>
-            </>
+                        </button>
+                      </td>
+                      <td>{brancheLabel(m.branche)}</td>
+                      <td>{m.region?.nom || '—'}</td>
+                      <td>{m.district?.nom || '—'}</td>
+                      <td>{m.paroisse?.nom || '—'}</td>
+                      <td>{formatDateFr(m.dateNaissance)}</td>
+                      <td>{m.contact || '—'}</td>
+                      <td className="col-email">{m.email || '—'}</td>
+                      <td className="col-actions">{renderActionsMenu(m)}</td>
+                    </tr>
+                  ))}
+                  {!items.length && (
+                    <tr>
+                      <td colSpan={12} className="muted empty-row">
+                        Aucun membre trouvé.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           )}
 
-          <div className="table-foot">
-            <span>
-              Affichage de {items.length} membre(s)
-              {data.total != null ? ` · ${data.total} au total` : ''}
+          <div className="table-foot membres-pagination">
+            <span className="membres-pagination-info" aria-live="polite">
+              {total === 0
+                ? 'Aucun membre'
+                : `${rangeFrom}–${rangeTo} sur ${total} membre${total > 1 ? 's' : ''}`}
+              {' · '}
+              Page {page} / {totalPages}
             </span>
+            <div className="membres-pagination-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={goPrev}
+                disabled={loading || page <= 1}
+              >
+                Précédent
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={goNext}
+                disabled={loading || page >= totalPages}
+              >
+                Suivant
+              </button>
+            </div>
           </div>
         </div>
       </section>

@@ -12,10 +12,12 @@ import MesCotisationsPage from './pages/MesCotisationsPage';
 import PaiementPage from './pages/PaiementPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminMembresPage from './pages/admin/AdminMembresPage';
+import AdminMembreProfilPage from './pages/admin/AdminMembreProfilPage';
 import AdminCotisationsPage from './pages/admin/AdminCotisationsPage';
 import AdminBureauPage from './pages/admin/AdminBureauPage';
 import AdminComptePage from './pages/admin/AdminComptePage';
 import AdminActivitePage from './pages/admin/AdminActivitePage';
+import AdminGeoPage from './pages/admin/AdminGeoPage';
 
 function HomeRedirect() {
   const { token, user, portal } = useAuthStore();
@@ -47,10 +49,12 @@ export default function App() {
       <Route element={<ProtectedRoute adminOnly />}>
         <Route path={paths.admin} element={<AdminDashboardPage />} />
         <Route path={paths.adminMembres} element={<AdminMembresPage />} />
+        <Route path={`${paths.adminMembres}/:membreId`} element={<AdminMembreProfilPage />} />
         <Route path={paths.adminCotisations} element={<AdminCotisationsPage />} />
         <Route path={paths.adminBureau} element={<AdminBureauPage />} />
         <Route path={paths.adminCompte} element={<AdminComptePage />} />
         <Route path={paths.adminActivite} element={<AdminActivitePage />} />
+        <Route path={paths.adminGeo} element={<AdminGeoPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

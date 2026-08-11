@@ -73,6 +73,11 @@
   justify-content: center;
 }
 
+.photo-capture__btn.is-disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 .photo-capture__input {
   position: absolute;
   width: 1px;

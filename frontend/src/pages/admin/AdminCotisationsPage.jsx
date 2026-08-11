@@ -35,6 +35,7 @@ export default function AdminCotisationsPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [deletingId, setDeletingId] = useState(null);
 
   async function loadList() {
     const { data } = await api.get('/cotisations', {
@@ -128,6 +129,30 @@ export default function AdminCotisationsPage() {
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Paiement introuvable');
+    }
+  }
+
+  async function removePayment(c) {
+    const label = c.idPaiement || `#${c.id}`;
+    const membre = `${c.membre?.prenom || ''} ${c.membre?.nom || ''}`.trim();
+    if (
+      !window.confirm(
+        `Supprimer le paiement ${label}${membre ? ` (${membre})` : ''} ?\nCette action est définitive.`
+      )
+    ) {
+      return;
+    }
+    setError('');
+    setMsg('');
+    setDeletingId(c.id);
+    try {
+      await api.delete(`/cotisations/${c.id}`);
+      setMsg(`Paiement ${label} supprimé`);
+      await Promise.all([loadList(), loadStats()]);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Impossible de supprimer le paiement');
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -393,8 +418,8 @@ export default function AdminCotisationsPage() {
             <ul className="cotis-list">
               {items.length === 0 && <li className="muted">Aucune cotisation</li>}
               {items.slice(0, 20).map((c) => (
-                <li key={c.id}>
-                  <div>
+                <li key={c.id} className="cotis-list-item">
+                  <div className="cotis-list-main">
                     <strong>{c.idPaiement}</strong>
                     <em>
                       {c.membre?.prenom} {c.membre?.nom} · {c.activite?.nom}
@@ -415,6 +440,15 @@ export default function AdminCotisationsPage() {
                     >
                       {c.statut}
                     </span>
+                    <button
+                      type="button"
+                      className="btn-cotis-delete"
+                      disabled={deletingId === c.id}
+                      onClick={() => removePayment(c)}
+                      title="Supprimer ce paiement"
+                    >
+                      {deletingId === c.id ? '…' : 'Supprimer'}
+                    </button>
                   </div>
                 </li>
               ))}

@@ -122,8 +122,9 @@ export default function RegisterPage() {
         communauteNom: communauteAc.query.trim(),
         photo: photo || undefined,
       });
-      setMessage(data.message);
-      setTimeout(() => navigate(paths.profil), 800);
+      setMessage(data.message || 'Inscription réussie');
+      // Navigation immédiate — plus d’attente artificielle
+      navigate(paths.profil, { replace: true });
     } catch {
       /* store */
     }

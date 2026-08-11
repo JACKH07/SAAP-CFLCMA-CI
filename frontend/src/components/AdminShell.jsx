@@ -19,6 +19,7 @@ const NAV = [
       { to: paths.adminBureau, label: 'Bureau', icon: 'bureau' },
       { to: paths.adminCompte, label: 'Compte', icon: 'compte' },
       { to: paths.adminActivite, label: 'Activités', icon: 'activite' },
+      { to: paths.adminGeo, label: 'Territoire', icon: 'geo' },
       { to: paths.adminCotisations, label: 'Cotisations', icon: 'pay' },
     ],
   },
@@ -77,6 +78,14 @@ function NavIcon({ type }) {
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
         <path d="M12 3v4M12 17v4M3 12h4M17 12h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
         <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.8" />
+      </svg>
+    );
+  }
+  if (type === 'geo') {
+    return (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M4.5 12h15M12 4.5c2.2 2.4 3.3 4.9 3.3 7.5S14.2 17.1 12 19.5C9.8 17.1 8.7 14.6 8.7 12S9.8 6.9 12 4.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
       </svg>
     );
   }

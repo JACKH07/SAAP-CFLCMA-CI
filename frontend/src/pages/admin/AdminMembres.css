@@ -155,6 +155,47 @@
   color: #64748b;
 }
 
+.membres-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.membres-pagination-info {
+  font-size: 0.86rem;
+  color: #475569;
+  font-weight: 500;
+}
+
+.membres-pagination-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.membres-pagination-actions .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .membres-pagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .membres-pagination-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .membres-pagination-actions .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
 .col-actions {
   position: relative;
   overflow: visible;
@@ -326,106 +367,7 @@
   }
 }
 
-/* Mobile : cartes au lieu du tableau */
-.membres-mobile-only {
-  display: none;
-}
-
-.membres-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.membre-card {
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #fff;
-  padding: 0.85rem;
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
-}
-
-.membre-card-top {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  margin-bottom: 0.75rem;
-}
-
-.membre-card-check {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-
-.membre-card-identity {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-}
-
-.membre-card-identity strong {
-  font-size: 0.95rem;
-  color: #0f172a;
-  line-height: 1.25;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.membre-card-id {
-  font-size: 0.75rem;
-  color: #64748b;
-  font-weight: 600;
-}
-
-.membre-card-meta {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.55rem 0.75rem;
-  margin: 0;
-}
-
-.membre-card-meta > div {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  min-width: 0;
-}
-
-.membre-card-meta-full {
-  grid-column: 1 / -1;
-}
-
-.membre-card-meta dt {
-  margin: 0;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #94a3b8;
-  font-weight: 700;
-}
-
-.membre-card-meta dd {
-  margin: 0;
-  font-size: 0.84rem;
-  color: #334155;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 @media (max-width: 760px) {
-  .membres-desktop-only {
-    display: none !important;
-  }
-
-  .membres-mobile-only {
-    display: flex;
-  }
-
   .membre-modal {
     width: 100%;
     max-height: min(92dvh, 100%);
