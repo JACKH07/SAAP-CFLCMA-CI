@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
+const fs = require('fs');
 const config = require('./config');
 const { errorHandler } = require('./utils/errors');
 
@@ -32,6 +33,23 @@ app.use('/api/membres', membreRoutes);
 app.use('/api/admins', require('./routes/adminAccountRoutes'));
 app.use('/api/cotisations', cotisationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+
+const publicDir = path.resolve(__dirname, '../public');
+const serveFrontend =
+  process.env.SERVE_FRONTEND === 'true' ||
+  (config.appEnv === 'production' && fs.existsSync(path.join(publicDir, 'index.html')));
+
+if (serveFrontend) {
+  app.use(express.static(publicDir));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+      return next();
+    }
+    return res.sendFile(path.join(publicDir, 'index.html'), (err) => {
+      if (err) next(err);
+    });
+  });
+}
 
 app.use((_req, res) => {
   res.status(404).json({ success: false, message: 'Route introuvable' });

@@ -1,0 +1,12 @@
+{
+  "name": "saap-cflcma-ci",
+  "private": true,
+  "version": "1.0.0",
+  "description": "SAAP CFLCMA-CI — monorepo backend + frontend",
+  "scripts": {
+    "start": "cd backend && node src/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
