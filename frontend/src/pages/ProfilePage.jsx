@@ -376,7 +376,7 @@ export default function ProfilePage() {
                 </div>
                 <div>
                   <div className="muted" style={{ fontSize: '0.8rem' }}>
-                    Titre
+                    Grades
                   </div>
                   <div>{profile.role?.nom || 'Membres actifs'}</div>
                 </div>
@@ -452,7 +452,7 @@ export default function ProfilePage() {
               <strong>{brancheLabel(profile.branche)}</strong>
             </div>
             <div>
-              <span>Titre</span>
+              <span>Grades</span>
               <strong>{profile.role?.nom || 'Membres actifs'}</strong>
             </div>
             <div>

@@ -407,7 +407,7 @@ export default function AdminBureauPage() {
                 />
                 <div className="form-group">
                   <label htmlFor="bureau-role">
-                    Titre <span className="req">*</span>
+                    Grades <span className="req">*</span>
                   </label>
                   <select
                     id="bureau-role"

@@ -418,7 +418,7 @@ export default function AdminDashboardPage() {
             <div className="card-head">
               <div>
                 <h2>Liste des membres</h2>
-                <p>Titre, région, district, paroisse et communauté</p>
+                <p>Grades, région, district, paroisse et communauté</p>
               </div>
               <Link to={paths.adminMembres} className="dash-btn ghost">
                 Voir tout
@@ -429,7 +429,7 @@ export default function AdminDashboardPage() {
                 <thead>
                   <tr>
                     <th>Membre</th>
-                    <th>Titre</th>
+                    <th>Grades</th>
                     <th>Région</th>
                     <th>District</th>
                     <th>Paroisse</th>

@@ -277,7 +277,7 @@ export default function RegisterPage() {
             minLength={6}
           />
           <div className="form-group">
-            <label htmlFor="fonctionId">Titre</label>
+            <label htmlFor="fonctionId">Grades</label>
             <select id="fonctionId" name="fonctionId" value={form.fonctionId} onChange={onChange}>
               <option value="">Veuillez sélectionner…</option>
               {roles.map((r) => (

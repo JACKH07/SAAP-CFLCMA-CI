@@ -723,7 +723,7 @@ export default function AdminMembresPage() {
               <section className="form-section">
                 <h3 className="form-section-title">Rôle & localisation</h3>
                 <div className="form-group">
-                  <label htmlFor="roleId">Titre</label>
+                  <label htmlFor="roleId">Grades</label>
                   <select id="roleId" name="roleId" value={form.roleId} onChange={onChange} required>
                     <option value="">Sélectionner…</option>
                     {roles.map((r) => (

@@ -171,7 +171,7 @@ export default function AdminMembreProfilPage() {
                   <div>{brancheLabel(profile.branche)}</div>
                 </div>
                 <div>
-                  <div className="muted tiny">Titre</div>
+                  <div className="muted tiny">Grades</div>
                   <div>{profile.role?.nom || 'Membres actifs'}</div>
                 </div>
                 <div>
@@ -292,7 +292,7 @@ export default function AdminMembreProfilPage() {
                   <strong>{brancheLabel(profile.branche)}</strong>
                 </div>
                 <div>
-                  <span>Titre</span>
+                  <span>Grades</span>
                   <strong>{profile.role?.nom || 'Membres actifs'}</strong>
                 </div>
                 <div>
