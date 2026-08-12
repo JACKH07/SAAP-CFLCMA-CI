@@ -30,6 +30,7 @@ COPY backend/prisma ./prisma
 RUN npx prisma generate
 
 COPY backend/src ./src
+COPY backend/scripts ./scripts
 COPY backend/docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x docker-entrypoint.sh
 

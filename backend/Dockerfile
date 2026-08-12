@@ -11,6 +11,7 @@ COPY prisma ./prisma
 RUN npx prisma generate
 
 COPY src ./src
+COPY scripts ./scripts
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x docker-entrypoint.sh
 

@@ -78,7 +78,7 @@ FRONTEND_URL=https://cfl.flambeauxcmaci.com
 API_PUBLIC_URL=https://cfl.flambeauxcmaci.com/api
 PAYMENT_MOCK_MODE=true
 ADMIN_EMAIL=flambeaux@gmail.com
-ADMIN_PASSWORD=votre_mot_de_passe_admin
+ADMIN_PASSWORD=flambeaux&lumière
 ADMIN_NOM=Administrateur
 ADMIN_PRENOM=Flambeaux
 ```
@@ -123,13 +123,15 @@ docker exec $(docker ps -q -f ancestor=cflcmaci-saapcflcmaci-8naclc:latest) npm 
 
 ```bash
 docker exec \
-  -e ADMIN_EMAIL='votre@email.com' \
+  -e ADMIN_EMAIL='flambeaux@gmail.com' \
   -e ADMIN_PASSWORD='votre_mot_de_passe' \
   $(docker ps -q -f ancestor=cflcmaci-saapcflcmaci-8naclc:latest) \
-  npm run seed:production
+  npm run admin:reset:production
 ```
 
-Attendu : `✓ Super Admin mis à jour : votre@email.com`
+*(ou `npm run seed:production` — plus long)*
+
+Attendu : `✓ Super Admin mis à jour : votre@email.com (ADSY19900101)`
 
 Compte admin : email ci-dessus ou ID `ADSY19900101`.
 

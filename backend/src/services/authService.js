@@ -264,13 +264,15 @@ class AuthService {
 
     let membre = null;
     if (email) {
+      const emailNorm = String(email).trim().toLowerCase();
       membre = await prisma.membre.findUnique({
-        where: { email },
+        where: { email: emailNorm },
         include: { role: true },
       });
     } else if (idMembre) {
+      const idNorm = String(idMembre).trim().toUpperCase();
       membre = await prisma.membre.findUnique({
-        where: { idMembre },
+        where: { idMembre: idNorm },
         include: { role: true },
       });
     } else if (contact) {

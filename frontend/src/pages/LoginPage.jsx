@@ -45,7 +45,7 @@ export default function LoginPage({ mode = 'membre' }) {
       requireAdmin: isAdminLogin,
     };
     if (form.identifiant.includes('@')) {
-      payload.email = form.identifiant.trim();
+      payload.email = form.identifiant.trim().toLowerCase();
     } else if (/^[A-Z]{4}\d{8}/i.test(form.identifiant.trim())) {
       payload.idMembre = form.identifiant.trim().toUpperCase();
     } else {

@@ -513,7 +513,7 @@ async function seed() {
   }
   console.log(`✓ ${ACTIVITES.length} activités`);
 
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@flccmaci.org';
+  const adminEmail = (process.env.ADMIN_EMAIL || 'admin@flccmaci.org').trim().toLowerCase();
   const adminPassword = process.env.ADMIN_PASSWORD || 'AdminFLCCMACI2026!';
   if (!process.env.ADMIN_EMAIL) {
     console.warn('⚠ ADMIN_EMAIL absent — défaut admin@flccmaci.org (Dokploy → Environment)');
@@ -529,8 +529,8 @@ async function seed() {
 
   const adminIdMembre = 'ADSY19900101';
   const existingAdmin =
-    (await prisma.membre.findUnique({ where: { email: adminEmail } })) ||
-    (await prisma.membre.findUnique({ where: { idMembre: adminIdMembre } }));
+    (await prisma.membre.findUnique({ where: { idMembre: adminIdMembre } })) ||
+    (await prisma.membre.findUnique({ where: { email: adminEmail } }));
 
   const adminData = {
     nom: process.env.ADMIN_NOM || 'Administrateur',
