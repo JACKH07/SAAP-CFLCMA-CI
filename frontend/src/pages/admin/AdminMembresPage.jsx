@@ -722,7 +722,10 @@ export default function AdminMembresPage() {
               </section>
 
               <section className="form-section">
-                <h3 className="form-section-title">Rôle & localisation</h3>
+                <h3 className="form-section-title">Titre & grade</h3>
+                <p className="muted tiny" style={{ marginTop: '-0.35rem', marginBottom: '0.75rem' }}>
+                  Renseignez le titre ou le grade — un seul des deux champs.
+                </p>
                 <RoleSelect
                   id="roleId"
                   name="roleId"
@@ -731,6 +734,10 @@ export default function AdminMembresPage() {
                   onChange={onChange}
                   required
                 />
+              </section>
+
+              <section className="form-section">
+                <h3 className="form-section-title">Localisation</h3>
                 <div className="form-group">
                   <label htmlFor="regionId">Région</label>
                   <select id="regionId" name="regionId" value={form.regionId} onChange={onChange}>

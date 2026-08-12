@@ -11,6 +11,15 @@ export function roleCategoryLabel(role) {
   return isTitreRole(role) ? 'Titre' : 'Grades';
 }
 
+export function titreNom(role) {
+  return isTitreRole(role) ? role.nom : '—';
+}
+
+export function gradeNom(role) {
+  if (!role?.nom) return '—';
+  return isTitreRole(role) ? '—' : role.nom;
+}
+
 export function splitTitresAndGrades(roles = []) {
   const titres = roles.filter((r) => isTitreRole(r));
   const grades = roles.filter((r) => !isTitreRole(r));

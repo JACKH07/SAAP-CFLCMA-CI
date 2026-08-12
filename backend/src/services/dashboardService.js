@@ -153,7 +153,7 @@ class DashboardService {
           photoUrl: true,
           isAdmin: true,
           isSuperAdmin: true,
-          role: { select: { nom: true } },
+          role: { select: { nom: true, niveauHierarchique: true } },
           region: { select: { nom: true } },
           district: { select: { nom: true } },
           paroisse: { select: { nom: true } },

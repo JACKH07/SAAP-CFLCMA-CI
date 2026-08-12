@@ -7,7 +7,7 @@ import ProfilePhotoCapture from '../components/ProfilePhotoCapture';
 import api from '../api/client';
 import { useAuthStore } from '../store/authStore';
 import { hasAdminAccess } from '../utils/roles';
-import { roleCategoryLabel } from '../utils/roleDisplay';
+import { titreNom, gradeNom } from '../utils/roleDisplay';
 import './Auth.css';
 import './ProfilePage.css';
 
@@ -377,9 +377,15 @@ export default function ProfilePage() {
                 </div>
                 <div>
                   <div className="muted" style={{ fontSize: '0.8rem' }}>
-                    {roleCategoryLabel(profile.role)}
+                    Titre
                   </div>
-                  <div>{profile.role?.nom || '—'}</div>
+                  <div>{titreNom(profile.role)}</div>
+                </div>
+                <div>
+                  <div className="muted" style={{ fontSize: '0.8rem' }}>
+                    Grades
+                  </div>
+                  <div>{gradeNom(profile.role)}</div>
                 </div>
               </div>
               <div className="form-row" style={{ gap: '1rem' }}>
@@ -453,8 +459,12 @@ export default function ProfilePage() {
               <strong>{brancheLabel(profile.branche)}</strong>
             </div>
             <div>
-              <span>{roleCategoryLabel(profile.role)}</span>
-              <strong>{profile.role?.nom || '—'}</strong>
+              <span>Titre</span>
+              <strong>{titreNom(profile.role)}</strong>
+            </div>
+            <div>
+              <span>Grades</span>
+              <strong>{gradeNom(profile.role)}</strong>
             </div>
             <div>
               <span>Date de naissance</span>

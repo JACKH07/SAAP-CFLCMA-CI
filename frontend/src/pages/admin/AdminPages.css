@@ -299,6 +299,10 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.bureau-form-grid .bureau-role-fields {
+  grid-column: 1 / -1;
+}
+
 .bureau-form .form-group {
   margin-bottom: 0;
 }

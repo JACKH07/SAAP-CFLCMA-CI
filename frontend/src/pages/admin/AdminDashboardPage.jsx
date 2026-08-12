@@ -17,6 +17,7 @@ import AdminShell from '../../components/AdminShell';
 import MemberAvatar from '../../components/MemberAvatar';
 import api from '../../api/client';
 import { paths, adminMembreProfilPath } from '../../config/env';
+import { titreNom, gradeNom } from '../../utils/roleDisplay';
 import './AdminDashboard.css';
 import './AdminMembreProfil.css';
 
@@ -429,7 +430,8 @@ export default function AdminDashboardPage() {
                 <thead>
                   <tr>
                     <th>Membre</th>
-                    <th>Titre / Grades</th>
+                    <th>Titre</th>
+                    <th>Grades</th>
                     <th>Région</th>
                     <th>District</th>
                     <th>Paroisse</th>
@@ -460,7 +462,8 @@ export default function AdminDashboardPage() {
                           </div>
                         </div>
                       </td>
-                      <td>{m.role?.nom || '—'}</td>
+                      <td>{titreNom(m.role)}</td>
+                      <td>{gradeNom(m.role)}</td>
                       <td>{m.region?.nom || '—'}</td>
                       <td>{m.district?.nom || '—'}</td>
                       <td>{m.paroisse?.nom || '—'}</td>
@@ -469,7 +472,7 @@ export default function AdminDashboardPage() {
                   ))}
                   {!stats.derniersMembres?.length && (
                     <tr>
-                      <td colSpan={6} className="muted">
+                      <td colSpan={7} className="muted">
                         Aucun membre
                       </td>
                     </tr>

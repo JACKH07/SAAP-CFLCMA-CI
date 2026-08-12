@@ -406,14 +406,16 @@ export default function AdminBureauPage() {
                   required
                   autoComplete="new-password"
                 />
-                <RoleSelect
-                  id="bureau-role"
-                  name="roleId"
-                  roles={roles}
-                  value={createForm.roleId}
-                  onChange={onCreateChange}
-                  required
-                />
+                <div className="bureau-role-fields">
+                  <RoleSelect
+                    id="bureau-role"
+                    name="roleId"
+                    roles={roles}
+                    value={createForm.roleId}
+                    onChange={onCreateChange}
+                    required
+                  />
+                </div>
                 <ResponsabiliteFields
                   form={createForm}
                   setForm={setCreateForm}

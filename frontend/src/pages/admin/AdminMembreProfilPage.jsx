@@ -5,7 +5,7 @@ import MemberAvatar from '../../components/MemberAvatar';
 import ProfilePhotoCapture from '../../components/ProfilePhotoCapture';
 import BrandLogo from '../../components/BrandLogo';
 import { hasAdminAccess } from '../../utils/roles';
-import { roleCategoryLabel } from '../../utils/roleDisplay';
+import { titreNom, gradeNom } from '../../utils/roleDisplay';
 import { paths } from '../../config/env';
 import api from '../../api/client';
 import '../ProfilePage.css';
@@ -172,8 +172,12 @@ export default function AdminMembreProfilPage() {
                   <div>{brancheLabel(profile.branche)}</div>
                 </div>
                 <div>
-                  <div className="muted tiny">{roleCategoryLabel(profile.role)}</div>
-                  <div>{profile.role?.nom || '—'}</div>
+                  <div className="muted tiny">Titre</div>
+                  <div>{titreNom(profile.role)}</div>
+                </div>
+                <div>
+                  <div className="muted tiny">Grades</div>
+                  <div>{gradeNom(profile.role)}</div>
                 </div>
                 <div>
                   <div className="muted tiny">Contact</div>
@@ -293,8 +297,12 @@ export default function AdminMembreProfilPage() {
                   <strong>{brancheLabel(profile.branche)}</strong>
                 </div>
                 <div>
-                  <span>{roleCategoryLabel(profile.role)}</span>
-                  <strong>{profile.role?.nom || '—'}</strong>
+                  <span>Titre</span>
+                  <strong>{titreNom(profile.role)}</strong>
+                </div>
+                <div>
+                  <span>Grades</span>
+                  <strong>{gradeNom(profile.role)}</strong>
                 </div>
                 <div>
                   <span>Date de naissance</span>
