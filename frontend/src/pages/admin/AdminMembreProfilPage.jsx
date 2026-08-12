@@ -5,6 +5,7 @@ import MemberAvatar from '../../components/MemberAvatar';
 import ProfilePhotoCapture from '../../components/ProfilePhotoCapture';
 import BrandLogo from '../../components/BrandLogo';
 import { hasAdminAccess } from '../../utils/roles';
+import { roleCategoryLabel } from '../../utils/roleDisplay';
 import { paths } from '../../config/env';
 import api from '../../api/client';
 import '../ProfilePage.css';
@@ -171,7 +172,7 @@ export default function AdminMembreProfilPage() {
                   <div>{brancheLabel(profile.branche)}</div>
                 </div>
                 <div>
-                  <div className="muted tiny">Grades</div>
+                  <div className="muted tiny">{roleCategoryLabel(profile.role)}</div>
                   <div>{profile.role?.nom || '—'}</div>
                 </div>
                 <div>
@@ -292,7 +293,7 @@ export default function AdminMembreProfilPage() {
                   <strong>{brancheLabel(profile.branche)}</strong>
                 </div>
                 <div>
-                  <span>Grades</span>
+                  <span>{roleCategoryLabel(profile.role)}</span>
                   <strong>{profile.role?.nom || '—'}</strong>
                 </div>
                 <div>

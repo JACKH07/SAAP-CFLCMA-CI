@@ -94,7 +94,7 @@ function restrictToSelf(paramName = 'id') {
 /**
  * Vérifie le périmètre géographique pour les rôles de coordination.
  * Croise niveau_hierarchique avec region/district/paroisse/communaute.
- * Niveaux : 1=C.G., 2=C.D.R., 3=C.D.D., 4=C.D.P., 5–8=troupe/patrouille, 9=membres actifs
+ * Niveaux : 1=CG, 2=CDR, 3=CDD, 4=CDP, 5+=grades du mouvement
  */
 function requireGeoScope(getResourceScope) {
   return async (req, _res, next) => {
@@ -103,8 +103,8 @@ function requireGeoScope(getResourceScope) {
 
       const niveau = req.user.role?.niveauHierarchique ?? 99;
 
-      // Membres actifs (niveau 9) : pas d'accès géo étendu
-      if (niveau >= 9) {
+      // Grades du mouvement (niveau > 4) : pas d'accès géo étendu
+      if (niveau > 4) {
         return next(new AppError('Permission insuffisante', 403));
       }
 
@@ -122,11 +122,6 @@ function requireGeoScope(getResourceScope) {
       }
       if (niveau === 4 && scope.paroisseId && scope.paroisseId !== req.user.paroisseId) {
         return next(new AppError('Hors de votre périmètre de paroisse', 403));
-      }
-      if (niveau >= 5 && niveau < 10) {
-        if (scope.communauteId && scope.communauteId !== req.user.communauteId) {
-          return next(new AppError('Hors de votre périmètre de communauté', 403));
-        }
       }
 
       next();

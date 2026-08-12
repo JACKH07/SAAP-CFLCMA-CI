@@ -175,7 +175,7 @@ export default function AdminShell({ children, title = 'Analytique', crumbs = ['
                 <strong>
                   {user?.prenom} {user?.nom}
                 </strong>
-                <small>{user?.role?.nom || 'Coordinateur général (C.G.)'}</small>
+                <small>{user?.role?.nom || 'Coordinateur Général (CG)'}</small>
               </div>
             </div>
             <button type="button" className="btn-logout-sm" onClick={handleLogout}>

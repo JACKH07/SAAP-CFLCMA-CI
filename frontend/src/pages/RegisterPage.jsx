@@ -8,6 +8,7 @@ import BrandLogo from '../components/BrandLogo';
 import DateInputFr from '../components/DateInputFr';
 import ProfilePhotoCapture from '../components/ProfilePhotoCapture';
 import PasswordInput from '../components/PasswordInput';
+import RoleSelect from '../components/RoleSelect';
 import './Auth.css';
 
 const INITIAL = {
@@ -276,17 +277,15 @@ export default function RegisterPage() {
             required
             minLength={6}
           />
-          <div className="form-group">
-            <label htmlFor="fonctionId">Grades</label>
-            <select id="fonctionId" name="fonctionId" value={form.fonctionId} onChange={onChange} required>
-              <option value="">Veuillez sélectionner…</option>
-              {roles.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.nom}
-                </option>
-              ))}
-            </select>
-          </div>
+          <RoleSelect
+            id="fonctionId"
+            name="fonctionId"
+            roles={roles}
+            value={form.fonctionId}
+            onChange={onChange}
+            required
+            gradesOnly
+          />
           <div className="form-group">
             <label htmlFor="responsabiliteBureau">Responsabilité bureau</label>
             <input

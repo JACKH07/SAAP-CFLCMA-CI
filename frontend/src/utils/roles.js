@@ -1,5 +1,5 @@
 /** Rôle organisationnel (mouvement) — distinct des droits SAAP admin */
-export const ROLE_COORDINATEUR_GENERAL = 'Coordinateur général (C.G.)';
+export const ROLE_COORDINATEUR_GENERAL = 'Coordinateur Général (CG)';
 
 /** @deprecated alias */
 export const ROLE_SECRETAIRE_GENERAL = ROLE_COORDINATEUR_GENERAL;

@@ -24,7 +24,7 @@ exports.create = asyncHandler(async (req, res) => {
 
   if (mode === 'MANUEL') {
     if (!isSg) {
-      throw new AppError('La saisie manuelle est réservée au Coordinateur général (C.G.)', 403);
+      throw new AppError('La saisie manuelle est réservée au Coordinateur Général (CG)', 403);
     }
     const justificatifUrl = req.file
       ? publicUploadUrl(req.file.filename)

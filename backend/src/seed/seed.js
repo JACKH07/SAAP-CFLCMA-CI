@@ -439,7 +439,7 @@ async function seed() {
     if (!ancien || !nouveau || ancien.id === nouveau.id) continue;
 
     const data = { roleId: nouveau.id };
-    if (nouveauNom === 'Coordinateur général (C.G.)') data.isAdmin = true;
+    if (nouveauNom === 'Coordinateur Général (CG)') data.isAdmin = true;
 
     await prisma.membre.updateMany({ where: { roleId: ancien.id }, data });
     await prisma.historiqueMandat
@@ -519,7 +519,7 @@ async function seed() {
   }
   const defaultGradeRole = await prisma.role.findUnique({ where: { nom: GRADE_DEFAULT } });
   const coordinateurGeneral = await prisma.role.findUnique({
-    where: { nom: 'Coordinateur général (C.G.)' },
+    where: { nom: 'Coordinateur Général (CG)' },
   });
   const abidjan1 = await prisma.region.findUnique({ where: { code: 'ABJ1' } });
   const districtCocody = await findDistrict(abidjan1.id, 'Cocody');

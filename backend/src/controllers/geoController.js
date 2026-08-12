@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const { TITRE_MAX_NIVEAU } = require('../constants/grades');
 const lieuAutocompleteService = require('../services/lieuAutocompleteService');
 const geoAdminService = require('../services/geoAdminService');
 const { asyncHandler } = require('../utils/errors');
@@ -46,11 +47,9 @@ exports.searchCommunautes = asyncHandler(async (req, res) => {
 });
 
 exports.listRoles = asyncHandler(async (req, res) => {
-  const excludeAdmin = req.query.fonctions === 'true';
+  const gradesOnly = req.query.fonctions === 'true' || req.query.grades === 'true';
   const roles = await prisma.role.findMany({
-    where: excludeAdmin
-      ? { NOT: { nom: 'Coordinateur général (C.G.)' } }
-      : undefined,
+    where: gradesOnly ? { niveauHierarchique: { gt: TITRE_MAX_NIVEAU } } : undefined,
     orderBy: { niveauHierarchique: 'asc' },
   });
   res.json({ success: true, data: roles });

@@ -4,6 +4,7 @@ import api from '../../api/client';
 import { useAutocomplete } from '../../hooks/useAutocomplete';
 import DateInputFr from '../../components/DateInputFr';
 import PasswordInput from '../../components/PasswordInput';
+import RoleSelect from '../../components/RoleSelect';
 import './AdminPages.css';
 
 const RESPONSABILITES = [
@@ -405,25 +406,14 @@ export default function AdminBureauPage() {
                   required
                   autoComplete="new-password"
                 />
-                <div className="form-group">
-                  <label htmlFor="bureau-role">
-                    Grades <span className="req">*</span>
-                  </label>
-                  <select
-                    id="bureau-role"
-                    name="roleId"
-                    value={createForm.roleId}
-                    onChange={onCreateChange}
-                    required
-                  >
-                    <option value="">Sélectionner…</option>
-                    {roles.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.nom}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <RoleSelect
+                  id="bureau-role"
+                  name="roleId"
+                  roles={roles}
+                  value={createForm.roleId}
+                  onChange={onCreateChange}
+                  required
+                />
                 <ResponsabiliteFields
                   form={createForm}
                   setForm={setCreateForm}

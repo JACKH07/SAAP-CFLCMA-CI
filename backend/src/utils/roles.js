@@ -1,7 +1,7 @@
 const { GRADE_DEFAULT } = require('../constants/grades');
 
 /** Rôle organisationnel SAAP (Super Admin) */
-const ROLE_COORDINATEUR_GENERAL = 'Coordinateur général (C.G.)';
+const ROLE_COORDINATEUR_GENERAL = 'Coordinateur Général (CG)';
 
 /** Grade par défaut à l'inscription si non choisi */
 const ROLE_MEMBRES_ACTIFS = GRADE_DEFAULT;

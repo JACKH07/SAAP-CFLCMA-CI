@@ -24,10 +24,10 @@ async function main() {
   }
 
   const coordinateurGeneral = await prisma.role.findUnique({
-    where: { nom: 'Coordinateur général (C.G.)' },
+    where: { nom: 'Coordinateur Général (CG)' },
   });
   if (!coordinateurGeneral) {
-    console.error('ERREUR : rôle Coordinateur général (C.G.) introuvable — lancez seed:production d’abord');
+    console.error('ERREUR : rôle Coordinateur Général (CG) introuvable — lancez seed:production d’abord');
     process.exit(1);
   }
 

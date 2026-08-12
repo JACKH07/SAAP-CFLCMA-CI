@@ -3,7 +3,8 @@ const jwt = require('jsonwebtoken');
 const prisma = require('../config/prisma');
 const config = require('../config');
 const { AppError } = require('../utils/errors');
-const { ROLE_MEMBRES_ACTIFS, ROLE_COORDINATEUR_GENERAL, hasAdminAccess } = require('../utils/roles');
+const { ROLE_MEMBRES_ACTIFS, hasAdminAccess } = require('../utils/roles');
+const { TITRE_MAX_NIVEAU } = require('../constants/grades');
 const membreIdService = require('./membreIdService');
 const lieuAutocompleteService = require('./lieuAutocompleteService');
 const auditService = require('./auditService');
@@ -72,10 +73,10 @@ class AuthService {
     if (fonctionId) {
       const role = await prisma.role.findUnique({ where: { id: Number(fonctionId) } });
       if (!role) throw new AppError('Grade introuvable', 400);
-      // Le Coordinateur général ne peut pas être auto-attribué à l'inscription
-      if (role.nom === ROLE_COORDINATEUR_GENERAL) {
+      // Les titres de coordination ne peuvent pas être choisis à l'inscription
+      if (role.niveauHierarchique <= TITRE_MAX_NIVEAU) {
         throw new AppError(
-          'Le rôle Coordinateur général (C.G.) ne peut pas être choisi à l\'inscription',
+          'Les titres de coordination ne peuvent pas être choisis à l\'inscription',
           403
         );
       }
