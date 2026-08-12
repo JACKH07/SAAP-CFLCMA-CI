@@ -34,6 +34,10 @@ exports.searchParoisses = asyncHandler(async (req, res) => {
 });
 
 exports.searchCommunautes = asyncHandler(async (req, res) => {
+  if (req.query.all === 'true' || req.query.all === '1') {
+    const data = await geoAdminService.listCommunautesAll();
+    return res.json({ success: true, data });
+  }
   const data = await lieuAutocompleteService.searchCommunautes(req.query.search || '', {
     paroisseId: req.query.paroisseId,
     limit: req.query.limit ? Number(req.query.limit) : 15,
@@ -65,4 +69,24 @@ exports.createDistrict = asyncHandler(async (req, res) => {
 exports.createParoisse = asyncHandler(async (req, res) => {
   const data = await geoAdminService.createParoisse(req.body);
   res.status(201).json({ success: true, data });
+});
+
+exports.deleteRegion = asyncHandler(async (req, res) => {
+  const data = await geoAdminService.deleteRegion(req.params.id);
+  res.json({ success: true, data, message: 'Région supprimée' });
+});
+
+exports.deleteDistrict = asyncHandler(async (req, res) => {
+  const data = await geoAdminService.deleteDistrict(req.params.id);
+  res.json({ success: true, data, message: 'District supprimé' });
+});
+
+exports.deleteParoisse = asyncHandler(async (req, res) => {
+  const data = await geoAdminService.deleteParoisse(req.params.id);
+  res.json({ success: true, data, message: 'Paroisse supprimée' });
+});
+
+exports.deleteCommunaute = asyncHandler(async (req, res) => {
+  const data = await geoAdminService.deleteCommunaute(req.params.id);
+  res.json({ success: true, data, message: 'Communauté supprimée' });
 });

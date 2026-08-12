@@ -107,6 +107,111 @@ class GeoAdminService {
       },
     });
   }
+
+  async listCommunautesAll() {
+    return prisma.communaute.findMany({
+      orderBy: [{ paroisseId: 'asc' }, { nom: 'asc' }],
+      include: {
+        paroisse: {
+          select: {
+            id: true,
+            nom: true,
+            districtId: true,
+            district: {
+              select: {
+                id: true,
+                nom: true,
+                regionId: true,
+                region: { select: { id: true, nom: true, code: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async _assertNoMembresCotisations(field, id) {
+    const where = { [field]: id };
+    const [membres, cotisations] = await Promise.all([
+      prisma.membre.count({ where }),
+      prisma.cotisation.count({ where }),
+    ]);
+    if (membres > 0) {
+      throw new AppError(`Impossible : ${membres} membre(s) rattaché(s)`, 409);
+    }
+    if (cotisations > 0) {
+      throw new AppError(`Impossible : ${cotisations} cotisation(s) liée(s)`, 409);
+    }
+  }
+
+  async deleteRegion(id) {
+    const rid = Number(id);
+    const region = await prisma.region.findUnique({ where: { id: rid } });
+    if (!region) throw new AppError('Région introuvable', 404);
+
+    const districts = await prisma.district.count({ where: { regionId: rid } });
+    if (districts > 0) {
+      throw new AppError(
+        `Impossible : ${districts} district(s) rattaché(s). Supprimez-les d'abord.`,
+        409
+      );
+    }
+
+    await this._assertNoMembresCotisations('regionId', rid);
+    await prisma.region.delete({ where: { id: rid } });
+    dashboardService.invalidateStatsCache();
+    return { id: rid, nom: region.nom };
+  }
+
+  async deleteDistrict(id) {
+    const did = Number(id);
+    const district = await prisma.district.findUnique({ where: { id: did } });
+    if (!district) throw new AppError('District introuvable', 404);
+
+    const paroisses = await prisma.paroisse.count({ where: { districtId: did } });
+    if (paroisses > 0) {
+      throw new AppError(
+        `Impossible : ${paroisses} paroisse(s) rattachée(s). Supprimez-les d'abord.`,
+        409
+      );
+    }
+
+    await this._assertNoMembresCotisations('districtId', did);
+    await prisma.district.delete({ where: { id: did } });
+    dashboardService.invalidateStatsCache();
+    return { id: did, nom: district.nom };
+  }
+
+  async deleteParoisse(id) {
+    const pid = Number(id);
+    const paroisse = await prisma.paroisse.findUnique({ where: { id: pid } });
+    if (!paroisse) throw new AppError('Paroisse introuvable', 404);
+
+    const communautes = await prisma.communaute.count({ where: { paroisseId: pid } });
+    if (communautes > 0) {
+      throw new AppError(
+        `Impossible : ${communautes} communauté(s) rattachée(s). Supprimez-les d'abord.`,
+        409
+      );
+    }
+
+    await this._assertNoMembresCotisations('paroisseId', pid);
+    await prisma.paroisse.delete({ where: { id: pid } });
+    dashboardService.invalidateStatsCache();
+    return { id: pid, nom: paroisse.nom };
+  }
+
+  async deleteCommunaute(id) {
+    const cid = Number(id);
+    const communaute = await prisma.communaute.findUnique({ where: { id: cid } });
+    if (!communaute) throw new AppError('Communauté introuvable', 404);
+
+    await this._assertNoMembresCotisations('communauteId', cid);
+    await prisma.communaute.delete({ where: { id: cid } });
+    dashboardService.invalidateStatsCache();
+    return { id: cid, nom: communaute.nom };
+  }
 }
 
 module.exports = new GeoAdminService();

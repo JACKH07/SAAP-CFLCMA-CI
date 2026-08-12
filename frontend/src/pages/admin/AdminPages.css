@@ -367,3 +367,28 @@
     -webkit-overflow-scrolling: touch;
   }
 }
+
+.geo-delete-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.geo-actions-cell {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.geo-delete-btn {
+  color: #b91c1c;
+  border-color: #fecaca;
+  font-size: 0.82rem;
+  padding: 0.35rem 0.7rem;
+  min-height: 36px;
+}
+
+.geo-delete-btn:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #f87171;
+}

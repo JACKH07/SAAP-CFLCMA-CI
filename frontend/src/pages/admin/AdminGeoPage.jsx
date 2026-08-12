@@ -7,6 +7,7 @@ const TABS = [
   { id: 'region', label: 'Région' },
   { id: 'district', label: 'District' },
   { id: 'paroisse', label: 'Paroisse' },
+  { id: 'communaute', label: 'Communauté' },
 ];
 
 export default function AdminGeoPage() {
@@ -14,8 +15,10 @@ export default function AdminGeoPage() {
   const [regions, setRegions] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [paroisses, setParoisses] = useState([]);
+  const [communautes, setCommunautes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
 
@@ -27,14 +30,16 @@ export default function AdminGeoPage() {
     setLoading(true);
     setError('');
     try {
-      const [r, d, p] = await Promise.all([
+      const [r, d, p, c] = await Promise.all([
         api.get('/regions'),
         api.get('/districts'),
         api.get('/paroisses', { params: { all: true } }),
+        api.get('/communautes', { params: { all: true } }),
       ]);
       setRegions(r.data.data || []);
       setDistricts(d.data.data || []);
       setParoisses(p.data.data || []);
+      setCommunautes(c.data.data || []);
     } catch (e) {
       setError(e.response?.data?.message || 'Erreur de chargement');
     } finally {
@@ -112,11 +117,46 @@ export default function AdminGeoPage() {
     }
   }
 
+  async function removeItem(type, item, label) {
+    if (!window.confirm(`Supprimer ${label} ?\nCette action est définitive.`)) return;
+    setDeletingId(item.id);
+    setMsg('');
+    setError('');
+    try {
+      const { data } = await api.delete(`/${type}/${item.id}`);
+      setMsg(data.message || 'Supprimé');
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Suppression impossible');
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  function DeleteBtn({ item, type, label }) {
+    const busy = deletingId === item.id;
+    return (
+      <button
+        type="button"
+        className="btn btn-secondary geo-delete-btn"
+        disabled={busy || deletingId != null}
+        onClick={() => removeItem(type, item, label)}
+      >
+        {busy ? '…' : 'Supprimer'}
+      </button>
+    );
+  }
+
   return (
     <AdminShell title="Territoire" crumbs={['Administration', 'Territoire']}>
       <section className="admin-page">
         {msg && <div className="alert alert-success">{msg}</div>}
         {error && <div className="alert alert-error">{error}</div>}
+
+        <p className="muted geo-delete-hint">
+          Suppression de bas en haut : communauté → paroisse → district → région.
+          Impossible si des membres ou cotisations sont rattachés.
+        </p>
 
         <div className="bureau-mode-tabs" role="tablist" aria-label="Type de lieu">
           {TABS.map((t) => (
@@ -186,6 +226,7 @@ export default function AdminGeoPage() {
                       <tr>
                         <th>Nom</th>
                         <th>Code</th>
+                        <th aria-label="Actions" />
                       </tr>
                     </thead>
                     <tbody>
@@ -193,6 +234,9 @@ export default function AdminGeoPage() {
                         <tr key={r.id}>
                           <td>{r.nom}</td>
                           <td>{r.code}</td>
+                          <td className="geo-actions-cell">
+                            <DeleteBtn item={r} type="regions" label={`la région « ${r.nom} »`} />
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -258,6 +302,7 @@ export default function AdminGeoPage() {
                       <tr>
                         <th>District</th>
                         <th>Région</th>
+                        <th aria-label="Actions" />
                       </tr>
                     </thead>
                     <tbody>
@@ -265,6 +310,9 @@ export default function AdminGeoPage() {
                         <tr key={d.id}>
                           <td>{d.nom}</td>
                           <td>{d.region?.nom || '—'}</td>
+                          <td className="geo-actions-cell">
+                            <DeleteBtn item={d} type="districts" label={`le district « ${d.nom} »`} />
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -354,6 +402,7 @@ export default function AdminGeoPage() {
                         <th>Paroisse</th>
                         <th>District</th>
                         <th>Région</th>
+                        <th aria-label="Actions" />
                       </tr>
                     </thead>
                     <tbody>
@@ -362,6 +411,9 @@ export default function AdminGeoPage() {
                           <td>{p.nom}</td>
                           <td>{p.district?.nom || '—'}</td>
                           <td>{p.district?.region?.nom || '—'}</td>
+                          <td className="geo-actions-cell">
+                            <DeleteBtn item={p} type="paroisses" label={`la paroisse « ${p.nom} »`} />
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -370,6 +422,52 @@ export default function AdminGeoPage() {
               )}
             </div>
           </>
+        )}
+
+        {tab === 'communaute' && (
+          <div className="card">
+            <div className="card-head-simple">
+              <h2>Communautés ({communautes.length})</h2>
+              <p className="muted">
+                Les communautés sont créées à l&apos;inscription des membres. Vous pouvez supprimer
+                celles sans membre rattaché.
+              </p>
+            </div>
+            {loading ? (
+              <p className="muted">Chargement…</p>
+            ) : (
+              <div className="data-table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Communauté</th>
+                      <th>Paroisse</th>
+                      <th>District</th>
+                      <th>Région</th>
+                      <th aria-label="Actions" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {communautes.map((c) => (
+                      <tr key={c.id}>
+                        <td>{c.nom}</td>
+                        <td>{c.paroisse?.nom || '—'}</td>
+                        <td>{c.paroisse?.district?.nom || '—'}</td>
+                        <td>{c.paroisse?.district?.region?.nom || '—'}</td>
+                        <td className="geo-actions-cell">
+                          <DeleteBtn
+                            item={c}
+                            type="communautes"
+                            label={`la communauté « ${c.nom} »`}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         )}
       </section>
     </AdminShell>
