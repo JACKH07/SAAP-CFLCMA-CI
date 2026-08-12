@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { paths } from '../config/env';
+import { loginPathAfterLogout } from '../utils/logout';
 import BrandLogo from './BrandLogo';
 import './AdminShell.css';
 
@@ -103,8 +104,9 @@ export default function AdminShell({ children, title = 'Analytique', crumbs = ['
   const [open, setOpen] = useState(false);
 
   function handleLogout() {
+    const redirectTo = loginPathAfterLogout(user);
     logout();
-    navigate(paths.adminLogin);
+    navigate(redirectTo);
   }
 
   return (

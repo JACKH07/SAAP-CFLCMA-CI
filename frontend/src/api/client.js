@@ -1,15 +1,11 @@
 import axios from 'axios';
 import { API_URL, paths } from '../config/env';
+import { loginPathAfterSessionExpired } from '../utils/logout';
 
 const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
 });
-
-function isAdminAppPath(pathname) {
-  // /admin et /admin/... — mais PAS /admin_connecte
-  return pathname === paths.admin || pathname.startsWith(`${paths.admin}/`);
-}
 
 function isAuthPage(pathname) {
   return (
@@ -41,14 +37,13 @@ api.interceptors.response.use(
   (res) => res,
   (error) => {
     if (error.response?.status === 401) {
+      const user = JSON.parse(localStorage.getItem('saap_user') || 'null');
+      const { pathname } = window.location;
       localStorage.removeItem('saap_token');
       localStorage.removeItem('saap_user');
       localStorage.removeItem('saap_portal');
-      const { pathname } = window.location;
       if (!isAuthPage(pathname)) {
-        // Membres → toujours /login (jamais la page admin)
-        // Zone admin → connexion admin
-        window.location.href = isAdminAppPath(pathname) ? paths.adminLogin : paths.login;
+        window.location.href = loginPathAfterSessionExpired(pathname, user);
       }
     }
     return Promise.reject(error);

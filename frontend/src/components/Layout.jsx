@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { hasAdminAccess } from '../utils/roles';
+import { loginPathAfterLogout } from '../utils/logout';
 import { paths } from '../config/env';
 import BrandLogo from './BrandLogo';
 import './Layout.css';
@@ -13,8 +14,9 @@ export default function Layout({ children }) {
   const inAdminPortal = canAdmin && portal === 'admin';
 
   function handleLogout() {
+    const redirectTo = loginPathAfterLogout(user);
     logout();
-    navigate(paths.login);
+    navigate(redirectTo);
   }
 
   return (
