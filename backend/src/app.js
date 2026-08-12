@@ -15,7 +15,24 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 
 const app = express();
 
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+if (config.appEnv === 'production' || config.appEnv === 'preprod') {
+  app.set('trust proxy', 1);
+  app.use((req, res, next) => {
+    const proto = req.headers['x-forwarded-proto'];
+    if (proto && proto.split(',')[0].trim() === 'http') {
+      const host = req.headers.host || 'localhost';
+      return res.redirect(301, `https://${host}${req.originalUrl}`);
+    }
+    next();
+  });
+}
+
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    hsts: config.appEnv === 'production' ? { maxAge: 31536000, includeSubDomains: true } : false,
+  })
+);
 app.use(cors({ origin: config.corsOrigin, credentials: true }));
 app.use(morgan(config.nodeEnv === 'development' ? 'dev' : 'combined'));
 app.use(express.json({ limit: '2mb' }));

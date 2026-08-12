@@ -103,6 +103,31 @@ Onglet **Domains** → **Add Domain** :
 
 **Save** → **Redeploy** si nécessaire.
 
+### Activer HTTPS (cadenas vert)
+
+1. **Domains** → domaine `cfl.flambeauxcmaci.com`
+2. **HTTPS** : activé
+3. **Certificate Provider** : **Let's Encrypt** (obligatoire)
+4. **Save** → attendre 1–2 min (génération du certificat)
+5. Toujours ouvrir le site avec **`https://`** (pas `http://`)
+
+Vérifier la redirection HTTP → HTTPS :
+
+```bash
+curl -I http://cfl.flambeauxcmaci.com/admin
+# → Location: https://cfl.flambeauxcmaci.com/admin
+```
+
+Variables Environment (URLs en **https**) :
+
+```env
+FRONTEND_URL=https://cfl.flambeauxcmaci.com
+CORS_ORIGIN=https://cfl.flambeauxcmaci.com
+API_PUBLIC_URL=https://cfl.flambeauxcmaci.com/api
+```
+
+**Hostinger DNS** : enregistrement **A** `cfl` → IP du VPS (pas de proxy CDN HTTP devant Dokploy).
+
 ---
 
 ## Étape 5 — Seed (première fois ou changement admin)
