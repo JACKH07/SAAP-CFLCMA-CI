@@ -4,10 +4,16 @@ import './IdPhotoCamera.css';
 const JPEG_QUALITY = 0.88;
 const MAX_EDGE = 800;
 
+const MEDIA_CONSTRAINTS = [
+  { video: { facingMode: 'user' }, audio: false },
+  { video: { facingMode: { ideal: 'user' } }, audio: false },
+  { video: true, audio: false },
+];
+
 function permissionMessage(err) {
   const name = err?.name || '';
   if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-    return 'Accès caméra refusé. Autorisez la caméra pour ce site dans les paramètres du téléphone ou du navigateur, puis réessayez.';
+    return 'Accès caméra refusé. Sur iPhone : Réglages → Chrome (ou Safari) → Caméra → Autoriser, puis réessayez.';
   }
   if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
     return 'Aucune caméra détectée sur cet appareil.';
@@ -18,7 +24,25 @@ function permissionMessage(err) {
   if (name === 'SecurityError') {
     return 'La caméra nécessite une connexion sécurisée (HTTPS).';
   }
-  return 'Impossible d\'ouvrir la caméra. Utilisez Galerie ou l\'appareil photo du téléphone.';
+  return 'Impossible d\'ouvrir la caméra. Utilisez « Prendre une photo » ou Galerie.';
+}
+
+async function openMediaStream(facing) {
+  const variants = [
+    { video: { facingMode: facing }, audio: false },
+    { video: { facingMode: { ideal: facing } }, audio: false },
+    ...MEDIA_CONSTRAINTS,
+  ];
+
+  let lastError;
+  for (const constraints of variants) {
+    try {
+      return await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError || new Error('getUserMedia failed');
 }
 
 function stopStream(streamRef) {
@@ -29,7 +53,7 @@ function stopStream(streamRef) {
 /**
  * Prise de vue photo identité via getUserMedia (aperçu live + cadre visage).
  */
-export default function IdPhotoCamera({ open, onClose, onCapture, onError }) {
+export default function IdPhotoCamera({ open, onClose, onCapture, onError, onFallbackNative }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const [facing, setFacing] = useState('user');
@@ -42,32 +66,29 @@ export default function IdPhotoCamera({ open, onClose, onCapture, onError }) {
     stopStream(streamRef);
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      onError?.('Caméra non disponible sur ce navigateur. Utilisez Galerie.');
+      onError?.('Caméra non disponible. Utilisez « Prendre une photo ».');
+      onFallbackNative?.();
       onClose?.();
       return;
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: facing },
-          width: { ideal: 1280 },
-          height: { ideal: 1280 },
-        },
-        audio: false,
-      });
+      const stream = await openMediaStream(facing);
       streamRef.current = stream;
       const video = videoRef.current;
       if (video) {
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
         video.srcObject = stream;
         await video.play();
         setReady(true);
       }
     } catch (err) {
       onError?.(permissionMessage(err));
+      onFallbackNative?.();
       onClose?.();
     }
-  }, [open, facing, onClose, onError]);
+  }, [open, facing, onClose, onError, onFallbackNative]);
 
   useEffect(() => {
     if (!open) {
@@ -98,7 +119,6 @@ export default function IdPhotoCamera({ open, onClose, onCapture, onError }) {
       const vh = video.videoHeight;
       if (!vw || !vh) throw new Error('no frame');
 
-      // Recadrage portrait 3:4 centré (format photo identité)
       const targetRatio = 3 / 4;
       let sw = vw;
       let sh = vh;

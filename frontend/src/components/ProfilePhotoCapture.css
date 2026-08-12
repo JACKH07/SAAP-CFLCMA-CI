@@ -107,6 +107,14 @@
   word-break: break-all;
 }
 
+.photo-capture__ios-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  text-align: center;
+  color: #475569;
+}
+
 @media (max-width: 640px) {
   .photo-capture__actions {
     flex-direction: column;

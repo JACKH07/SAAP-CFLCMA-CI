@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import IdPhotoCamera from './IdPhotoCamera';
+import { isChromeIOS, isIOSDevice } from '../utils/device';
 import './ProfilePhotoCapture.css';
 
 const MAX_EDGE_PX = 800;
@@ -44,7 +45,7 @@ function isLikelyImage(file) {
 }
 
 /**
- * Photo d’identité : caméra intégrée (getUserMedia) + galerie + secours natif.
+ * Photo d’identité : caméra native iPhone (fiable) + aperçu live + galerie.
  */
 export default function ProfilePhotoCapture({ value, onChange, onError }) {
   const galleryId = useId();
@@ -54,6 +55,8 @@ export default function ProfilePhotoCapture({ value, onChange, onError }) {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [busy, setBusy] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [hint, setHint] = useState('');
+  const ios = isIOSDevice();
 
   useEffect(() => {
     if (!value) {
@@ -74,6 +77,7 @@ export default function ProfilePhotoCapture({ value, onChange, onError }) {
     }
     setBusy(true);
     onError?.('');
+    setHint('');
     try {
       const normalized = await normalizeImageFile(file);
       onChange(normalized);
@@ -88,25 +92,62 @@ export default function ProfilePhotoCapture({ value, onChange, onError }) {
   function clearPhoto() {
     onChange(null);
     onError?.('');
+    setHint('');
     if (galleryRef.current) galleryRef.current.value = '';
     if (nativeRef.current) nativeRef.current.value = '';
   }
 
-  function openCamera() {
+  function openNativeCamera() {
     onError?.('');
+    nativeRef.current?.click();
+  }
+
+  function openLiveCamera() {
+    onError?.('');
+    setHint('');
     if (!window.isSecureContext) {
-      onError?.('La caméra nécessite HTTPS. Utilisez Galerie ou l’appareil photo du téléphone.');
+      onError?.('La caméra nécessite HTTPS. Utilisez « Prendre une photo » ou Galerie.');
+      openNativeCamera();
       return;
     }
     setCameraOpen(true);
+  }
+
+  function openPrimaryCapture() {
+    // iPhone : appareil photo natif (évite écran noir Chrome + permissions getUserMedia)
+    if (ios) {
+      setHint(
+        isChromeIOS()
+          ? 'Si l’écran reste noir : Réglages → Chrome → Caméra → Autoriser, ou utilisez Safari.'
+          : 'Cadrez le visage, puis validez la photo.'
+      );
+      openNativeCamera();
+      return;
+    }
+    openLiveCamera();
+  }
+
+  function handleCameraDenied(message) {
+    onError?.(message);
+    setHint('Ouverture de l’appareil photo du téléphone…');
+    setTimeout(() => openNativeCamera(), 400);
   }
 
   return (
     <div className="photo-capture">
       <p className="photo-capture__label">Photo d&apos;identité</p>
       <p className="muted photo-capture__hint">
-        Utilisez <strong>Photo identité (caméra)</strong> pour un aperçu en direct avec cadre visage.
-        Autorisez l&apos;accès caméra lorsque le navigateur le demande.
+        {ios ? (
+          <>
+            Sur iPhone, utilisez <strong>Prendre une photo</strong> (appareil du téléphone).
+            Autorisez la caméra dans <strong>Réglages → Chrome → Caméra</strong> si demandé.
+          </>
+        ) : (
+          <>
+            Utilisez <strong>Aperçu caméra</strong> pour un cadre visage en direct,
+            ou <strong>Prendre une photo</strong>.
+          </>
+        )}
       </p>
 
       <div className="photo-capture__box">
@@ -146,11 +187,22 @@ export default function ProfilePhotoCapture({ value, onChange, onError }) {
           <button
             type="button"
             className={`btn photo-capture__btn ${busy ? 'is-disabled' : ''}`}
-            onClick={openCamera}
+            onClick={openPrimaryCapture}
             disabled={busy}
           >
-            Photo identité (caméra)
+            {ios ? 'Prendre une photo' : 'Prendre une photo'}
           </button>
+
+          {!ios && (
+            <button
+              type="button"
+              className={`btn btn-secondary photo-capture__btn ${busy ? 'is-disabled' : ''}`}
+              onClick={openLiveCamera}
+              disabled={busy}
+            >
+              Aperçu caméra
+            </button>
+          )}
 
           <label
             htmlFor={galleryId}
@@ -162,29 +214,26 @@ export default function ProfilePhotoCapture({ value, onChange, onError }) {
             ref={galleryRef}
             id={galleryId}
             type="file"
-            accept="image/*,.jpg,.jpeg,.png,.webp"
+            accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif"
             className="photo-capture__input"
             disabled={busy}
             onChange={(e) => applyFile(e.target.files?.[0], e.target)}
           />
 
-          <label
-            htmlFor={nativeId}
-            className={`btn btn-secondary photo-capture__btn ${busy ? 'is-disabled' : ''}`}
-          >
-            Appareil photo
-          </label>
+          {/* capture sans facingMode → évite écran noir sur iOS */}
           <input
             ref={nativeRef}
             id={nativeId}
             type="file"
             accept="image/*"
-            capture="user"
+            capture
             className="photo-capture__input"
             disabled={busy}
             onChange={(e) => applyFile(e.target.files?.[0], e.target)}
           />
         </div>
+
+        {hint && <p className="muted photo-capture__ios-hint">{hint}</p>}
 
         {value && (
           <p className="muted file-chosen photo-capture__filename">{value.name}</p>
@@ -195,7 +244,8 @@ export default function ProfilePhotoCapture({ value, onChange, onError }) {
         open={cameraOpen}
         onClose={() => setCameraOpen(false)}
         onCapture={(file) => applyFile(file)}
-        onError={onError}
+        onError={handleCameraDenied}
+        onFallbackNative={openNativeCamera}
       />
     </div>
   );
