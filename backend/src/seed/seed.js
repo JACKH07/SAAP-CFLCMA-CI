@@ -515,6 +515,11 @@ async function seed() {
 
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@flccmaci.org';
   const adminPassword = process.env.ADMIN_PASSWORD || 'AdminFLCCMACI2026!';
+  if (!process.env.ADMIN_EMAIL) {
+    console.warn('⚠ ADMIN_EMAIL absent — défaut admin@flccmaci.org (Dokploy → Environment)');
+  } else {
+    console.log(`→ ADMIN_EMAIL=${adminEmail}`);
+  }
   const membresRole = await prisma.role.findUnique({ where: { nom: 'Membres actifs' } });
   const coordinateurGeneral = await prisma.role.findUnique({
     where: { nom: 'Coordinateur général (C.G.)' },

@@ -77,9 +77,14 @@ CORS_ORIGIN=https://cfl.flambeauxcmaci.com
 FRONTEND_URL=https://cfl.flambeauxcmaci.com
 API_PUBLIC_URL=https://cfl.flambeauxcmaci.com/api
 PAYMENT_MOCK_MODE=true
+ADMIN_EMAIL=flambeaux@gmail.com
+ADMIN_PASSWORD=votre_mot_de_passe_admin
+ADMIN_NOM=Administrateur
+ADMIN_PRENOM=Flambeaux
 ```
 
-> `DATABASE_URL` : base MySQL Hostinger (Remote MySQL activé pour l’IP du VPS).
+> `DATABASE_URL` : base MySQL Hostinger (Remote MySQL activé pour l’IP du VPS).  
+> **Important :** le fichier `.env.production` local n’est **pas** lu dans Docker — seules les variables **Dokploy → Environment** comptent.
 
 **Save** → **Deploy**.
 
@@ -100,16 +105,33 @@ Onglet **Domains** → **Add Domain** :
 
 ---
 
-## Étape 5 — Seed (première fois)
+## Étape 5 — Seed (première fois ou changement admin)
 
-SSH sur le VPS :
+SSH sur le VPS. Vérifier d’abord que le conteneur voit les variables :
 
 ```bash
-docker ps
-docker exec -it ID_CONTENEUR npm run seed:production
+docker exec $(docker ps -q -f ancestor=cflcmaci-saapcflcmaci-8naclc:latest) printenv ADMIN_EMAIL
 ```
 
-Compte admin (seed) : `admin@flccmaci.org` / voir `ADMIN_PASSWORD` dans Environment.
+Si vide → ajoutez `ADMIN_EMAIL` / `ADMIN_PASSWORD` dans **Dokploy → Environment** → **Redeploy**, puis :
+
+```bash
+docker exec $(docker ps -q -f ancestor=cflcmaci-saapcflcmaci-8naclc:latest) npm run seed:production
+```
+
+**Forcer email/mot de passe sans redeploy** (guillemets obligatoires pour `&`) :
+
+```bash
+docker exec \
+  -e ADMIN_EMAIL='votre@email.com' \
+  -e ADMIN_PASSWORD='votre_mot_de_passe' \
+  $(docker ps -q -f ancestor=cflcmaci-saapcflcmaci-8naclc:latest) \
+  npm run seed:production
+```
+
+Attendu : `✓ Super Admin mis à jour : votre@email.com`
+
+Compte admin : email ci-dessus ou ID `ADSY19900101`.
 
 ---
 
