@@ -367,10 +367,7 @@ export default function RegisterPage() {
             )}
           </div>
 
-          <div className="form-group form-span-2">
-            <label htmlFor="notes">Notes (optionnel)</label>
-            <textarea id="notes" name="notes" rows={4} placeholder="Informations complémentaires…" />
-          </div>
+          
           <div className="form-group form-span-2">
             <ProfilePhotoCapture
               value={photo}
