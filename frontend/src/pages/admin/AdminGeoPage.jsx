@@ -118,7 +118,21 @@ export default function AdminGeoPage() {
   }
 
   async function removeItem(type, item, label) {
-    if (!window.confirm(`Supprimer ${label} ?\nCette action est définitive.`)) return;
+    const cascade =
+      type === 'regions'
+        ? '\nLes districts, paroisses et communautés rattachés seront aussi supprimés.'
+        : type === 'districts'
+          ? '\nLes paroisses et communautés rattachés seront aussi supprimés.'
+          : type === 'paroisses'
+            ? '\nLes communautés rattachées seront aussi supprimées.'
+            : '';
+    if (
+      !window.confirm(
+        `Supprimer ${label} ?${cascade}\nLes membres et cotisations liés seront détachés (rattachement vidé).`
+      )
+    ) {
+      return;
+    }
     setDeletingId(item.id);
     setMsg('');
     setError('');
@@ -139,7 +153,7 @@ export default function AdminGeoPage() {
       <button
         type="button"
         className="btn btn-secondary geo-delete-btn"
-        disabled={busy || deletingId != null}
+        disabled={busy}
         onClick={() => removeItem(type, item, label)}
       >
         {busy ? '…' : 'Supprimer'}
@@ -154,8 +168,8 @@ export default function AdminGeoPage() {
         {error && <div className="alert alert-error">{error}</div>}
 
         <p className="muted geo-delete-hint">
-          Suppression de bas en haut : communauté → paroisse → district → région.
-          Impossible si des membres ou cotisations sont rattachés.
+          La suppression retire l&apos;entité et, si besoin, ses sous-niveaux (districts, paroisses,
+          communautés). Les membres et cotisations concernés sont détachés automatiquement.
         </p>
 
         <div className="bureau-mode-tabs" role="tablist" aria-label="Type de lieu">
