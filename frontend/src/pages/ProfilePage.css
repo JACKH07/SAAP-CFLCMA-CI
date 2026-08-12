@@ -24,6 +24,21 @@
   color: #1c7c38;
 }
 
+.profile-photo-section__hint {
+  margin: 0 0 0.85rem;
+  font-size: 0.9rem;
+}
+
+.profile-photo.avatar-sm--ph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.35rem;
+  color: #1c7c38;
+  background: #e8f5ec;
+}
+
 /* Fiche : cachée à l'écran, visible à l'impression */
 .fiche-print {
   display: none;

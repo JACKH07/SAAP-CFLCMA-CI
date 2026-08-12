@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import Layout from '../components/Layout';
 import BrandLogo from '../components/BrandLogo';
 import PasswordInput from '../components/PasswordInput';
-import { mediaUrl } from '../utils/mediaUrl';
+import MemberAvatar from '../components/MemberAvatar';
+import ProfilePhotoCapture from '../components/ProfilePhotoCapture';
 import api from '../api/client';
 import { useAuthStore } from '../store/authStore';
 import { hasAdminAccess } from '../utils/roles';
@@ -55,6 +56,10 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
+  const [showPhotoEditor, setShowPhotoEditor] = useState(false);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoError, setPhotoError] = useState('');
+  const [photoSaving, setPhotoSaving] = useState(false);
   const printRef = useRef(null);
 
   useEffect(() => {
@@ -124,6 +129,29 @@ export default function ProfilePage() {
     }
   }
 
+  async function uploadPhoto(e) {
+    e.preventDefault();
+    if (!photoFile || !profile?.id) return;
+
+    setPhotoError('');
+    setMsg('');
+    setPhotoSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append('photo', photoFile);
+      const { data } = await api.patch(`/membres/${profile.id}/photo`, fd);
+      setProfile(data.data);
+      if (token) setSession(token, data.data);
+      setPhotoFile(null);
+      setShowPhotoEditor(false);
+      setMsg(data.message || 'Photo mise à jour');
+    } catch (err) {
+      setPhotoError(err.response?.data?.message || 'Échec de l\'envoi de la photo');
+    } finally {
+      setPhotoSaving(false);
+    }
+  }
+
   function printFiche() {
     window.print();
   }
@@ -134,21 +162,19 @@ export default function ProfilePage() {
     ? new Date(profile.dateNaissance).toLocaleDateString('fr-FR')
     : '—';
 
-  // Photo de profil : uniquement pour les comptes utilisateur (pas les admins)
-  const showMemberPhoto = Boolean(profile.photoUrl) && !hasAdminAccess(profile);
+  const isMemberAccount = profile && !hasAdminAccess(profile);
 
   return (
     <Layout>
       <section className="stack profile-page">
         <div className="profile-header no-print">
-          {showMemberPhoto && (
-            <img
-              src={mediaUrl(profile.photoUrl)}
-              alt={`${profile.prenom} ${profile.nom}`}
+          {isMemberAccount && (
+            <MemberAvatar
+              photoUrl={profile.photoUrl}
+              prenom={profile.prenom}
+              nom={profile.nom}
               className="profile-photo"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
+              alt={`${profile.prenom} ${profile.nom}`}
             />
           )}
           <p className="muted" style={{ margin: 0 }}>
@@ -175,6 +201,58 @@ export default function ProfilePage() {
 
         {msg && <div className="alert alert-success no-print">{msg}</div>}
         {error && <div className="alert alert-error no-print">{error}</div>}
+
+        {isMemberAccount && (
+          <div className="card no-print profile-photo-section">
+            {!showPhotoEditor ? (
+              <>
+                <h2 className="profile-edit-title">Photo de profil</h2>
+                <p className="muted profile-photo-section__hint">
+                  {profile.photoUrl
+                    ? 'Vous pouvez remplacer votre photo d\'identité.'
+                    : 'Ajoutez votre photo d\'identité pour compléter votre fiche membre.'}
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setPhotoError('');
+                    setShowPhotoEditor(true);
+                  }}
+                >
+                  {profile.photoUrl ? 'Changer ma photo' : 'Ajouter ma photo'}
+                </button>
+              </>
+            ) : (
+              <form onSubmit={uploadPhoto}>
+                <h2 className="profile-edit-title">Nouvelle photo</h2>
+                <ProfilePhotoCapture
+                  value={photoFile}
+                  onChange={setPhotoFile}
+                  onError={setPhotoError}
+                />
+                {photoError && <div className="alert alert-error">{photoError}</div>}
+                <div className="profile-actions">
+                  <button type="submit" className="btn" disabled={!photoFile || photoSaving}>
+                    {photoSaving ? 'Envoi…' : 'Enregistrer la photo'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setShowPhotoEditor(false);
+                      setPhotoFile(null);
+                      setPhotoError('');
+                    }}
+                    disabled={photoSaving}
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
 
         {editing ? (
           <form className="card no-print" onSubmit={saveProfile}>

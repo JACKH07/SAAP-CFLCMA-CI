@@ -1,10 +1,14 @@
+const fs = require('fs');
+const path = require('path');
 const prisma = require('../config/prisma');
+const config = require('../config');
 const { AppError } = require('../utils/errors');
 const { membrePublicSelect, withAdminFlag } = require('./authService');
 const { hasAdminAccess } = require('../utils/roles');
 const membreIdService = require('./membreIdService');
 const auditService = require('./auditService');
 const lieuAutocompleteService = require('./lieuAutocompleteService');
+const { extractUploadFilename, normalizePhotoStorageValue } = require('../utils/uploads');
 const bcrypt = require('bcryptjs');
 
 class MembreService {
@@ -176,6 +180,46 @@ class MembreService {
     await auditService.log({
       acteurId: adminId,
       action: 'CREATE_MEMBRE',
+      entite: 'Membre',
+      entiteId: membre.id,
+      details: { idMembre: membre.idMembre },
+      ipAddress: meta.ip,
+    });
+
+    return withAdminFlag(membre);
+  }
+
+  async updatePhoto(id, filename, actorId, meta = {}) {
+    const existing = await this.getById(id);
+    if (hasAdminAccess(existing)) {
+      throw new AppError('Les comptes administrateur n\'utilisent pas de photo de profil', 400);
+    }
+
+    const photoUrl = normalizePhotoStorageValue(filename);
+    if (!photoUrl) {
+      throw new AppError('Photo invalide', 400);
+    }
+
+    const oldFilename = extractUploadFilename(existing.photoUrl);
+
+    const membre = await prisma.membre.update({
+      where: { id: Number(id) },
+      data: { photoUrl },
+      select: membrePublicSelect,
+    });
+
+    if (oldFilename && oldFilename !== photoUrl) {
+      try {
+        const oldPath = path.join(path.resolve(config.upload.dir), oldFilename);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      } catch {
+        /* fichier déjà absent */
+      }
+    }
+
+    await auditService.log({
+      acteurId: actorId,
+      action: 'UPDATE_MEMBRE_PHOTO',
       entite: 'Membre',
       entiteId: membre.id,
       details: { idMembre: membre.idMembre },

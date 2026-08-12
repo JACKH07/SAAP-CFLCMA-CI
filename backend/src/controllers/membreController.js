@@ -35,6 +35,24 @@ exports.create = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, data: membre });
 });
 
+exports.updatePhoto = asyncHandler(async (req, res) => {
+  const targetId = Number(req.params.id);
+  const isSelf = targetId === req.user.id;
+  const isAdmin = hasAdminAccess(req.user);
+
+  if (!isSelf && !isAdmin) {
+    throw new AppError('Accès limité à votre propre profil', 403);
+  }
+  if (!req.file) {
+    throw new AppError('Photo requise', 400);
+  }
+
+  const membre = await membreService.updatePhoto(targetId, req.file.filename, req.user.id, {
+    ip: req.ip,
+  });
+  res.json({ success: true, data: membre, message: 'Photo mise à jour' });
+});
+
 exports.update = asyncHandler(async (req, res) => {
   const targetId = Number(req.params.id);
   const isSelf = targetId === req.user.id;
