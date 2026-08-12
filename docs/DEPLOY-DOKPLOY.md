@@ -1,88 +1,125 @@
-# Déploiement Dokploy (VPS Hostinger)
+# Déploiement production — Tout sur Dokploy
 
-## Erreur « Nixpacks build failed » à la racine
-
-Vous avez créé un service **Application** alors que le projet est un **monorepo**. Deux solutions :
+**Domaine unique :** `https://cfl.flambeauxcmaci.com`  
+Frontend + API + fichiers statiques servis par le même conteneur (port 4000).
 
 ---
 
-## Option A — Application (simple, 1 conteneur)
+## Architecture
 
-Le repo contient `nixpacks.toml` et `Dockerfile` à la **racine** pour builder backend + frontend ensemble.
+```
+cfl.flambeauxcmaci.com  (DNS A → IP du VPS)
+        ↓
+   Traefik (80/443)
+        ↓
+   Conteneur SAAP (port 4000)
+   ├── /api/*     → Express API
+   ├── /uploads/* → fichiers
+   └── /*         → React (dist/)
+        ↓
+   MySQL Hostinger (31.97.198.49) via DATABASE_URL
+```
 
-### Dans Dokploy
+---
 
-1. Type : **Application**
-2. Repo : `JACKH07/SAAP-CFLCMA-CI` · branche `main`
-3. **Build Type** : `Dockerfile` (recommandé) ou Nixpacks (lit `nixpacks.toml`)
-4. **Dockerfile path** : `Dockerfile` (racine)
-5. **Port** : `4000`
-6. **Root Directory** : laisser vide (racine)
+## Étape 1 — DNS Hostinger
 
-### Variables Environment (copier-coller)
+hPanel → **Domains** → `flambeauxcmaci.com` → **DNS / Zone DNS**
 
-Onglet **Environment** → ajoutez **toutes** ces variables :
+| Type | Nom | Valeur |
+|------|-----|--------|
+| **A** | `cfl` | **IP de votre VPS Dokploy** |
+
+> L’IP du VPS ≠ `31.97.198.49` (c’est la base MySQL).  
+> Sur le VPS : `curl -4 ifconfig.me` pour obtenir l’IP publique.
+
+**Supprimez** pour `cfl` :
+- CNAME vers Hostinger
+- A record vers l’hébergement web partagé
+
+**Hostinger hPanel** : ne pas héberger de site web sur le sous-domaine `cfl` (sinon conflit avec Dokploy).
+
+Attendre 5–30 min (propagation DNS).
+
+Vérifier :
+```bash
+nslookup cfl.flambeauxcmaci.com
+# → doit afficher l'IP du VPS
+```
+
+---
+
+## Étape 2 — Dokploy : Application
+
+| Paramètre | Valeur |
+|-----------|--------|
+| Type | Application |
+| Repo | `JACKH07/SAAP-CFLCMA-CI` · branche `main` |
+| Build Type | **Dockerfile** |
+| Docker File | `Dockerfile` (racine) |
+| Docker Context | `.` (vide) |
+| Port | **4000** |
+
+---
+
+## Étape 3 — Dokploy : Environment
+
+Onglet **Environment** → coller (adapter les secrets) :
 
 ```env
-DATABASE_URL=mysql://saap_prod:VOTRE_MDP@NOM_SERVICE_MYSQL:3306/saap_cflcma_prod
+DATABASE_URL=mysql://u873042875_user:MOT_DE_PASSE@31.97.198.49:3306/u873042875_saap_flccmaci
 APP_ENV=production
 NODE_ENV=production
 PORT=4000
 SERVE_FRONTEND=true
-JWT_SECRET=votre_cle_jwt_longue
+JWT_SECRET=votre_cle_jwt_longue_et_aleatoire
 CORS_ORIGIN=https://cfl.flambeauxcmaci.com
 FRONTEND_URL=https://cfl.flambeauxcmaci.com
 API_PUBLIC_URL=https://cfl.flambeauxcmaci.com/api
+PAYMENT_MOCK_MODE=true
 ```
 
-Remplacez `NOM_SERVICE_MYSQL` par le nom du service MySQL Dokploy (visible dans le réseau interne du projet).
+> `DATABASE_URL` : base MySQL Hostinger (Remote MySQL activé pour l’IP du VPS).
 
-### Base MySQL (obligatoire)
-
-Créez un service **MySQL** dans Dokploy (même projet), puis :
-
-| Variable | Exemple |
-|----------|---------|
-| `DATABASE_URL` | `mysql://saap_prod:pass@saap-mysql:3306/saap_cflcma_prod` |
-| `JWT_SECRET` | clé longue et aléatoire |
-| `CORS_ORIGIN` | `https://cfl.flambeauxcmaci.com` |
-| `FRONTEND_URL` | `https://cfl.flambeauxcmaci.com` |
-| `APP_ENV` | `production` |
-| `NODE_ENV` | `production` |
-| `SERVE_FRONTEND` | `true` |
-
-### Domaine
-
-- Host : `cfl.flambeauxcmaci.com`
-- Port conteneur : **4000**
-- HTTPS : activé
-
-### Après le 1er déploiement
-
-Terminal du conteneur → `npm run seed:production`
-
-Vérifier : `https://cfl.flambeauxcmaci.com/api/health`
+**Save** → **Deploy**.
 
 ---
 
-## Option B — Compose (recommandé, 3 services)
+## Étape 4 — Dokploy : Domains
 
-1. **Supprimez** l’application Application actuelle
-2. **New Service** → type **Compose**
-3. Fichier : `docker-compose.dokploy.yml`
-4. Variables : voir `.env.dokploy.example`
-5. Domaine sur le service **`web`** → port **80**
+Onglet **Domains** → **Add Domain** :
+
+| Champ | Valeur |
+|-------|--------|
+| Host | `cfl.flambeauxcmaci.com` |
+| Container Port | **4000** |
+| HTTPS | Activé (Let's Encrypt) |
+| Path | *(vide)* |
+
+**Save** → **Redeploy** si nécessaire.
 
 ---
 
-## Option C — 2 applications séparées
+## Étape 5 — Seed (première fois)
 
-| App | Root Directory | Port |
-|-----|----------------|------|
-| Backend | `backend` | 4000 |
-| Frontend | `frontend` | 80 |
+SSH sur le VPS :
 
-+ MySQL séparé.
+```bash
+docker ps
+docker exec -it ID_CONTENEUR npm run seed:production
+```
+
+Compte admin (seed) : `admin@flccmaci.org` / voir `ADMIN_PASSWORD` dans Environment.
+
+---
+
+## Étape 6 — Vérifications
+
+| Test | URL attendue |
+|------|----------------|
+| API | `https://cfl.flambeauxcmaci.com/api/health` → `{"success":true,...}` |
+| Site | `https://cfl.flambeauxcmaci.com` |
+| Admin | `https://cfl.flambeauxcmaci.com/admin_connecte` |
 
 ---
 
@@ -90,8 +127,32 @@ Vérifier : `https://cfl.flambeauxcmaci.com/api/health`
 
 | Symptôme | Cause | Action |
 |----------|--------|--------|
-| `P1012 DATABASE_URL` | variable absente dans Environment | Ajouter `DATABASE_URL` (voir `.env.dokploy.example`) |
-| Nixpacks failed | pas de config racine | Dockerfile racine ou Compose |
-| 502 | conteneur crash | `DATABASE_URL` manquant ou MySQL injoignable |
-| Page blanche | build front raté | logs build, `SERVE_FRONTEND=true` |
-| CORS | mauvaise URL | `CORS_ORIGIN` = URL exacte du site |
+| **Bad Gateway** | DNS pointe encore vers Hostinger | A record `cfl` → IP VPS |
+| **Bad Gateway** | Mauvais port Domains | Port **4000** |
+| **P1012 DATABASE_URL** | Variable absente | Environment → ajouter `DATABASE_URL` |
+| **Non sécurisé** | HTTP au lieu de HTTPS | Domains → HTTPS activé, utiliser `https://` |
+| **CORS** | mauvaise URL | `CORS_ORIGIN=https://cfl.flambeauxcmaci.com` |
+| MySQL refused | IP VPS non autorisée | Hostinger → Remote MySQL → autoriser IP VPS |
+
+---
+
+## MySQL Hostinger (Remote)
+
+hPanel → **Databases** → **Remote MySQL** :
+- Ajouter l’**IP publique du VPS** comme hôte autorisé
+- Utiliser host `31.97.198.49` (ou `srvXXXX.hstgr.io`) dans `DATABASE_URL`
+
+---
+
+## Commandes utiles (VPS)
+
+```bash
+# Logs conteneur
+docker logs -f ID_CONTENEUR
+
+# Health interne
+docker exec ID_CONTENEUR wget -qO- http://127.0.0.1:4000/api/health
+
+# Test Traefik
+curl -I https://cfl.flambeauxcmaci.com/api/health
+```
