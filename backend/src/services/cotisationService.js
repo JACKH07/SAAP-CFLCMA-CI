@@ -529,7 +529,7 @@ class CotisationService {
   }
 
   ensureUploadDir() {
-    const dir = path.resolve(config.upload.dir);
+    const dir = config.upload.dir;
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     return dir;
   }

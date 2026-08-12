@@ -1,8 +1,6 @@
-const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const config = require('../config');
-const cotisationService = require('../services/cotisationService');
 const { extractUploadFilename } = require('../utils/uploads');
 
 const LEGACY_BASE = (process.env.UPLOADS_LEGACY_BASE_URL || 'https://saap-cflcma-ci.onrender.com').replace(
@@ -10,10 +8,23 @@ const LEGACY_BASE = (process.env.UPLOADS_LEGACY_BASE_URL || 'https://saap-cflcma
   ''
 );
 
-const staticUploads = express.static(path.resolve(config.upload.dir), {
-  maxAge: config.appEnv === 'production' ? '365d' : 0,
-  fallthrough: true,
-});
+function uploadDir() {
+  return config.upload.dir;
+}
+
+function filenameFromRequest(req) {
+  const raw = (req.originalUrl || req.url || req.path || '').split('?')[0];
+  return extractUploadFilename(raw);
+}
+
+function sendLocalFile(res, localPath) {
+  res.set('Cache-Control', config.appEnv === 'production' ? 'public, max-age=31536000, immutable' : 'no-cache');
+  return res.sendFile(localPath, (err) => {
+    if (err && !res.headersSent) {
+      res.status(404).json({ success: false, message: 'Fichier introuvable' });
+    }
+  });
+}
 
 async function fetchAndCacheLegacy(filename, res) {
   if (!LEGACY_BASE) return false;
@@ -24,11 +35,12 @@ async function fetchAndCacheLegacy(filename, res) {
     if (!response.ok) return false;
 
     const buffer = Buffer.from(await response.arrayBuffer());
-    const uploadDir = cotisationService.ensureUploadDir();
-    const localPath = path.join(uploadDir, filename);
+    const dir = uploadDir();
+    fs.mkdirSync(dir, { recursive: true });
+    const localPath = path.join(dir, filename);
     fs.writeFileSync(localPath, buffer);
 
-    const contentType = response.headers.get('content-type') || 'application/octet-stream';
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
     res.set('Content-Type', contentType);
     res.set('Cache-Control', 'public, max-age=31536000, immutable');
     res.send(buffer);
@@ -42,21 +54,21 @@ async function fetchAndCacheLegacy(filename, res) {
  * Sert /uploads depuis le disque local ; tente un téléchargement depuis l’ancien hébergeur si absent.
  */
 async function uploadServe(req, res, next) {
-  const filename = extractUploadFilename(req.path);
+  const filename = filenameFromRequest(req);
   if (!filename || filename.includes('..')) {
     return next();
   }
 
-  const localPath = path.join(cotisationService.ensureUploadDir(), filename);
+  const localPath = path.join(uploadDir(), filename);
   if (fs.existsSync(localPath)) {
-    return staticUploads(req, res, next);
+    return sendLocalFile(res, localPath);
   }
 
   if (await fetchAndCacheLegacy(filename, res)) {
     return undefined;
   }
 
-  return staticUploads(req, res, next);
+  return res.status(404).json({ success: false, message: 'Fichier introuvable' });
 }
 
 module.exports = uploadServe;

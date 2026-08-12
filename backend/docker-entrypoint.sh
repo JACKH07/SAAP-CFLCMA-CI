@@ -11,9 +11,15 @@ fi
 echo "[entrypoint] Prisma db push…"
 npx prisma db push --skip-generate
 
-UPLOAD_DIR="${UPLOAD_DIR:-uploads}"
+UPLOAD_DIR="${UPLOAD_DIR:-/app/uploads}"
 mkdir -p "$UPLOAD_DIR"
-echo "[entrypoint] Dossier uploads : $(pwd)/$UPLOAD_DIR"
+if ! touch "$UPLOAD_DIR/.write-test" 2>/dev/null; then
+  echo "[entrypoint] ERREUR : $UPLOAD_DIR non inscriptible."
+  echo "[entrypoint] Dokploy → montez un volume sur /app/uploads"
+  exit 1
+fi
+rm -f "$UPLOAD_DIR/.write-test"
+echo "[entrypoint] Dossier uploads : $UPLOAD_DIR ($(ls "$UPLOAD_DIR" 2>/dev/null | wc -l | tr -d ' ') fichier(s))"
 
 echo "[entrypoint] Démarrage API…"
 exec node src/server.js

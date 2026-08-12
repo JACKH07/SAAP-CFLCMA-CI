@@ -1,6 +1,9 @@
 const membreService = require('../services/membreService');
+const cotisationService = require('../services/cotisationService');
 const { asyncHandler, AppError } = require('../utils/errors');
 const { hasAdminAccess } = require('../utils/roles');
+const fs = require('fs');
+const path = require('path');
 
 const SELF_EDITABLE_FIELDS = [
   'contact',
@@ -45,6 +48,14 @@ exports.updatePhoto = asyncHandler(async (req, res) => {
   }
   if (!req.file) {
     throw new AppError('Photo requise', 400);
+  }
+
+  const filePath = req.file.path || path.join(cotisationService.ensureUploadDir(), req.file.filename);
+  if (!fs.existsSync(filePath)) {
+    throw new AppError(
+      'Échec enregistrement de la photo (dossier uploads inaccessible). Vérifiez le volume /app/uploads dans Dokploy.',
+      500
+    );
   }
 
   const membre = await membreService.updatePhoto(targetId, req.file.filename, req.user.id, {

@@ -1,8 +1,15 @@
+const path = require('path');
+
+function resolveUploadDir() {
+  const raw = process.env.UPLOAD_DIR || 'uploads';
+  return path.isAbsolute(raw) ? raw : path.resolve(process.cwd(), raw);
+}
+
 require('dotenv').config({
-  path: require('path').resolve(__dirname, `../../.env.${process.env.APP_ENV || process.env.NODE_ENV || 'development'}`),
+  path: path.resolve(__dirname, `../../.env.${process.env.APP_ENV || process.env.NODE_ENV || 'development'}`),
 });
 require('dotenv').config({
-  path: require('path').resolve(__dirname, '../../.env'),
+  path: path.resolve(__dirname, '../../.env'),
 });
 
 const nodeEnv = process.env.NODE_ENV || 'development';
@@ -45,7 +52,7 @@ module.exports = {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   },
   upload: {
-    dir: process.env.UPLOAD_DIR || 'uploads',
+    dir: resolveUploadDir(),
     maxFileSizeMb: parseInt(process.env.MAX_FILE_SIZE_MB || '5', 10),
   },
   passwordReset: {
