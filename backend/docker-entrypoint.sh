@@ -11,5 +11,9 @@ fi
 echo "[entrypoint] Prisma db push…"
 npx prisma db push --skip-generate
 
+UPLOAD_DIR="${UPLOAD_DIR:-uploads}"
+mkdir -p "$UPLOAD_DIR"
+echo "[entrypoint] Dossier uploads : $(pwd)/$UPLOAD_DIR"
+
 echo "[entrypoint] Démarrage API…"
 exec node src/server.js

@@ -12,6 +12,10 @@ const geoRoutes = require('./routes/geoRoutes');
 const membreRoutes = require('./routes/membreRoutes');
 const cotisationRoutes = require('./routes/cotisationRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const uploadServe = require('./middlewares/uploadServe');
+const cotisationService = require('./services/cotisationService');
+
+cotisationService.ensureUploadDir();
 
 const app = express();
 
@@ -37,7 +41,7 @@ app.use(cors({ origin: config.corsOrigin, credentials: true }));
 app.use(morgan(config.nodeEnv === 'development' ? 'dev' : 'combined'));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.resolve(config.upload.dir)));
+app.use('/uploads', uploadServe);
 
 app.get('/api/health', (_req, res) => {
   res.json({ success: true, service: 'SAAP CFLCMA-CI', status: 'ok' });

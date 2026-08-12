@@ -1,28 +1,59 @@
 import { API_URL } from '../config/env';
 
+function extractUploadFilename(value) {
+  if (!value) return null;
+  const s = String(value).trim();
+  if (!s || s.startsWith('data:') || s.startsWith('blob:')) return null;
+
+  const fromPath = s.match(/\/uploads\/([^/?#]+)$/i);
+  if (fromPath) return fromPath[1];
+
+  const bare = s.replace(/^\/+/, '');
+  if (/^uploads\//i.test(bare)) {
+    return bare.replace(/^uploads\//i, '');
+  }
+
+  if (!/[\\/]/.test(s) && !/^https?:\/\//i.test(s)) {
+    return s;
+  }
+
+  return null;
+}
+
+function uploadOrigin() {
+  const api = String(API_URL || '/api');
+  if (/^https?:\/\//i.test(api)) {
+    return api.replace(/\/api\/?$/i, '').replace(/\/$/, '');
+  }
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return '';
+}
+
 /**
  * Résout une URL média (photo, justificatif).
- * En prod, `/uploads/...` est servi par l’API Render, pas par Hostinger.
+ * Réécrit les anciennes URLs Render vers le domaine courant (/uploads).
  */
 export function mediaUrl(pathOrUrl) {
   if (!pathOrUrl) return '';
   const raw = String(pathOrUrl).trim();
   if (!raw) return '';
-  if (/^https?:\/\//i.test(raw) || raw.startsWith('data:') || raw.startsWith('blob:')) {
+  if (raw.startsWith('data:') || raw.startsWith('blob:')) {
     return raw;
   }
 
-  const path = raw.startsWith('/') ? raw : `/${raw}`;
-  const api = String(API_URL || '/api');
-
-  if (/^https?:\/\//i.test(api)) {
-    const origin = api.replace(/\/api\/?$/i, '').replace(/\/$/, '');
-    return `${origin}${path}`;
+  const filename = extractUploadFilename(raw);
+  if (filename) {
+    const origin = uploadOrigin();
+    return origin ? `${origin}/uploads/${filename}` : `/uploads/${filename}`;
   }
 
-  if (typeof window !== 'undefined') {
-    return `${window.location.origin}${path}`;
+  if (/^https?:\/\//i.test(raw)) {
+    return raw;
   }
 
-  return path;
+  const pathPart = raw.startsWith('/') ? raw : `/${raw}`;
+  const origin = uploadOrigin();
+  return origin ? `${origin}${pathPart}` : pathPart;
 }

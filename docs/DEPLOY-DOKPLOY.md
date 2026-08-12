@@ -182,6 +182,55 @@ Compte admin : email ci-dessus ou ID `ADSY19900101`.
 | **Non sécurisé** | HTTP au lieu de HTTPS | Domains → HTTPS activé, utiliser `https://` |
 | **CORS** | mauvaise URL | `CORS_ORIGIN=https://cfl.flambeauxcmaci.com` |
 | MySQL refused | IP VPS non autorisée | Hostinger → Remote MySQL → autoriser IP VPS |
+| **Photos profil absentes** | URLs Render + fichiers non migrés | Voir section **Photos de profil** ci-dessous |
+
+---
+
+## Photos de profil (uploads)
+
+Les photos sont des **fichiers sur disque** (`/app/uploads`), pas en base MySQL.  
+Après migration depuis Render, les URLs en base pointent souvent vers `saap-cflcma-ci.onrender.com` alors que les fichiers ne sont plus là (disque éphémère Render).
+
+### 1. Volume persistant Dokploy (obligatoire)
+
+Dans **Dokploy → votre application → Advanced / Volumes** (ou Mounts) :
+
+| Chemin conteneur | Volume |
+|------------------|--------|
+| `/app/uploads` | `saap-uploads` (nom libre) |
+
+Sans ce volume, chaque redeploy **efface** les nouvelles photos.
+
+### 2. Après déploiement du correctif
+
+SSH sur le VPS :
+
+```bash
+CONTAINER=$(docker ps -q -f ancestor=cflcmaci-saapcflcmaci-8naclc:latest)
+
+# Normaliser les URLs en base (nom de fichier uniquement)
+docker exec "$CONTAINER" npm run photos:migrate
+
+# Tenter de récupérer depuis Render (si fichiers encore présents)
+docker exec "$CONTAINER" npm run photos:sync
+```
+
+Si `photos:sync` indique des fichiers **manquants**, copiez une sauvegarde locale dans le volume :
+
+```bash
+# Exemple : depuis votre PC (dossier backend/uploads de dev)
+scp -r backend/uploads/* root@IP_VPS:/var/lib/docker/volumes/saap-uploads/_data/
+```
+
+*(Le chemin exact du volume dépend de Dokploy ; vérifiez avec `docker volume inspect`.)*
+
+### 3. Variable optionnelle
+
+```env
+UPLOADS_LEGACY_BASE_URL=https://saap-cflcma-ci.onrender.com
+```
+
+Utilisée au premier accès d’une photo : téléchargement automatique depuis l’ancien serveur puis cache local.
 
 ---
 

@@ -1,10 +1,10 @@
 const authService = require('../services/authService');
 const passwordResetService = require('../services/passwordResetService');
 const { asyncHandler } = require('../utils/errors');
-const { publicUploadUrl } = require('../utils/uploads');
+const { normalizePhotoStorageValue } = require('../utils/uploads');
 
 exports.register = asyncHandler(async (req, res) => {
-  const photoUrl = req.file ? publicUploadUrl(req.file.filename) : null;
+  const photoUrl = req.file ? normalizePhotoStorageValue(req.file.filename) : null;
   const result = await authService.register(
     { ...req.body, photoUrl },
     { ip: req.ip }

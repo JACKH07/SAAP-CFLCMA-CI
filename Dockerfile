@@ -40,6 +40,10 @@ ENV APP_ENV=production
 ENV NODE_ENV=production
 ENV SERVE_FRONTEND=true
 ENV PORT=4000
+ENV UPLOAD_DIR=uploads
+
+RUN mkdir -p uploads
+VOLUME ["/app/uploads"]
 
 EXPOSE 4000
 
