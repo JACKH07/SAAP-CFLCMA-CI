@@ -10,7 +10,6 @@ const SELF_EDITABLE_FIELDS = [
   'email',
   'situationMatrimoniale',
   'profession',
-  'responsabiliteBureau',
   'lieuNaissance',
   'password',
 ];

@@ -43,7 +43,6 @@ const EMPTY_FORM = {
   email: '',
   situationMatrimoniale: '',
   profession: '',
-  responsabiliteBureau: '',
   lieuNaissance: '',
   password: '',
   confirm: '',
@@ -80,7 +79,6 @@ export default function ProfilePage() {
       email: profile.email || '',
       situationMatrimoniale: profile.situationMatrimoniale || '',
       profession: profile.profession || '',
-      responsabiliteBureau: profile.responsabiliteBureau || '',
       lieuNaissance: profile.lieuNaissance || '',
       password: '',
       confirm: '',
@@ -110,7 +108,6 @@ export default function ProfilePage() {
       email: form.email.trim() || null,
       situationMatrimoniale: form.situationMatrimoniale.trim() || null,
       profession: form.profession.trim() || null,
-      responsabiliteBureau: form.responsabiliteBureau.trim() || null,
       lieuNaissance: form.lieuNaissance.trim() || undefined,
     };
     if (form.password) payload.password = form.password;
@@ -312,16 +309,6 @@ export default function ProfilePage() {
                   onChange={(e) => setForm((f) => ({ ...f, profession: e.target.value }))}
                 />
               </div>
-              <div className="form-group">
-                <label htmlFor="pf-bur">Responsabilité bureau</label>
-                <input
-                  id="pf-bur"
-                  value={form.responsabiliteBureau}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, responsabiliteBureau: e.target.value }))
-                  }
-                />
-              </div>
             </div>
             <div className="form-row">
               <PasswordInput
@@ -409,12 +396,6 @@ export default function ProfilePage() {
                   </div>
                   <div>{profile.profession || '—'}</div>
                 </div>
-                <div>
-                  <div className="muted" style={{ fontSize: '0.8rem' }}>
-                    Responsabilité dans le bureau
-                  </div>
-                  <div>{profile.responsabiliteBureau || '—'}</div>
-                </div>
               </div>
               <div>
                 <div className="muted" style={{ fontSize: '0.8rem' }}>
@@ -489,10 +470,6 @@ export default function ProfilePage() {
             <div>
               <span>Profession</span>
               <strong>{profile.profession || '—'}</strong>
-            </div>
-            <div className="fiche-span-2">
-              <span>Responsabilité bureau</span>
-              <strong>{profile.responsabiliteBureau || '—'}</strong>
             </div>
             <div className="fiche-span-2">
               <span>Rattachement</span>

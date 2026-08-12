@@ -22,7 +22,6 @@ const INITIAL = {
   password: '',
   situationMatrimoniale: '',
   profession: '',
-  responsabiliteBureau: '',
   regionId: '',
   districtId: '',
   paroisseId: '',
@@ -286,17 +285,6 @@ export default function RegisterPage() {
             required
             gradesOnly
           />
-          <div className="form-group">
-            <label htmlFor="responsabiliteBureau">Responsabilité bureau</label>
-            <input
-              id="responsabiliteBureau"
-              name="responsabiliteBureau"
-              value={form.responsabiliteBureau}
-              onChange={onChange}
-              placeholder="Ex. Secrétaire…"
-            />
-          </div>
-
           <div className="form-group">
             <label htmlFor="regionId">
               Région <span className="req">*</span>
