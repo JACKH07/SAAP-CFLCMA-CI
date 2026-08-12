@@ -54,6 +54,12 @@
   background: #fff;
 }
 
+.photo-capture__preview--id {
+  width: 96px;
+  height: 128px;
+  border-radius: 8px;
+}
+
 .photo-capture__actions {
   display: flex;
   flex-wrap: wrap;

@@ -35,8 +35,19 @@ app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
     hsts: config.appEnv === 'production' ? { maxAge: 31536000, includeSubDomains: true } : false,
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        'img-src': ["'self'", 'data:', 'blob:'],
+        'media-src': ["'self'", 'blob:'],
+      },
+    },
   })
 );
+app.use((_req, res, next) => {
+  res.setHeader('Permissions-Policy', 'camera=(self), microphone=()');
+  next();
+});
 app.use(cors({ origin: config.corsOrigin, credentials: true }));
 app.use(morgan(config.nodeEnv === 'development' ? 'dev' : 'combined'));
 app.use(express.json({ limit: '2mb' }));

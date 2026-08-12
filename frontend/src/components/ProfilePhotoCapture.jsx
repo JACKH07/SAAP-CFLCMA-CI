@@ -1,15 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import IdPhotoCamera from './IdPhotoCamera';
 import './ProfilePhotoCapture.css';
 
 const MAX_EDGE_PX = 800;
 const JPEG_QUALITY = 0.85;
 
-/**
- * Réduit la taille de la photo (mobile → upload plus fiable).
- */
 async function normalizeImageFile(file) {
   if (!file || !file.type?.startsWith('image/')) return file;
-  // HEIC / formats non décodables par canvas : laisser tel quel
   if (/heic|heif/i.test(file.type) || /\.heic$/i.test(file.name || '')) {
     return file;
   }
@@ -42,24 +39,21 @@ async function normalizeImageFile(file) {
 function isLikelyImage(file) {
   if (!file) return false;
   if (file.type?.startsWith('image/')) return true;
-  // Caméra Android : parfois type vide
   if (!file.type && file.size > 0) return true;
   return /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(file.name || '');
 }
 
 /**
- * Capture / sélection de photo d’identité (inscription membre).
- * Caméra arrière par défaut (plus fiable que la selfie sur Android).
+ * Photo d’identité : caméra intégrée (getUserMedia) + galerie + secours natif.
  */
 export default function ProfilePhotoCapture({ value, onChange, onError }) {
-  const rearId = useId();
-  const selfieId = useId();
   const galleryId = useId();
-  const rearRef = useRef(null);
-  const selfieRef = useRef(null);
+  const nativeId = useId();
   const galleryRef = useRef(null);
+  const nativeRef = useRef(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   useEffect(() => {
     if (!value) {
@@ -87,7 +81,6 @@ export default function ProfilePhotoCapture({ value, onChange, onError }) {
       onChange(file);
     } finally {
       setBusy(false);
-      // Permet de reprendre une nouvelle photo ensuite
       if (inputEl) inputEl.value = '';
     }
   }
@@ -95,18 +88,25 @@ export default function ProfilePhotoCapture({ value, onChange, onError }) {
   function clearPhoto() {
     onChange(null);
     onError?.('');
-    if (rearRef.current) rearRef.current.value = '';
-    if (selfieRef.current) selfieRef.current.value = '';
     if (galleryRef.current) galleryRef.current.value = '';
+    if (nativeRef.current) nativeRef.current.value = '';
+  }
+
+  function openCamera() {
+    onError?.('');
+    if (!window.isSecureContext) {
+      onError?.('La caméra nécessite HTTPS. Utilisez Galerie ou l’appareil photo du téléphone.');
+      return;
+    }
+    setCameraOpen(true);
   }
 
   return (
     <div className="photo-capture">
       <p className="photo-capture__label">Photo d&apos;identité</p>
       <p className="muted photo-capture__hint">
-        Utilisez la <strong>caméra arrière</strong> (recommandé). Si l&apos;écran reste noir,
-        fermez et choisissez <strong>Galerie</strong>, ou autorisez l&apos;accès à l&apos;appareil photo
-        dans les paramètres du téléphone.
+        Utilisez <strong>Photo identité (caméra)</strong> pour un aperçu en direct avec cadre visage.
+        Autorisez l&apos;accès caméra lorsque le navigateur le demande.
       </p>
 
       <div className="photo-capture__box">
@@ -115,7 +115,7 @@ export default function ProfilePhotoCapture({ value, onChange, onError }) {
             <img
               src={previewUrl}
               alt="Aperçu de la photo"
-              className="photo-capture__preview"
+              className="photo-capture__preview photo-capture__preview--id"
             />
             <button
               type="button"
@@ -143,36 +143,14 @@ export default function ProfilePhotoCapture({ value, onChange, onError }) {
         )}
 
         <div className="photo-capture__actions">
-          <label htmlFor={rearId} className={`btn photo-capture__btn ${busy ? 'is-disabled' : ''}`}>
-            Prendre une photo
-          </label>
-          <input
-            ref={rearRef}
-            id={rearId}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="photo-capture__input"
+          <button
+            type="button"
+            className={`btn photo-capture__btn ${busy ? 'is-disabled' : ''}`}
+            onClick={openCamera}
             disabled={busy}
-            onChange={(e) => applyFile(e.target.files?.[0], e.target)}
-          />
-
-          <label
-            htmlFor={selfieId}
-            className={`btn btn-secondary photo-capture__btn ${busy ? 'is-disabled' : ''}`}
           >
-            Selfie
-          </label>
-          <input
-            ref={selfieRef}
-            id={selfieId}
-            type="file"
-            accept="image/*"
-            capture="user"
-            className="photo-capture__input"
-            disabled={busy}
-            onChange={(e) => applyFile(e.target.files?.[0], e.target)}
-          />
+            Photo identité (caméra)
+          </button>
 
           <label
             htmlFor={galleryId}
@@ -189,12 +167,36 @@ export default function ProfilePhotoCapture({ value, onChange, onError }) {
             disabled={busy}
             onChange={(e) => applyFile(e.target.files?.[0], e.target)}
           />
+
+          <label
+            htmlFor={nativeId}
+            className={`btn btn-secondary photo-capture__btn ${busy ? 'is-disabled' : ''}`}
+          >
+            Appareil photo
+          </label>
+          <input
+            ref={nativeRef}
+            id={nativeId}
+            type="file"
+            accept="image/*"
+            capture="user"
+            className="photo-capture__input"
+            disabled={busy}
+            onChange={(e) => applyFile(e.target.files?.[0], e.target)}
+          />
         </div>
 
         {value && (
           <p className="muted file-chosen photo-capture__filename">{value.name}</p>
         )}
       </div>
+
+      <IdPhotoCamera
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={(file) => applyFile(file)}
+        onError={onError}
+      />
     </div>
   );
 }

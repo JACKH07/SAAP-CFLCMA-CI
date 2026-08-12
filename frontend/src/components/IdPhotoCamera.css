@@ -1,0 +1,129 @@
+.id-camera {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+}
+
+.id-camera__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.id-camera__panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 480px);
+  max-height: 96vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 16px 16px 0 0;
+  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom, 0));
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.id-camera__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+  color: #1c7c38;
+  font-size: 1.05rem;
+}
+
+.id-camera__close {
+  border: none;
+  background: transparent;
+  font-size: 1.75rem;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.id-camera__hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.id-camera__viewport {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  max-height: 52vh;
+  background: #0f172a;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.id-camera__video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.id-camera__video--mirror {
+  transform: scaleX(-1);
+}
+
+.id-camera__overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.id-camera__frame {
+  width: 62%;
+  height: 72%;
+  border: 3px solid rgba(255, 255, 255, 0.92);
+  border-radius: 50% / 46%;
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.45);
+}
+
+.id-camera__loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.9rem;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.id-camera__controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.id-camera__flip {
+  flex: 1;
+  min-height: 48px;
+}
+
+.id-camera__shoot {
+  flex: 1.2;
+  min-height: 48px;
+}
+
+@media (min-width: 641px) {
+  .id-camera {
+    align-items: center;
+    padding: 1rem;
+  }
+
+  .id-camera__panel {
+    border-radius: 16px;
+  }
+}
