@@ -20,6 +20,7 @@ const GRADES = [
   { nom: 'Chef de Patrouille (CP)', niveauHierarchique: 11 },
   { nom: 'Sous chef de patrouille (SP)', niveauHierarchique: 12 },
   { nom: 'Comité de Jeunesse Locale (CLJ)', niveauHierarchique: 13 },
+  { nom: 'Membres', niveauHierarchique: 14 },
 ];
 
 const GRADE_DEFAULT = 'Sous chef de patrouille (SP)';
@@ -55,8 +56,7 @@ const GRADE_MIGRATIONS = {
   CP: 'Chef de Patrouille (CP)',
   'Sous-chefs de patrouille (S.P.)': 'Sous chef de patrouille (SP)',
   SP: 'Sous chef de patrouille (SP)',
-  'Membres actifs': GRADE_DEFAULT,
-  Membres: GRADE_DEFAULT,
+  'Membres actifs': 'Membres',
   CLJ: 'Comité de Jeunesse Locale (CLJ)',
   CN: 'Commissaire National (CN)',
   CNA: 'Commissaire National Adjoint (CNA)',
