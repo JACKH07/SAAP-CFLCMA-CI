@@ -378,7 +378,7 @@ export default function ProfilePage() {
                   <div className="muted" style={{ fontSize: '0.8rem' }}>
                     Grades
                   </div>
-                  <div>{profile.role?.nom || 'Membres actifs'}</div>
+                  <div>{profile.role?.nom || '—'}</div>
                 </div>
               </div>
               <div className="form-row" style={{ gap: '1rem' }}>
@@ -453,7 +453,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <span>Grades</span>
-              <strong>{profile.role?.nom || 'Membres actifs'}</strong>
+              <strong>{profile.role?.nom || '—'}</strong>
             </div>
             <div>
               <span>Date de naissance</span>

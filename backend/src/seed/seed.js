@@ -3,6 +3,7 @@ require('../config'); // charge .env / .env.$APP_ENV
 const prisma = require('../config/prisma');
 const { normalizeText } = require('../utils/text');
 const HIERARCHIE_GEO = require('./hierarchieGeo');
+const { ROLES, GRADE_DEFAULT, GRADE_MIGRATIONS } = require('../constants/grades');
 
 /** Régions CI hors hiérarchie détaillée (district générique uniquement) */
 const REGIONS_CI = [
@@ -36,31 +37,7 @@ const REGIONS_CI = [
 
 const HIERARCHIE_CODES = new Set(HIERARCHIE_GEO.map((h) => h.code));
 
-const ROLES = [
-  { nom: 'Coordinateur général (C.G.)', niveauHierarchique: 1 },
-  { nom: 'Coordinateurs de région (C.D.R.)', niveauHierarchique: 2 },
-  { nom: 'Coordinateurs de district (C.D.D.)', niveauHierarchique: 3 },
-  { nom: 'Coordinateurs de paroisse (C.D.P.)', niveauHierarchique: 4 },
-  { nom: 'Chefs de troupe (C.T.)', niveauHierarchique: 5 },
-  { nom: 'Chefs de troupe adjoints (C.T.A.)', niveauHierarchique: 6 },
-  { nom: 'Chefs de patrouille (C.P.)', niveauHierarchique: 7 },
-  { nom: 'Sous-chefs de patrouille (S.P.)', niveauHierarchique: 8 },
-  { nom: 'Membres actifs', niveauHierarchique: 9 },
-];
-
-const ROLE_MIGRATIONS = {
-  'Secrétaire général': 'Coordinateur général (C.G.)',
-  'Coordinateur général': 'Coordinateur général (C.G.)',
-  'Coordinateur régional': 'Coordinateurs de région (C.D.R.)',
-  'Coordinateur de district': 'Coordinateurs de district (C.D.D.)',
-  'Coordination de paroisse': 'Coordinateurs de paroisse (C.D.P.)',
-  CT: 'Chefs de troupe (C.T.)',
-  CTA: 'Chefs de troupe adjoints (C.T.A.)',
-  CP: 'Chefs de patrouille (C.P.)',
-  SP: 'Sous-chefs de patrouille (S.P.)',
-  CLJ: 'Membres actifs',
-  Membres: 'Membres actifs',
-};
+const ROLE_MIGRATIONS = GRADE_MIGRATIONS;
 
 const ACTIVITES = [
   { nom: 'Évangélique', prefixeIdPaiement: 'EYAWA', montantDefaut: 0 },
@@ -473,6 +450,26 @@ async function seed() {
       .catch(() => {});
     await prisma.role.delete({ where: { id: ancien.id } }).catch(() => {});
   }
+
+  const validNames = new Set(ROLES.map((r) => r.nom));
+  const defaultGrade = await prisma.role.findUnique({ where: { nom: GRADE_DEFAULT } });
+  const obsolete = await prisma.role.findMany({ where: { nom: { notIn: [...validNames] } } });
+  for (const role of obsolete) {
+    if (defaultGrade && role.id !== defaultGrade.id) {
+      await prisma.membre.updateMany({
+        where: { roleId: role.id },
+        data: { roleId: defaultGrade.id },
+      });
+      await prisma.historiqueMandat
+        .updateMany({
+          where: { roleId: role.id },
+          data: { roleId: defaultGrade.id },
+        })
+        .catch(() => {});
+    }
+    await prisma.role.delete({ where: { id: role.id } }).catch(() => {});
+  }
+
   console.log(`✓ ${ROLES.length} rôles`);
 
   await seedHierarchieGeo();
@@ -520,7 +517,7 @@ async function seed() {
   } else {
     console.log(`→ ADMIN_EMAIL=${adminEmail}`);
   }
-  const membresRole = await prisma.role.findUnique({ where: { nom: 'Membres actifs' } });
+  const defaultGradeRole = await prisma.role.findUnique({ where: { nom: GRADE_DEFAULT } });
   const coordinateurGeneral = await prisma.role.findUnique({
     where: { nom: 'Coordinateur général (C.G.)' },
   });
@@ -542,7 +539,7 @@ async function seed() {
     lieuNaissance: 'Abidjan',
     branche: 'FLAMBEAUX',
     idMembre: adminIdMembre,
-    roleId: coordinateurGeneral?.id || membresRole.id,
+    roleId: coordinateurGeneral?.id || defaultGradeRole?.id,
     regionId: abidjan1.id,
     districtId: districtCocody?.id,
     isAdmin: true,

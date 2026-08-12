@@ -85,7 +85,7 @@ class AdminAccountService {
     }
 
     const role = await prisma.role.findUnique({ where: { nom: ROLE_MEMBRES_ACTIFS } });
-    if (!role) throw new AppError('Rôle Membres actifs non configuré', 500);
+    if (!role) throw new AppError('Grade par défaut non configuré (SP)', 500);
 
     const birth = dateNaissance ? new Date(dateNaissance) : new Date('1990-01-01');
     if (Number.isNaN(birth.getTime())) {

@@ -172,7 +172,7 @@ export default function AdminMembreProfilPage() {
                 </div>
                 <div>
                   <div className="muted tiny">Grades</div>
-                  <div>{profile.role?.nom || 'Membres actifs'}</div>
+                  <div>{profile.role?.nom || '—'}</div>
                 </div>
                 <div>
                   <div className="muted tiny">Contact</div>
@@ -293,7 +293,7 @@ export default function AdminMembreProfilPage() {
                 </div>
                 <div>
                   <span>Grades</span>
-                  <strong>{profile.role?.nom || 'Membres actifs'}</strong>
+                  <strong>{profile.role?.nom || '—'}</strong>
                 </div>
                 <div>
                   <span>Date de naissance</span>

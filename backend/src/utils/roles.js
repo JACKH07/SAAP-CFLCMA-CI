@@ -1,20 +1,17 @@
-/** Rôle organisationnel (mouvement) — distinct des droits SAAP admin */
+const { GRADE_DEFAULT } = require('../constants/grades');
+
+/** Rôle organisationnel SAAP (Super Admin) */
 const ROLE_COORDINATEUR_GENERAL = 'Coordinateur général (C.G.)';
 
-/** Membre simple du mouvement (sans mandat) */
-const ROLE_MEMBRES_ACTIFS = 'Membres actifs';
+/** Grade par défaut à l'inscription si non choisi */
+const ROLE_MEMBRES_ACTIFS = GRADE_DEFAULT;
 
-/** @deprecated alias — utiliser ROLE_COORDINATEUR_GENERAL */
+/** @deprecated alias */
 const ROLE_SECRETAIRE_GENERAL = ROLE_COORDINATEUR_GENERAL;
 
-/** @deprecated alias — utiliser ROLE_MEMBRES_ACTIFS */
+/** @deprecated alias */
 const ROLE_MEMBRES = ROLE_MEMBRES_ACTIFS;
 
-/**
- * Accès dashboard / administration SAAP :
- * uniquement Super Admin ou Admin délégué (flags isSuperAdmin / isAdmin).
- * Un titre C.G. seul ne suffit plus.
- */
 function hasAdminAccess(membre) {
   if (!membre) return false;
   if (membre.isSuperAdmin === true) return true;
@@ -39,6 +36,7 @@ module.exports = {
   ROLE_MEMBRES_ACTIFS,
   ROLE_SECRETAIRE_GENERAL,
   ROLE_MEMBRES,
+  GRADE_DEFAULT,
   hasAdminAccess,
   isSuperAdmin,
   isCoordinateurGeneral,

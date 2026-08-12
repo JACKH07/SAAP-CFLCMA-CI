@@ -71,7 +71,7 @@ class AuthService {
   async resolveRoleId(fonctionId) {
     if (fonctionId) {
       const role = await prisma.role.findUnique({ where: { id: Number(fonctionId) } });
-      if (!role) throw new AppError('Titre (rôle) introuvable', 400);
+      if (!role) throw new AppError('Grade introuvable', 400);
       // Le Coordinateur général ne peut pas être auto-attribué à l'inscription
       if (role.nom === ROLE_COORDINATEUR_GENERAL) {
         throw new AppError(
@@ -83,7 +83,7 @@ class AuthService {
     }
 
     const membresRole = await prisma.role.findUnique({ where: { nom: ROLE_MEMBRES_ACTIFS } });
-    if (!membresRole) throw new AppError('Rôle Membres actifs non configuré', 500);
+    if (!membresRole) throw new AppError('Grade par défaut non configuré (SP)', 500);
     return membresRole.id;
   }
 
