@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import AdminShell from '../../components/AdminShell';
 import MemberAvatar from '../../components/MemberAvatar';
+import ProfilePhotoCapture from '../../components/ProfilePhotoCapture';
 import BrandLogo from '../../components/BrandLogo';
-import { mediaUrl } from '../../utils/mediaUrl';
 import { hasAdminAccess } from '../../utils/roles';
 import { paths } from '../../config/env';
 import api from '../../api/client';
@@ -45,6 +45,11 @@ export default function AdminMembreProfilPage() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [msg, setMsg] = useState('');
+  const [showPhotoEditor, setShowPhotoEditor] = useState(false);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoError, setPhotoError] = useState('');
+  const [photoSaving, setPhotoSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,12 +77,33 @@ export default function AdminMembreProfilPage() {
     window.print();
   }
 
+  async function uploadPhoto(e) {
+    e.preventDefault();
+    if (!photoFile || !profile?.id) return;
+
+    setPhotoError('');
+    setMsg('');
+    setPhotoSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append('photo', photoFile);
+      const { data } = await api.patch(`/membres/${profile.id}/photo`, fd);
+      setProfile(data.data);
+      setPhotoFile(null);
+      setShowPhotoEditor(false);
+      setMsg(data.message || 'Photo mise à jour');
+    } catch (err) {
+      setPhotoError(err.response?.data?.message || 'Échec de l\'envoi de la photo');
+    } finally {
+      setPhotoSaving(false);
+    }
+  }
+
   const dateNaiss = profile?.dateNaissance
     ? new Date(profile.dateNaissance).toLocaleDateString('fr-FR')
     : '—';
 
-  const showMemberPhoto =
-    Boolean(profile?.photoUrl) && profile && !hasAdminAccess(profile);
+  const isMemberAccount = profile && !hasAdminAccess(profile);
 
   return (
     <AdminShell
@@ -95,30 +121,21 @@ export default function AdminMembreProfilPage() {
 
         {loading && <p className="muted">Chargement du profil…</p>}
         {error && <div className="alert alert-error">{error}</div>}
+        {msg && <div className="alert alert-success no-print">{msg}</div>}
 
         {profile && (
           <>
             <div className="card profil-view no-print">
               <div className="profil-view-head">
-                {showMemberPhoto ? (
-                  <img
-                    src={mediaUrl(profile.photoUrl)}
-                    alt=""
-                    className="profile-photo"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <MemberAvatar
-                    photoUrl={profile.photoUrl}
-                    prenom={profile.prenom}
-                    nom={profile.nom}
-                    isAdmin={profile.isAdmin}
-                    isSuperAdmin={profile.isSuperAdmin}
-                    className="avatar-lg"
-                  />
-                )}
+                <MemberAvatar
+                  photoUrl={profile.photoUrl}
+                  prenom={profile.prenom}
+                  nom={profile.nom}
+                  isAdmin={profile.isAdmin}
+                  isSuperAdmin={profile.isSuperAdmin}
+                  className="avatar-lg"
+                  alt={`${profile.prenom} ${profile.nom}`}
+                />
                 <div className="profil-view-titles">
                   <p className="muted" style={{ margin: 0 }}>
                     Profil membre
@@ -191,6 +208,58 @@ export default function AdminMembreProfilPage() {
                 </div>
               </div>
             </div>
+
+            {isMemberAccount && (
+              <div className="card no-print profil-photo-admin">
+                {!showPhotoEditor ? (
+                  <>
+                    <h2 className="profile-edit-title">Photo de profil</h2>
+                    <p className="muted profil-photo-admin__hint">
+                      {profile.photoUrl
+                        ? 'Remplacer la photo d\'identité de ce membre.'
+                        : 'Ajouter une photo d\'identité pour ce membre.'}
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => {
+                        setPhotoError('');
+                        setShowPhotoEditor(true);
+                      }}
+                    >
+                      {profile.photoUrl ? 'Changer la photo' : 'Ajouter une photo'}
+                    </button>
+                  </>
+                ) : (
+                  <form onSubmit={uploadPhoto}>
+                    <h2 className="profile-edit-title">Nouvelle photo</h2>
+                    <ProfilePhotoCapture
+                      value={photoFile}
+                      onChange={setPhotoFile}
+                      onError={setPhotoError}
+                    />
+                    {photoError && <div className="alert alert-error">{photoError}</div>}
+                    <div className="profil-view-actions" style={{ marginTop: '0.75rem' }}>
+                      <button type="submit" className="btn" disabled={!photoFile || photoSaving}>
+                        {photoSaving ? 'Envoi…' : 'Enregistrer la photo'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => {
+                          setShowPhotoEditor(false);
+                          setPhotoFile(null);
+                          setPhotoError('');
+                        }}
+                        disabled={photoSaving}
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            )}
 
             <div className="fiche-print">
               <div className="fiche-print-head">

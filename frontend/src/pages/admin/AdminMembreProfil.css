@@ -81,6 +81,15 @@
   font-size: 1.25rem;
 }
 
+.profil-photo-admin {
+  padding: 1.25rem;
+}
+
+.profil-photo-admin__hint {
+  margin: 0 0 0.85rem;
+  font-size: 0.9rem;
+}
+
 .membre-row-link {
   cursor: pointer;
 }
