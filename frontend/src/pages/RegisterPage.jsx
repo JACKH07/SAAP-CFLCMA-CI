@@ -35,6 +35,8 @@ export default function RegisterPage() {
   const [regions, setRegions] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [paroisses, setParoisses] = useState([]);
+  const [paroisseNom, setParoisseNom] = useState('');
+  const [paroisseOpen, setParoisseOpen] = useState(false);
   const [roles, setRoles] = useState([]);
   const [message, setMessage] = useState('');
   const [localError, setLocalError] = useState('');
@@ -61,30 +63,55 @@ export default function RegisterPage() {
       setDistricts(res.data.data || []);
       setForm((f) => ({ ...f, districtId: '', paroisseId: '' }));
       setParoisses([]);
+      setParoisseNom('');
+      setParoisseOpen(false);
       communauteAc.setQuery('');
     });
   }, [form.regionId]);
 
   useEffect(() => {
+    setForm((f) => ({ ...f, paroisseId: '' }));
+    setParoisseNom('');
+    setParoisseOpen(false);
+    communauteAc.setQuery('');
     if (!form.districtId) {
       setParoisses([]);
       return;
     }
     api
       .get('/paroisses', { params: { districtId: form.districtId, limit: 100, search: '' } })
-      .then((res) => {
-        setParoisses(res.data.data || []);
-        setForm((f) => ({ ...f, paroisseId: '' }));
-        communauteAc.setQuery('');
-      });
+      .then((res) => setParoisses(res.data.data || []));
   }, [form.districtId]);
+
+  const paroisseQuery = paroisseNom.trim().toLowerCase();
+  const paroissesFiltrees = paroisseQuery
+    ? paroisses.filter((p) => p.nom.toLowerCase().includes(paroisseQuery))
+    : paroisses;
+  const paroisseExacte = paroisses.find((p) => p.nom.toLowerCase() === paroisseQuery);
 
   function onChange(e) {
     const { name, value } = e.target;
     setForm((f) => ({ ...f, [name]: value }));
-    if (name === 'paroisseId') {
-      communauteAc.setQuery('');
-    }
+  }
+
+  function onParoisseChange(value) {
+    setParoisseNom(value);
+    setParoisseOpen(true);
+    const match = paroisses.find((p) => p.nom.toLowerCase() === value.trim().toLowerCase());
+    setForm((f) => ({ ...f, paroisseId: match ? String(match.id) : '' }));
+    communauteAc.setQuery('');
+  }
+
+  function onParoisseSelect(item) {
+    setParoisseNom(item.nom);
+    setParoisseOpen(false);
+    setForm((f) => ({ ...f, paroisseId: String(item.id) }));
+    communauteAc.setQuery('');
+  }
+
+  function toggleParoisseListe() {
+    if (!form.districtId) return;
+    setParoisseOpen((open) => !open);
   }
 
   async function onSubmit(e) {
@@ -92,8 +119,8 @@ export default function RegisterPage() {
     setLocalError('');
     setMessage('');
 
-    if (!form.paroisseId) {
-      setLocalError('Sélectionnez une paroisse');
+    if (!paroisseNom.trim()) {
+      setLocalError('Indiquez une paroisse');
       return;
     }
     if (!communauteAc.query.trim()) {
@@ -109,15 +136,13 @@ export default function RegisterPage() {
       return;
     }
 
-    const paroisse = paroisses.find((p) => String(p.id) === String(form.paroisseId));
-
     try {
       const data = await register({
         ...form,
         regionId: Number(form.regionId),
         districtId: Number(form.districtId),
-        paroisseId: Number(form.paroisseId),
-        paroisseNom: paroisse?.nom,
+        paroisseId: form.paroisseId ? Number(form.paroisseId) : undefined,
+        paroisseNom: paroisseNom.trim(),
         fonctionId: form.fonctionId ? Number(form.fonctionId) : null,
         communauteNom: communauteAc.query.trim(),
         photo: photo || undefined,
@@ -318,25 +343,65 @@ export default function RegisterPage() {
               ))}
             </select>
           </div>
-          <div className="form-group">
-            <label htmlFor="paroisseId">
+          <div className="form-group autocomplete">
+            <label htmlFor="paroisse">
               Paroisse <span className="req">*</span>
             </label>
-            <select
-              id="paroisseId"
-              name="paroisseId"
-              value={form.paroisseId}
-              onChange={onChange}
-              required
-              disabled={!form.districtId}
-            >
-              <option value="">Veuillez sélectionner…</option>
-              {paroisses.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nom}
-                </option>
-              ))}
-            </select>
+            <div className="combobox">
+              <input
+                id="paroisse"
+                value={paroisseNom}
+                onChange={(e) => onParoisseChange(e.target.value)}
+                onFocus={() => setParoisseOpen(true)}
+                onBlur={() => setTimeout(() => setParoisseOpen(false), 150)}
+                placeholder="Choisir ou saisir…"
+                required
+                disabled={!form.districtId}
+                autoComplete="off"
+                role="combobox"
+                aria-expanded={paroisseOpen}
+                aria-controls="paroisse-list"
+                aria-autocomplete="list"
+              />
+              <button
+                type="button"
+                className="combobox-caret"
+                tabIndex={-1}
+                disabled={!form.districtId}
+                aria-label="Afficher la liste des paroisses"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  toggleParoisseListe();
+                }}
+              />
+            </div>
+            {paroisseOpen && form.districtId && (
+              <div id="paroisse-list" className="autocomplete-list" role="listbox">
+                {paroissesFiltrees.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="option"
+                    aria-selected={String(item.id) === String(form.paroisseId)}
+                    onMouseDown={() => onParoisseSelect(item)}
+                  >
+                    {item.nom}
+                  </button>
+                ))}
+                {paroisseNom.trim() && !paroisseExacte && (
+                  <button
+                    type="button"
+                    className="is-create"
+                    onMouseDown={() => setParoisseOpen(false)}
+                  >
+                    Ajouter « {paroisseNom.trim()} »
+                  </button>
+                )}
+                {paroissesFiltrees.length === 0 && !paroisseNom.trim() && (
+                  <div className="autocomplete-empty">Aucune paroisse dans ce district</div>
+                )}
+              </div>
+            )}
           </div>
           <div className="form-group autocomplete">
             <label htmlFor="communaute">
@@ -349,7 +414,7 @@ export default function RegisterPage() {
               onBlur={() => setTimeout(communauteAc.close, 150)}
               placeholder="Saisir ou choisir…"
               required
-              disabled={!form.paroisseId}
+              disabled={!paroisseNom.trim()}
               autoComplete="off"
             />
             {communauteAc.open && communauteAc.suggestions.length > 0 && (
