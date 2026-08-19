@@ -65,6 +65,7 @@ export default function AdminMembresPage() {
   const [saving, setSaving] = useState(false);
 
   const [editing, setEditing] = useState(null);
+  const [view, setView] = useState('liste');
   const [form, setForm] = useState(EMPTY_FORM);
   const [paroisseId, setParoisseId] = useState(null);
 
@@ -220,6 +221,7 @@ export default function AdminMembresPage() {
   }
 
   function openEdit(m) {
+    setView('liste');
     setMsg('');
     setError('');
     setEditing(m);
@@ -254,6 +256,28 @@ export default function AdminMembresPage() {
     communauteAc.setQuery('');
   }
 
+  function resetFormFields() {
+    setForm({ ...EMPTY_FORM, statut: 'VALIDE' });
+    setParoisseId(null);
+    paroisseAc.setQuery('');
+    communauteAc.setQuery('');
+  }
+
+  function openInscription() {
+    closeEdit();
+    resetFormFields();
+    setView('inscription');
+    setMsg('');
+    setError('');
+  }
+
+  function openListe() {
+    if (view === 'inscription') {
+      resetFormFields();
+    }
+    setView('liste');
+  }
+
   function onChange(e) {
     const { name, value } = e.target;
     setForm((f) => {
@@ -272,6 +296,54 @@ export default function AdminMembresPage() {
       setParoisseId(null);
       paroisseAc.setQuery('');
       communauteAc.setQuery('');
+    }
+  }
+
+  async function saveCreate(e) {
+    e.preventDefault();
+    setSaving(true);
+    setMsg('');
+    setError('');
+    try {
+      if (!form.password.trim() || form.password.trim().length < 6) {
+        setError('Le mot de passe doit contenir au moins 6 caractères');
+        setSaving(false);
+        return;
+      }
+      if (!form.roleId) {
+        setError('Sélectionnez un titre ou un grade');
+        setSaving(false);
+        return;
+      }
+      await api.post('/membres', {
+        nom: form.nom.trim(),
+        prenom: form.prenom.trim(),
+        branche: form.branche,
+        dateNaissance: form.dateNaissance,
+        lieuNaissance: form.lieuNaissance.trim(),
+        contact: form.contact.trim() || null,
+        email: form.email.trim() || null,
+        password: form.password.trim(),
+        situationMatrimoniale: form.situationMatrimoniale || null,
+        profession: form.profession.trim() || null,
+        responsabiliteBureau: form.responsabiliteBureau.trim() || null,
+        statut: form.statut || 'VALIDE',
+        roleId: Number(form.roleId),
+        regionId: form.regionId ? Number(form.regionId) : null,
+        districtId: form.districtId ? Number(form.districtId) : null,
+        paroisseNom: paroisseAc.query.trim() || undefined,
+        paroisseId: paroisseId || undefined,
+        communauteNom: communauteAc.query.trim() || undefined,
+      });
+      setMsg('Membre inscrit avec succès');
+      resetFormFields();
+      setView('liste');
+      setPage(1);
+      await load({ pageNum: 1 });
+    } catch (err) {
+      setError(err.response?.data?.message || "Échec de l'inscription");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -426,6 +498,257 @@ export default function AdminMembresPage() {
   const rangeTo = Math.min(page * PAGE_SIZE, total);
   const allIds = items.map((m) => m.id);
   const allSelected = allIds.length > 0 && allIds.every((id) => selected.has(id));
+  const isInscription = view === 'inscription';
+
+  function renderMembreForm(isCreate) {
+    return (
+      <form className="membre-edit-form" onSubmit={isCreate ? saveCreate : saveEdit}>
+        <section className="form-section">
+          <h3 className="form-section-title">Identité</h3>
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="nom">Nom</label>
+              <input id="nom" name="nom" value={form.nom} onChange={onChange} required />
+            </div>
+            <div className="form-group">
+              <label htmlFor="prenom">Prénom</label>
+              <input id="prenom" name="prenom" value={form.prenom} onChange={onChange} required />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="branche">Branche</label>
+              <select id="branche" name="branche" value={form.branche} onChange={onChange} required>
+                <option value="">Sélectionner…</option>
+                <option value="FLAMBEAUX">Flambeaux (Hommes)</option>
+                <option value="LUMIERES">Lumières (Femmes)</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label htmlFor="statut">Statut</label>
+              <select id="statut" name="statut" value={form.statut} onChange={onChange} required>
+                <option value="EN_ATTENTE">En attente</option>
+                <option value="VALIDE">Validé</option>
+                <option value="REJETE">Rejeté</option>
+                <option value="SUSPENDU">Suspendu</option>
+              </select>
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group form-group--date">
+              <label htmlFor="dateNaissance">Date de naissance</label>
+              <DateInputFr
+                id="dateNaissance"
+                name="dateNaissance"
+                value={form.dateNaissance}
+                onChange={onChange}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="lieuNaissance">Lieu de naissance</label>
+              <input
+                id="lieuNaissance"
+                name="lieuNaissance"
+                value={form.lieuNaissance}
+                onChange={onChange}
+                required
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="form-section">
+          <h3 className="form-section-title">Coordonnées</h3>
+          <div className="form-group">
+            <label htmlFor="contact">Contact</label>
+            <input id="contact" name="contact" value={form.contact} onChange={onChange} />
+          </div>
+          <div className="form-group">
+            <label htmlFor="email">Email</label>
+            <input id="email" name="email" type="email" value={form.email} onChange={onChange} />
+          </div>
+          <PasswordInput
+            id="password"
+            name="password"
+            label={
+              isCreate ? (
+                <>
+                  Mot de passe <span className="req">*</span>
+                </>
+              ) : (
+                'Nouveau mot de passe (optionnel)'
+              )
+            }
+            value={form.password}
+            onChange={onChange}
+            minLength={6}
+            required={isCreate}
+            autoComplete="new-password"
+            placeholder={isCreate ? '' : 'Laisser vide pour ne pas changer'}
+          />
+          <div className="form-group">
+            <label htmlFor="situationMatrimoniale">Situation matrimoniale</label>
+            <select
+              id="situationMatrimoniale"
+              name="situationMatrimoniale"
+              value={form.situationMatrimoniale}
+              onChange={onChange}
+            >
+              <option value="">Sélectionner…</option>
+              <option value="Célibataire">Célibataire</option>
+              <option value="Marié(e)">Marié(e)</option>
+              <option value="Divorcé(e)">Divorcé(e)</option>
+              <option value="Veuf(ve)">Veuf(ve)</option>
+              <option value="Concubinage">Concubinage</option>
+              <option value="Autre">Autre</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label htmlFor="profession">Profession</label>
+            <input
+              id="profession"
+              name="profession"
+              value={form.profession}
+              onChange={onChange}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="responsabiliteBureau">Responsabilité dans le bureau</label>
+            <input
+              id="responsabiliteBureau"
+              name="responsabiliteBureau"
+              value={form.responsabiliteBureau}
+              onChange={onChange}
+            />
+          </div>
+        </section>
+
+        <section className="form-section">
+          <h3 className="form-section-title">Titre & grade</h3>
+          <p className="muted tiny" style={{ marginTop: '-0.35rem', marginBottom: '0.75rem' }}>
+            Renseignez le titre ou le grade — un seul des deux champs.
+          </p>
+          <RoleSelect
+            id="roleId"
+            name="roleId"
+            roles={roles}
+            value={form.roleId}
+            onChange={onChange}
+            required
+          />
+        </section>
+
+        <section className="form-section">
+          <h3 className="form-section-title">Localisation</h3>
+          <div className="form-group">
+            <label htmlFor="regionId">Région</label>
+            <select id="regionId" name="regionId" value={form.regionId} onChange={onChange}>
+              <option value="">—</option>
+              {regions.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.nom}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label htmlFor="districtId">District CMA</label>
+            <select
+              id="districtId"
+              name="districtId"
+              value={form.districtId}
+              onChange={onChange}
+              disabled={!form.regionId}
+            >
+              <option value="">—</option>
+              {districts.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.nom}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group autocomplete">
+            <label htmlFor="paroisse">Paroisse CMA</label>
+            <input
+              id="paroisse"
+              value={paroisseAc.query}
+              onChange={(e) => {
+                paroisseAc.setQuery(e.target.value);
+                setParoisseId(null);
+                communauteAc.setQuery('');
+              }}
+              onBlur={() => setTimeout(paroisseAc.close, 150)}
+              placeholder="Saisir ou choisir…"
+              disabled={!form.districtId}
+              autoComplete="off"
+            />
+            {paroisseAc.open && paroisseAc.suggestions.length > 0 && (
+              <div className="autocomplete-list">
+                {paroisseAc.suggestions.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onMouseDown={() => {
+                      paroisseAc.select(item);
+                      setParoisseId(item.id);
+                    }}
+                  >
+                    {item.nom}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="form-group autocomplete">
+            <label htmlFor="communaute">Communauté CMA</label>
+            <input
+              id="communaute"
+              value={communauteAc.query}
+              onChange={(e) => communauteAc.setQuery(e.target.value)}
+              onBlur={() => setTimeout(communauteAc.close, 150)}
+              placeholder="Saisir ou choisir…"
+              disabled={!paroisseAc.query}
+              autoComplete="off"
+            />
+            {communauteAc.open && communauteAc.suggestions.length > 0 && (
+              <div className="autocomplete-list">
+                {communauteAc.suggestions.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onMouseDown={() => communauteAc.select(item)}
+                  >
+                    {item.nom}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <div className="membre-modal-actions">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={isCreate ? openListe : closeEdit}
+          >
+            Annuler
+          </button>
+          <button type="submit" className="btn" disabled={saving}>
+            {saving
+              ? isCreate
+                ? 'Inscription…'
+                : 'Enregistrement…'
+              : isCreate
+                ? 'Inscrire le membre'
+                : 'Enregistrer'}
+          </button>
+        </div>
+      </form>
+    );
+  }
 
   return (
     <AdminShell title="Membres" crumbs={['Tableaux de bord', 'Membres']}>
@@ -434,6 +757,37 @@ export default function AdminMembresPage() {
         {error && <div className="alert alert-error">{error}</div>}
 
         <div className="card membres-panel">
+          <div className="membres-tabs" role="tablist" aria-label="Membres">
+            <button
+              type="button"
+              role="tab"
+              className={!isInscription ? 'active' : ''}
+              aria-selected={!isInscription}
+              onClick={openListe}
+            >
+              Liste des membres
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className={isInscription ? 'active' : ''}
+              aria-selected={isInscription}
+              onClick={openInscription}
+            >
+              Inscription membre
+            </button>
+          </div>
+
+          {isInscription ? (
+            <>
+              <div className="membres-panel-head">
+                <h2>Inscrire un membre</h2>
+                <p className="muted">Créez le compte d’un membre depuis l’administration.</p>
+              </div>
+              {renderMembreForm(true)}
+            </>
+          ) : (
+            <>
           <div className="membres-panel-head">
             <h2>Données de tous les membres</h2>
           </div>
@@ -582,6 +936,8 @@ export default function AdminMembresPage() {
               </button>
             </div>
           </div>
+            </>
+          )}
         </div>
       </section>
 
@@ -608,232 +964,7 @@ export default function AdminMembresPage() {
               </button>
             </div>
 
-            <form className="membre-edit-form" onSubmit={saveEdit}>
-              <section className="form-section">
-                <h3 className="form-section-title">Identité</h3>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label htmlFor="nom">Nom</label>
-                    <input id="nom" name="nom" value={form.nom} onChange={onChange} required />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="prenom">Prénom</label>
-                    <input id="prenom" name="prenom" value={form.prenom} onChange={onChange} required />
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label htmlFor="branche">Branche</label>
-                    <select id="branche" name="branche" value={form.branche} onChange={onChange} required>
-                      <option value="">Sélectionner…</option>
-                      <option value="FLAMBEAUX">Flambeaux (Hommes)</option>
-                      <option value="LUMIERES">Lumières (Femmes)</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="statut">Statut</label>
-                    <select id="statut" name="statut" value={form.statut} onChange={onChange} required>
-                      <option value="EN_ATTENTE">En attente</option>
-                      <option value="VALIDE">Validé</option>
-                      <option value="REJETE">Rejeté</option>
-                      <option value="SUSPENDU">Suspendu</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group form-group--date">
-                    <label htmlFor="dateNaissance">Date de naissance</label>
-                    <DateInputFr
-                      id="dateNaissance"
-                      name="dateNaissance"
-                      value={form.dateNaissance}
-                      onChange={onChange}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="lieuNaissance">Lieu de naissance</label>
-                    <input
-                      id="lieuNaissance"
-                      name="lieuNaissance"
-                      value={form.lieuNaissance}
-                      onChange={onChange}
-                      required
-                    />
-                  </div>
-                </div>
-              </section>
-
-              <section className="form-section">
-                <h3 className="form-section-title">Coordonnées</h3>
-                <div className="form-group">
-                  <label htmlFor="contact">Contact</label>
-                  <input id="contact" name="contact" value={form.contact} onChange={onChange} />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="email">Email</label>
-                  <input id="email" name="email" type="email" value={form.email} onChange={onChange} />
-                </div>
-                <PasswordInput
-                  id="password"
-                  name="password"
-                  label="Nouveau mot de passe (optionnel)"
-                  value={form.password}
-                  onChange={onChange}
-                  minLength={6}
-                  autoComplete="new-password"
-                  placeholder="Laisser vide pour ne pas changer"
-                />
-                <div className="form-group">
-                  <label htmlFor="situationMatrimoniale">Situation matrimoniale</label>
-                  <select
-                    id="situationMatrimoniale"
-                    name="situationMatrimoniale"
-                    value={form.situationMatrimoniale}
-                    onChange={onChange}
-                  >
-                    <option value="">Sélectionner…</option>
-                    <option value="Célibataire">Célibataire</option>
-                    <option value="Marié(e)">Marié(e)</option>
-                    <option value="Divorcé(e)">Divorcé(e)</option>
-                    <option value="Veuf(ve)">Veuf(ve)</option>
-                    <option value="Concubinage">Concubinage</option>
-                    <option value="Autre">Autre</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="profession">Profession</label>
-                  <input
-                    id="profession"
-                    name="profession"
-                    value={form.profession}
-                    onChange={onChange}
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="responsabiliteBureau">Responsabilité dans le bureau</label>
-                  <input
-                    id="responsabiliteBureau"
-                    name="responsabiliteBureau"
-                    value={form.responsabiliteBureau}
-                    onChange={onChange}
-                  />
-                </div>
-              </section>
-
-              <section className="form-section">
-                <h3 className="form-section-title">Titre & grade</h3>
-                <p className="muted tiny" style={{ marginTop: '-0.35rem', marginBottom: '0.75rem' }}>
-                  Renseignez le titre ou le grade — un seul des deux champs.
-                </p>
-                <RoleSelect
-                  id="roleId"
-                  name="roleId"
-                  roles={roles}
-                  value={form.roleId}
-                  onChange={onChange}
-                  required
-                />
-              </section>
-
-              <section className="form-section">
-                <h3 className="form-section-title">Localisation</h3>
-                <div className="form-group">
-                  <label htmlFor="regionId">Région</label>
-                  <select id="regionId" name="regionId" value={form.regionId} onChange={onChange}>
-                    <option value="">—</option>
-                    {regions.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.nom}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="districtId">District CMA</label>
-                  <select
-                    id="districtId"
-                    name="districtId"
-                    value={form.districtId}
-                    onChange={onChange}
-                    disabled={!form.regionId}
-                  >
-                    <option value="">—</option>
-                    {districts.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.nom}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group autocomplete">
-                  <label htmlFor="paroisse">Paroisse CMA</label>
-                  <input
-                    id="paroisse"
-                    value={paroisseAc.query}
-                    onChange={(e) => {
-                      paroisseAc.setQuery(e.target.value);
-                      setParoisseId(null);
-                      communauteAc.setQuery('');
-                    }}
-                    onBlur={() => setTimeout(paroisseAc.close, 150)}
-                    placeholder="Saisir ou choisir…"
-                    disabled={!form.districtId}
-                    autoComplete="off"
-                  />
-                  {paroisseAc.open && paroisseAc.suggestions.length > 0 && (
-                    <div className="autocomplete-list">
-                      {paroisseAc.suggestions.map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onMouseDown={() => {
-                            paroisseAc.select(item);
-                            setParoisseId(item.id);
-                          }}
-                        >
-                          {item.nom}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="form-group autocomplete">
-                  <label htmlFor="communaute">Communauté CMA</label>
-                  <input
-                    id="communaute"
-                    value={communauteAc.query}
-                    onChange={(e) => communauteAc.setQuery(e.target.value)}
-                    onBlur={() => setTimeout(communauteAc.close, 150)}
-                    placeholder="Saisir ou choisir…"
-                    disabled={!paroisseAc.query}
-                    autoComplete="off"
-                  />
-                  {communauteAc.open && communauteAc.suggestions.length > 0 && (
-                    <div className="autocomplete-list">
-                      {communauteAc.suggestions.map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onMouseDown={() => communauteAc.select(item)}
-                        >
-                          {item.nom}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              <div className="membre-modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={closeEdit}>
-                  Annuler
-                </button>
-                <button type="submit" className="btn" disabled={saving}>
-                  {saving ? 'Enregistrement…' : 'Enregistrer'}
-                </button>
-              </div>
-            </form>
+            {renderMembreForm(false)}
           </div>
         </div>
       )}

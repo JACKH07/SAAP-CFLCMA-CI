@@ -12,6 +12,46 @@
   margin-bottom: 1rem;
 }
 
+.membres-panel-head p {
+  margin: 0.35rem 0 0;
+}
+
+.membres-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+  padding: 0.25rem;
+  background: #f1f5f9;
+  border-radius: 10px;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.membres-tabs button {
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.55rem 0.95rem;
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 40px;
+}
+
+.membres-tabs button.active {
+  background: #fff;
+  color: #1c7c38;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.membres-page .req {
+  color: #dc2626;
+}
+
 .membres-panel-head h2 {
   margin: 0;
   font-size: 1.15rem;
@@ -364,6 +404,14 @@
 
   .membres-panel {
     padding: 0.9rem 0.85rem 0.85rem;
+  }
+
+  .membres-tabs {
+    width: 100%;
+  }
+
+  .membres-tabs button {
+    flex: 1;
   }
 }
 
