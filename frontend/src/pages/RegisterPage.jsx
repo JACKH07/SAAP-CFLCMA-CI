@@ -34,6 +34,8 @@ export default function RegisterPage() {
   const [form, setForm] = useState(INITIAL);
   const [regions, setRegions] = useState([]);
   const [districts, setDistricts] = useState([]);
+  const [districtNom, setDistrictNom] = useState('');
+  const [districtOpen, setDistrictOpen] = useState(false);
   const [paroisses, setParoisses] = useState([]);
   const [paroisseNom, setParoisseNom] = useState('');
   const [paroisseOpen, setParoisseOpen] = useState(false);
@@ -48,7 +50,7 @@ export default function RegisterPage() {
   });
 
   useEffect(() => {
-    Promise.all([api.get('/regions'), api.get('/roles?fonctions=true')]).then(([r, rolesRes]) => {
+    Promise.all([api.get('/regions'), api.get('/roles')]).then(([r, rolesRes]) => {
       setRegions(r.data.data || []);
       setRoles(rolesRes.data.data || []);
     });
@@ -57,11 +59,15 @@ export default function RegisterPage() {
   useEffect(() => {
     if (!form.regionId) {
       setDistricts([]);
+      setDistrictNom('');
+      setDistrictOpen(false);
       return;
     }
     api.get(`/regions/${form.regionId}/districts`).then((res) => {
       setDistricts(res.data.data || []);
       setForm((f) => ({ ...f, districtId: '', paroisseId: '' }));
+      setDistrictNom('');
+      setDistrictOpen(false);
       setParoisses([]);
       setParoisseNom('');
       setParoisseOpen(false);
@@ -83,6 +89,12 @@ export default function RegisterPage() {
       .then((res) => setParoisses(res.data.data || []));
   }, [form.districtId]);
 
+  const districtQuery = districtNom.trim().toLowerCase();
+  const districtsFiltres = districtQuery
+    ? districts.filter((d) => d.nom.toLowerCase().includes(districtQuery))
+    : districts;
+  const districtExact = districts.find((d) => d.nom.toLowerCase() === districtQuery);
+
   const paroisseQuery = paroisseNom.trim().toLowerCase();
   const paroissesFiltrees = paroisseQuery
     ? paroisses.filter((p) => p.nom.toLowerCase().includes(paroisseQuery))
@@ -92,6 +104,33 @@ export default function RegisterPage() {
   function onChange(e) {
     const { name, value } = e.target;
     setForm((f) => ({ ...f, [name]: value }));
+  }
+
+  function resetParoisse() {
+    setForm((f) => ({ ...f, paroisseId: '' }));
+    setParoisseNom('');
+    setParoisseOpen(false);
+    setParoisses([]);
+    communauteAc.setQuery('');
+  }
+
+  function onDistrictChange(value) {
+    setDistrictNom(value);
+    setDistrictOpen(true);
+    const match = districts.find((d) => d.nom.toLowerCase() === value.trim().toLowerCase());
+    setForm((f) => ({ ...f, districtId: match ? String(match.id) : '' }));
+    resetParoisse();
+  }
+
+  function onDistrictSelect(item) {
+    setDistrictNom(item.nom);
+    setDistrictOpen(false);
+    setForm((f) => ({ ...f, districtId: String(item.id) }));
+  }
+
+  function toggleDistrictListe() {
+    if (!form.regionId) return;
+    setDistrictOpen((open) => !open);
   }
 
   function onParoisseChange(value) {
@@ -110,7 +149,7 @@ export default function RegisterPage() {
   }
 
   function toggleParoisseListe() {
-    if (!form.districtId) return;
+    if (!districtNom.trim()) return;
     setParoisseOpen((open) => !open);
   }
 
@@ -119,6 +158,10 @@ export default function RegisterPage() {
     setLocalError('');
     setMessage('');
 
+    if (!districtNom.trim()) {
+      setLocalError('Indiquez un district');
+      return;
+    }
     if (!paroisseNom.trim()) {
       setLocalError('Indiquez une paroisse');
       return;
@@ -140,7 +183,8 @@ export default function RegisterPage() {
       const data = await register({
         ...form,
         regionId: Number(form.regionId),
-        districtId: Number(form.districtId),
+        districtId: form.districtId ? Number(form.districtId) : undefined,
+        districtNom: districtNom.trim(),
         paroisseId: form.paroisseId ? Number(form.paroisseId) : undefined,
         paroisseNom: paroisseNom.trim(),
         fonctionId: form.fonctionId ? Number(form.fonctionId) : null,
@@ -308,7 +352,7 @@ export default function RegisterPage() {
             value={form.fonctionId}
             onChange={onChange}
             required
-            gradesOnly
+            split
           />
           <div className="form-group">
             <label htmlFor="regionId">
@@ -323,25 +367,65 @@ export default function RegisterPage() {
               ))}
             </select>
           </div>
-          <div className="form-group">
-            <label htmlFor="districtId">
+          <div className="form-group autocomplete">
+            <label htmlFor="district">
               District <span className="req">*</span>
             </label>
-            <select
-              id="districtId"
-              name="districtId"
-              value={form.districtId}
-              onChange={onChange}
-              required
-              disabled={!form.regionId}
-            >
-              <option value="">Veuillez sélectionner…</option>
-              {districts.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.nom}
-                </option>
-              ))}
-            </select>
+            <div className="combobox">
+              <input
+                id="district"
+                value={districtNom}
+                onChange={(e) => onDistrictChange(e.target.value)}
+                onFocus={() => setDistrictOpen(true)}
+                onBlur={() => setTimeout(() => setDistrictOpen(false), 150)}
+                placeholder="Choisir ou saisir…"
+                required
+                disabled={!form.regionId}
+                autoComplete="off"
+                role="combobox"
+                aria-expanded={districtOpen}
+                aria-controls="district-list"
+                aria-autocomplete="list"
+              />
+              <button
+                type="button"
+                className="combobox-caret"
+                tabIndex={-1}
+                disabled={!form.regionId}
+                aria-label="Afficher la liste des districts"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  toggleDistrictListe();
+                }}
+              />
+            </div>
+            {districtOpen && form.regionId && (
+              <div id="district-list" className="autocomplete-list" role="listbox">
+                {districtsFiltres.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="option"
+                    aria-selected={String(item.id) === String(form.districtId)}
+                    onMouseDown={() => onDistrictSelect(item)}
+                  >
+                    {item.nom}
+                  </button>
+                ))}
+                {districtNom.trim() && !districtExact && (
+                  <button
+                    type="button"
+                    className="is-create"
+                    onMouseDown={() => setDistrictOpen(false)}
+                  >
+                    Ajouter « {districtNom.trim()} »
+                  </button>
+                )}
+                {districtsFiltres.length === 0 && !districtNom.trim() && (
+                  <div className="autocomplete-empty">Aucun district dans cette région</div>
+                )}
+              </div>
+            )}
           </div>
           <div className="form-group autocomplete">
             <label htmlFor="paroisse">
@@ -356,7 +440,7 @@ export default function RegisterPage() {
                 onBlur={() => setTimeout(() => setParoisseOpen(false), 150)}
                 placeholder="Choisir ou saisir…"
                 required
-                disabled={!form.districtId}
+                disabled={!districtNom.trim()}
                 autoComplete="off"
                 role="combobox"
                 aria-expanded={paroisseOpen}
@@ -367,7 +451,7 @@ export default function RegisterPage() {
                 type="button"
                 className="combobox-caret"
                 tabIndex={-1}
-                disabled={!form.districtId}
+                disabled={!districtNom.trim()}
                 aria-label="Afficher la liste des paroisses"
                 onMouseDown={(e) => {
                   e.preventDefault();
@@ -375,7 +459,7 @@ export default function RegisterPage() {
                 }}
               />
             </div>
-            {paroisseOpen && form.districtId && (
+            {paroisseOpen && districtNom.trim() && (
               <div id="paroisse-list" className="autocomplete-list" role="listbox">
                 {paroissesFiltrees.map((item) => (
                   <button
@@ -397,7 +481,7 @@ export default function RegisterPage() {
                     Ajouter « {paroisseNom.trim()} »
                   </button>
                 )}
-                {paroissesFiltrees.length === 0 && !paroisseNom.trim() && (
+                {paroissesFiltrees.length === 0 && !paroisseNom.trim() && form.districtId && (
                   <div className="autocomplete-empty">Aucune paroisse dans ce district</div>
                 )}
               </div>

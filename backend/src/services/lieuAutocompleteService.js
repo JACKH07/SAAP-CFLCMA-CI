@@ -72,6 +72,36 @@ class LieuAutocompleteService {
   }
 
   /**
+   * Trouve ou crée un district (dédoublonnage sur nom normalisé + région).
+   */
+  async findOrCreateDistrict(nom, regionId) {
+    const trimmed = (nom || '').trim();
+    if (!trimmed) {
+      throw new Error('Le nom du district est requis');
+    }
+    if (!regionId) {
+      throw new Error('La région est requise pour créer un district');
+    }
+
+    const rid = Number(regionId);
+    const region = await prisma.region.findUnique({ where: { id: rid } });
+    if (!region) {
+      throw new Error('Région introuvable');
+    }
+
+    const nomNormalise = normalizeText(trimmed);
+    const districts = await prisma.district.findMany({ where: { regionId: rid } });
+    const existing = districts.find((d) => normalizeText(d.nom) === nomNormalise);
+    if (existing) return { district: existing, created: false };
+
+    const district = await prisma.district.create({
+      data: { nom: trimmed, regionId: rid },
+    });
+
+    return { district, created: true };
+  }
+
+  /**
    * Trouve ou crée une paroisse (dédoublonnage sur nom normalisé + district).
    */
   async findOrCreateParoisse(nom, districtId) {

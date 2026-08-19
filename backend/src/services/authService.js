@@ -4,7 +4,6 @@ const prisma = require('../config/prisma');
 const config = require('../config');
 const { AppError } = require('../utils/errors');
 const { ROLE_MEMBRES_ACTIFS, hasAdminAccess } = require('../utils/roles');
-const { TITRE_MAX_NIVEAU } = require('../constants/grades');
 const membreIdService = require('./membreIdService');
 const lieuAutocompleteService = require('./lieuAutocompleteService');
 const auditService = require('./auditService');
@@ -72,14 +71,7 @@ class AuthService {
   async resolveRoleId(fonctionId) {
     if (fonctionId) {
       const role = await prisma.role.findUnique({ where: { id: Number(fonctionId) } });
-      if (!role) throw new AppError('Grade introuvable', 400);
-      // Les titres de coordination ne peuvent pas être choisis à l'inscription
-      if (role.niveauHierarchique <= TITRE_MAX_NIVEAU) {
-        throw new AppError(
-          'Les titres de coordination ne peuvent pas être choisis à l\'inscription',
-          403
-        );
-      }
+      if (!role) throw new AppError('Titre ou grade introuvable', 400);
       return role.id;
     }
 
@@ -100,6 +92,7 @@ class AuthService {
       branche,
       regionId,
       districtId,
+      districtNom,
       paroisseId,
       paroisseNom,
       communauteNom,
@@ -115,7 +108,7 @@ class AuthService {
     if (!branche || !['FLAMBEAUX', 'LUMIERES'].includes(branche)) {
       throw new AppError('Sélectionnez Flambeaux (Hommes) ou Lumières (Femmes)', 400);
     }
-    if (!regionId || !districtId || (!paroisseId && !paroisseNom) || !communauteNom) {
+    if (!regionId || (!districtId && !districtNom) || (!paroisseId && !paroisseNom) || !communauteNom) {
       throw new AppError('Rattachement géographique incomplet', 400);
     }
 
@@ -126,9 +119,11 @@ class AuthService {
     const contactNorm = contact ? String(contact).replace(/\s+/g, '').trim() : '';
 
     // Validations + hash en parallèle (bcrypt ~100–200ms)
-    const [district, existingEmail, existingContact, existingIdentity, passwordHash, roleId] =
+    const [districtFromId, existingEmail, existingContact, existingIdentity, passwordHash, roleId] =
       await Promise.all([
-        prisma.district.findUnique({ where: { id: Number(districtId) } }),
+        districtId
+          ? prisma.district.findUnique({ where: { id: Number(districtId) } })
+          : Promise.resolve(null),
         emailNorm
           ? prisma.membre.findUnique({
               where: { email: emailNorm },
@@ -153,8 +148,20 @@ class AuthService {
         this.resolveRoleId(fonctionId),
       ]);
 
-    if (!district || district.regionId !== Number(regionId)) {
-      throw new AppError('Le district ne correspond pas à la région sélectionnée', 400);
+    let district = districtFromId;
+    if (districtId) {
+      if (!district || district.regionId !== Number(regionId)) {
+        throw new AppError('Le district ne correspond pas à la région sélectionnée', 400);
+      }
+    } else {
+      try {
+        ({ district } = await lieuAutocompleteService.findOrCreateDistrict(
+          districtNom,
+          Number(regionId)
+        ));
+      } catch (err) {
+        throw new AppError(err.message || 'Impossible d\'enregistrer le district', 400);
+      }
     }
     if (existingEmail) {
       throw new AppError(
@@ -179,13 +186,13 @@ class AuthService {
     let paroisse;
     if (paroisseId) {
       paroisse = await prisma.paroisse.findUnique({ where: { id: Number(paroisseId) } });
-      if (!paroisse || paroisse.districtId !== Number(districtId)) {
+      if (!paroisse || paroisse.districtId !== district.id) {
         throw new AppError('Paroisse invalide pour ce district', 400);
       }
     } else {
       ({ paroisse } = await lieuAutocompleteService.findOrCreateParoisse(
         paroisseNom,
-        Number(districtId)
+        district.id
       ));
     }
 
@@ -212,7 +219,7 @@ class AuthService {
         collisionSuffix: idResult.suffix,
         roleId,
         regionId: Number(regionId),
-        districtId: Number(districtId),
+        districtId: district.id,
         paroisseId: paroisse.id,
         communauteId: communaute.id,
         isAdmin: false,
