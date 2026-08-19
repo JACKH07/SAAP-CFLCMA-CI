@@ -451,7 +451,6 @@ export default function AdminDashboardPage() {
                             photoUrl={m.photoUrl}
                             prenom={m.prenom}
                             nom={m.nom}
-                            isAdmin={m.isAdmin}
                             isSuperAdmin={m.isSuperAdmin}
                           />
                           <div>

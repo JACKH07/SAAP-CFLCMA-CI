@@ -9,6 +9,7 @@ import DateInputFr from '../../components/DateInputFr';
 import MemberAvatar from '../../components/MemberAvatar';
 import PasswordInput from '../../components/PasswordInput';
 import RoleSelect from '../../components/RoleSelect';
+import ProfilePhotoCapture from '../../components/ProfilePhotoCapture';
 import './AdminMembres.css';
 import './AdminMembreProfil.css';
 
@@ -68,6 +69,7 @@ export default function AdminMembresPage() {
   const [view, setView] = useState('liste');
   const [form, setForm] = useState(EMPTY_FORM);
   const [paroisseId, setParoisseId] = useState(null);
+  const [photo, setPhoto] = useState(null);
 
   const [regions, setRegions] = useState([]);
   const [districts, setDistricts] = useState([]);
@@ -254,6 +256,7 @@ export default function AdminMembresPage() {
     setParoisseId(null);
     paroisseAc.setQuery('');
     communauteAc.setQuery('');
+    setPhoto(null);
   }
 
   function resetFormFields() {
@@ -261,6 +264,7 @@ export default function AdminMembresPage() {
     setParoisseId(null);
     paroisseAc.setQuery('');
     communauteAc.setQuery('');
+    setPhoto(null);
   }
 
   function openInscription() {
@@ -315,26 +319,37 @@ export default function AdminMembresPage() {
         setSaving(false);
         return;
       }
-      await api.post('/membres', {
+      const payload = {
         nom: form.nom.trim(),
         prenom: form.prenom.trim(),
         branche: form.branche,
         dateNaissance: form.dateNaissance,
         lieuNaissance: form.lieuNaissance.trim(),
-        contact: form.contact.trim() || null,
-        email: form.email.trim() || null,
+        contact: form.contact.trim() || '',
+        email: form.email.trim() || '',
         password: form.password.trim(),
-        situationMatrimoniale: form.situationMatrimoniale || null,
-        profession: form.profession.trim() || null,
-        responsabiliteBureau: form.responsabiliteBureau.trim() || null,
+        situationMatrimoniale: form.situationMatrimoniale || '',
+        profession: form.profession.trim() || '',
+        responsabiliteBureau: form.responsabiliteBureau.trim() || '',
         statut: form.statut || 'VALIDE',
         roleId: Number(form.roleId),
-        regionId: form.regionId ? Number(form.regionId) : null,
-        districtId: form.districtId ? Number(form.districtId) : null,
-        paroisseNom: paroisseAc.query.trim() || undefined,
-        paroisseId: paroisseId || undefined,
-        communauteNom: communauteAc.query.trim() || undefined,
+        regionId: form.regionId ? Number(form.regionId) : '',
+        districtId: form.districtId ? Number(form.districtId) : '',
+        paroisseNom: paroisseAc.query.trim() || '',
+        paroisseId: paroisseId || '',
+        communauteNom: communauteAc.query.trim() || '',
+      };
+
+      const body = new FormData();
+      Object.entries(payload).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') return;
+        body.append(key, value);
       });
+      if (photo instanceof File) {
+        body.append('photo', photo);
+      }
+
+      await api.post('/membres', body);
       setMsg('Membre inscrit avec succès');
       resetFormFields();
       setView('liste');
@@ -377,6 +392,11 @@ export default function AdminMembresPage() {
         payload.password = form.password.trim();
       }
       await api.patch(`/membres/${editing.id}`, payload);
+      if (photo instanceof File) {
+        const fd = new FormData();
+        fd.append('photo', photo);
+        await api.patch(`/membres/${editing.id}/photo`, fd);
+      }
       setMsg('Membre mis à jour');
       closeEdit();
       await load({ pageNum: page });
@@ -728,6 +748,15 @@ export default function AdminMembresPage() {
           </div>
         </section>
 
+        <section className="form-section">
+          <h3 className="form-section-title">Photo de profil</h3>
+          <ProfilePhotoCapture
+            value={photo}
+            onChange={setPhoto}
+            onError={(msg) => setError(msg || '')}
+          />
+        </section>
+
         <div className="membre-modal-actions">
           <button
             type="button"
@@ -874,7 +903,6 @@ export default function AdminMembresPage() {
                           photoUrl={m.photoUrl}
                           prenom={m.prenom}
                           nom={m.nom}
-                          isAdmin={m.isAdmin}
                           isSuperAdmin={m.isSuperAdmin}
                         />
                       </td>

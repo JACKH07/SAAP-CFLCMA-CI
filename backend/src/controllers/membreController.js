@@ -2,6 +2,7 @@ const membreService = require('../services/membreService');
 const cotisationService = require('../services/cotisationService');
 const { asyncHandler, AppError } = require('../utils/errors');
 const { hasAdminAccess } = require('../utils/roles');
+const { normalizePhotoStorageValue } = require('../utils/uploads');
 const fs = require('fs');
 const path = require('path');
 
@@ -33,7 +34,12 @@ exports.getById = asyncHandler(async (req, res) => {
 });
 
 exports.create = asyncHandler(async (req, res) => {
-  const membre = await membreService.createByAdmin(req.body, req.user.id, { ip: req.ip });
+  const photoUrl = req.file ? normalizePhotoStorageValue(req.file.filename) : null;
+  const membre = await membreService.createByAdmin(
+    { ...req.body, photoUrl },
+    req.user.id,
+    { ip: req.ip }
+  );
   res.status(201).json({ success: true, data: membre });
 });
 

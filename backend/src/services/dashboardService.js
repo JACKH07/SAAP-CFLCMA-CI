@@ -335,8 +335,7 @@ class DashboardService {
       regions, // pour le filtre UI sans second appel
       derniersMembres: (derniersMembres || []).map((m) => ({
         ...m,
-        photoUrl:
-          m.isAdmin || m.isSuperAdmin ? null : absolutizePhotoUrl(m.photoUrl),
+        photoUrl: m.isSuperAdmin ? null : absolutizePhotoUrl(m.photoUrl),
       })),
       // Dernières cotisations : chargées à la demande (endpoint secondaire) — omises ici pour accélérer
       dernieresCotisations: [],

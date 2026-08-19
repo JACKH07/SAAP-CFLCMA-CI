@@ -46,8 +46,8 @@ function withAdminFlag(membre) {
   const isAdminAccount = hasAdminAccess(membre);
   return {
     ...membre,
-    // Photo de profil réservée aux comptes utilisateur (pas Super Admin / sous-admins)
-    photoUrl: isAdminAccount ? null : absolutizePhotoUrl(membre.photoUrl),
+    // Photo issue de la base — masquée uniquement pour le Super Admin
+    photoUrl: membre.isSuperAdmin ? null : absolutizePhotoUrl(membre.photoUrl),
     isAdmin: isAdminAccount,
     isSuperAdmin: Boolean(membre.isSuperAdmin),
   };

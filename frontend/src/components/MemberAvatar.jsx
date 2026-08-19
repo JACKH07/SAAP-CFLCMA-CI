@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { mediaUrl } from '../utils/mediaUrl';
 
 function initials(prenom, nom) {
@@ -6,23 +6,29 @@ function initials(prenom, nom) {
 }
 
 /**
- * Avatar membre : charge la photo depuis l’API, sinon initiales.
- * Les comptes admin n’affichent jamais de photo (initiales uniquement).
+ * Avatar membre : affiche la photo stockée en base, sinon les initiales.
+ * Le Super Admin n’a pas de photo de profil.
  */
 export default function MemberAvatar({
   photoUrl,
   prenom,
   nom,
-  isAdmin = false,
   isSuperAdmin = false,
   className = 'avatar-sm',
   alt = '',
 }) {
-  const [failed, setFailed] = useState(false);
-  const hidePhoto = isAdmin || isSuperAdmin;
-  const src = hidePhoto ? null : mediaUrl(photoUrl);
+  const [step, setStep] = useState(0);
+  const hidePhoto = isSuperAdmin;
+  const resolved = hidePhoto ? '' : mediaUrl(photoUrl);
+  const raw = hidePhoto || !photoUrl ? '' : String(photoUrl).trim();
+  const fallback = raw && raw !== resolved ? raw : '';
+  const src = step === 0 ? resolved : step === 1 ? fallback : '';
 
-  if (!src || failed) {
+  useEffect(() => {
+    setStep(0);
+  }, [photoUrl]);
+
+  if (!src) {
     return (
       <span className={`${className} avatar-sm--ph`} aria-hidden={!alt}>
         {initials(prenom, nom)}
@@ -36,7 +42,7 @@ export default function MemberAvatar({
       alt={alt || `${prenom || ''} ${nom || ''}`.trim()}
       className={className}
       loading="lazy"
-      onError={() => setFailed(true)}
+      onError={() => setStep((current) => (current === 0 && fallback ? 1 : 2))}
     />
   );
 }

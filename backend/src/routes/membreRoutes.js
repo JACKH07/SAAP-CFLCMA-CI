@@ -9,7 +9,7 @@ router.use(authenticate);
 
 router.get('/me', membreController.getMe);
 router.get('/', requireAdmin, membreController.list);
-router.post('/', requireAdmin, membreController.create);
+router.post('/', requireAdmin, upload.single('photo'), membreController.create);
 router.get('/:id', membreController.getById);
 router.patch('/:id/photo', upload.single('photo'), membreController.updatePhoto);
 router.patch('/:id', membreController.update);

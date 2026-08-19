@@ -2,19 +2,31 @@ import { API_URL } from '../config/env';
 
 function extractUploadFilename(value) {
   if (!value) return null;
-  const s = String(value).trim();
+  let s = String(value).trim();
   if (!s || s.startsWith('data:') || s.startsWith('blob:')) return null;
 
-  const fromPath = s.match(/\/uploads\/([^/?#]+)$/i);
+  s = s.split('#')[0].split('?')[0];
+  try {
+    s = decodeURIComponent(s);
+  } catch {
+    /* garder la valeur brute */
+  }
+
+  const fromPath = s.match(/\/(?:api\/)?uploads\/([^/]+)$/i);
   if (fromPath) return fromPath[1];
 
   const bare = s.replace(/^\/+/, '');
-  if (/^uploads\//i.test(bare)) {
-    return bare.replace(/^uploads\//i, '');
+  if (/^(?:api\/)?uploads\//i.test(bare)) {
+    return bare.replace(/^(?:api\/)?uploads\//i, '');
   }
 
   if (!/[\\/]/.test(s) && !/^https?:\/\//i.test(s)) {
     return s;
+  }
+
+  const last = s.split('/').pop();
+  if (last && /\.(jpe?g|png|gif|webp|heic|heif)$/i.test(last)) {
+    return last;
   }
 
   return null;

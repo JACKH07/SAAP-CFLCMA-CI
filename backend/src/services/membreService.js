@@ -87,6 +87,7 @@ class MembreService {
       situationMatrimoniale,
       profession,
       responsabiliteBureau,
+      photoUrl,
     } = payload;
 
     if (!nom || !prenom || !dateNaissance || !lieuNaissance || !password || !roleId) {
@@ -147,6 +148,7 @@ class MembreService {
         paroisseId: finalParoisseId,
         communauteId: finalCommunauteId,
         mandateParId: mandateParId ? Number(mandateParId) : null,
+        photoUrl: photoUrl || null,
         isAdmin: false,
         isSuperAdmin: false,
         statut,
@@ -191,8 +193,8 @@ class MembreService {
 
   async updatePhoto(id, filename, actorId, meta = {}) {
     const existing = await this.getById(id);
-    if (hasAdminAccess(existing)) {
-      throw new AppError('Les comptes administrateur n\'utilisent pas de photo de profil', 400);
+    if (existing.isSuperAdmin) {
+      throw new AppError('Le compte Super Admin n\'utilise pas de photo de profil', 400);
     }
 
     const photoUrl = normalizePhotoStorageValue(filename);

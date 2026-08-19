@@ -4,7 +4,6 @@ import AdminShell from '../../components/AdminShell';
 import MemberAvatar from '../../components/MemberAvatar';
 import ProfilePhotoCapture from '../../components/ProfilePhotoCapture';
 import BrandLogo from '../../components/BrandLogo';
-import { hasAdminAccess } from '../../utils/roles';
 import { titreNom, gradeNom } from '../../utils/roleDisplay';
 import { paths } from '../../config/env';
 import api from '../../api/client';
@@ -104,7 +103,7 @@ export default function AdminMembreProfilPage() {
     ? new Date(profile.dateNaissance).toLocaleDateString('fr-FR')
     : '—';
 
-  const isMemberAccount = profile && !hasAdminAccess(profile);
+  const isMemberAccount = profile && !profile.isSuperAdmin;
 
   return (
     <AdminShell
@@ -132,7 +131,6 @@ export default function AdminMembreProfilPage() {
                   photoUrl={profile.photoUrl}
                   prenom={profile.prenom}
                   nom={profile.nom}
-                  isAdmin={profile.isAdmin}
                   isSuperAdmin={profile.isSuperAdmin}
                   className="avatar-lg"
                   alt={`${profile.prenom} ${profile.nom}`}
@@ -274,6 +272,14 @@ export default function AdminMembreProfilPage() {
                   <div>Côte d&apos;Ivoire — SAAP CFLCMA-CI</div>
                   <h2>Fiche membre</h2>
                 </div>
+                <MemberAvatar
+                  photoUrl={profile.photoUrl}
+                  prenom={profile.prenom}
+                  nom={profile.nom}
+                  isSuperAdmin={profile.isSuperAdmin}
+                  className="fiche-print-photo"
+                  alt={`${profile.prenom} ${profile.nom}`}
+                />
               </div>
               <div className="fiche-print-grid">
                 <div>
