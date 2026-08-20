@@ -90,10 +90,13 @@ export default function RegisterPage() {
   }, [form.districtId]);
 
   const districtQuery = districtNom.trim().toLowerCase();
-  const districtsFiltres = districtQuery
-    ? districts.filter((d) => d.nom.toLowerCase().includes(districtQuery))
-    : districts;
   const districtExact = districts.find((d) => d.nom.toLowerCase() === districtQuery);
+  const districtsAffiches = districtQuery
+    ? [
+        ...districts.filter((d) => d.nom.toLowerCase().includes(districtQuery)),
+        ...districts.filter((d) => !d.nom.toLowerCase().includes(districtQuery)),
+      ]
+    : districts;
 
   const paroisseQuery = paroisseNom.trim().toLowerCase();
   const paroissesFiltrees = paroisseQuery
@@ -377,8 +380,8 @@ export default function RegisterPage() {
                 value={districtNom}
                 onChange={(e) => onDistrictChange(e.target.value)}
                 onFocus={() => setDistrictOpen(true)}
-                onBlur={() => setTimeout(() => setDistrictOpen(false), 150)}
-                placeholder="Choisir ou saisir…"
+                onBlur={() => setTimeout(() => setDistrictOpen(false), 180)}
+                placeholder="Choisir dans la liste ou saisir…"
                 required
                 disabled={!form.regionId}
                 autoComplete="off"
@@ -401,11 +404,16 @@ export default function RegisterPage() {
             </div>
             {districtOpen && form.regionId && (
               <div id="district-list" className="autocomplete-list" role="listbox">
-                {districtsFiltres.map((item) => (
+                {districtsAffiches.map((item) => (
                   <button
                     key={item.id}
                     type="button"
                     role="option"
+                    className={
+                      districtQuery && item.nom.toLowerCase().includes(districtQuery)
+                        ? 'is-match'
+                        : undefined
+                    }
                     aria-selected={String(item.id) === String(form.districtId)}
                     onMouseDown={() => onDistrictSelect(item)}
                   >
@@ -421,7 +429,7 @@ export default function RegisterPage() {
                     Ajouter « {districtNom.trim()} »
                   </button>
                 )}
-                {districtsFiltres.length === 0 && !districtNom.trim() && (
+                {districts.length === 0 && !districtNom.trim() && (
                   <div className="autocomplete-empty">Aucun district dans cette région</div>
                 )}
               </div>

@@ -354,6 +354,10 @@ table.data th {
   background: #eef5f1;
 }
 
+.autocomplete-list button.is-match {
+  font-weight: 600;
+}
+
 .autocomplete-list button.is-create {
   color: var(--color-brand);
   font-weight: 600;
