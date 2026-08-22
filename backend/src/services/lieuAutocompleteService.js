@@ -50,7 +50,19 @@ class LieuAutocompleteService {
    */
   async searchCommunautes(search, { paroisseId = null, limit = 15 } = {}) {
     const q = normalizeText(search);
-    if (q.length < 1) return [];
+    if (q.length < 1) {
+      if (!paroisseId) return [];
+      return prisma.communaute.findMany({
+        where: paroisseId ? { paroisseId: Number(paroisseId) } : {},
+        take: Math.max(limit, 100),
+        orderBy: { nom: 'asc' },
+        include: {
+          paroisse: {
+            select: { id: true, nom: true, districtId: true },
+          },
+        },
+      });
+    }
 
     const where = {
       nomNormalise: { contains: q },

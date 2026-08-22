@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AdminShell from '../../components/AdminShell';
 import api from '../../api/client';
-import { useAutocomplete } from '../../hooks/useAutocomplete';
 import { useAuthStore } from '../../store/authStore';
 import { adminMembreProfilPath } from '../../config/env';
 import DateInputFr from '../../components/DateInputFr';
@@ -58,8 +57,22 @@ export default function AdminMembresPage() {
     totalPages: 1,
   });
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({ id: '', nom: '', region: '' });
-  const [applied, setApplied] = useState({ id: '', nom: '', region: '' });
+  const [filters, setFilters] = useState({
+    id: '',
+    nom: '',
+    region: '',
+    district: '',
+    paroisse: '',
+    communaute: '',
+  });
+  const [applied, setApplied] = useState({
+    id: '',
+    nom: '',
+    region: '',
+    district: '',
+    paroisse: '',
+    communaute: '',
+  });
   const [selected, setSelected] = useState(() => new Set());
   const [openMenuId, setOpenMenuId] = useState(null);
   const [msg, setMsg] = useState('');
@@ -71,49 +84,38 @@ export default function AdminMembresPage() {
   const [view, setView] = useState('liste');
   const [form, setForm] = useState(EMPTY_FORM);
   const [paroisseId, setParoisseId] = useState(null);
+  const [regionNom, setRegionNom] = useState('');
   const [districtNom, setDistrictNom] = useState('');
   const [paroisses, setParoisses] = useState([]);
   const [paroisseNom, setParoisseNom] = useState('');
+  const [communautes, setCommunautes] = useState([]);
+  const [communauteNom, setCommunauteNom] = useState('');
   const [photo, setPhoto] = useState(null);
 
   const [regions, setRegions] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [roles, setRoles] = useState([]);
 
-  const communauteAc = useAutocomplete({
-    endpoint: '/communautes',
-    params: paroisseId ? { paroisseId } : {},
-  });
-
   async function load({
     pageNum = page,
     filtersOverride = applied,
-    regionsList = regions,
   } = {}) {
     setError('');
     setLoading(true);
     try {
       const idQ = (filtersOverride.id || '').trim();
       const nomQ = (filtersOverride.nom || '').trim();
-      const regionQ = (filtersOverride.region || '').trim().toLowerCase();
       const search = idQ || nomQ || undefined;
-
-      let regionId;
-      if (regionQ && regionsList.length) {
-        const match = regionsList.find((r) =>
-          String(r.nom || '')
-            .toLowerCase()
-            .includes(regionQ)
-        );
-        regionId = match?.id;
-      }
 
       const { data: res } = await api.get('/membres', {
         params: {
           page: pageNum,
           limit: PAGE_SIZE,
           search,
-          regionId: regionId || undefined,
+          region: (filtersOverride.region || '').trim() || undefined,
+          district: (filtersOverride.district || '').trim() || undefined,
+          paroisse: (filtersOverride.paroisse || '').trim() || undefined,
+          communaute: (filtersOverride.communaute || '').trim() || undefined,
         },
       });
       setData({
@@ -137,7 +139,7 @@ export default function AdminMembresPage() {
       const regs = r.data.data || [];
       setRegions(regs);
       setRoles(rolesRes.data.data || []);
-      load({ pageNum: 1, regionsList: regs });
+      load({ pageNum: 1 });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -162,6 +164,17 @@ export default function AdminMembresPage() {
       .then((res) => setParoisses(res.data.data || []))
       .catch(() => setParoisses([]));
   }, [form.districtId]);
+
+  useEffect(() => {
+    if (!paroisseId) {
+      setCommunautes([]);
+      return;
+    }
+    api
+      .get('/communautes', { params: { paroisseId, limit: 100 } })
+      .then((res) => setCommunautes(res.data.data || []))
+      .catch(() => setCommunautes([]));
+  }, [paroisseId]);
 
   // Ouverture modification depuis la page profil (bouton Modifier)
   useEffect(() => {
@@ -257,30 +270,35 @@ export default function AdminMembresPage() {
       regionId: m.regionId ? String(m.regionId) : '',
       districtId: m.districtId ? String(m.districtId) : '',
     });
+    setRegionNom(m.region?.nom || '');
     setDistrictNom(m.district?.nom || '');
     setParoisseId(m.paroisseId || null);
     setParoisseNom(m.paroisse?.nom || '');
-    communauteAc.setQuery(m.communaute?.nom || '');
+    setCommunauteNom(m.communaute?.nom || '');
   }
 
   function closeEdit() {
     setEditing(null);
     setForm(EMPTY_FORM);
     setParoisseId(null);
+    setRegionNom('');
     setDistrictNom('');
     setParoisseNom('');
     setParoisses([]);
-    communauteAc.setQuery('');
+    setCommunauteNom('');
+    setCommunautes([]);
     setPhoto(null);
   }
 
   function resetFormFields() {
     setForm({ ...EMPTY_FORM, statut: 'VALIDE' });
     setParoisseId(null);
+    setRegionNom('');
     setDistrictNom('');
     setParoisseNom('');
     setParoisses([]);
-    communauteAc.setQuery('');
+    setCommunauteNom('');
+    setCommunautes([]);
     setPhoto(null);
   }
 
@@ -309,16 +327,18 @@ export default function AdminMembresPage() {
       return next;
     });
     if (name === 'regionId') {
+      setRegionNom('');
       setDistrictNom('');
       setParoisseId(null);
       setParoisseNom('');
       setParoisses([]);
-      communauteAc.setQuery('');
+      setCommunauteNom('');
+      setCommunautes([]);
     }
     if (name === 'districtId') {
       setParoisseId(null);
       setParoisseNom('');
-      communauteAc.setQuery('');
+      setCommunauteNom('');
     }
   }
 
@@ -358,7 +378,7 @@ export default function AdminMembresPage() {
         districtNom: districtNom.trim() || '',
         paroisseNom: paroisseNom.trim() || '',
         paroisseId: paroisseId || '',
-        communauteNom: communauteAc.query.trim() || '',
+        communauteNom: communauteNom.trim() || '',
       };
 
       const body = new FormData();
@@ -409,7 +429,7 @@ export default function AdminMembresPage() {
         districtNom: districtNom.trim() || undefined,
         paroisseNom: paroisseNom.trim() || undefined,
         paroisseId: paroisseId || undefined,
-        communauteNom: communauteAc.query.trim() || undefined,
+        communauteNom: communauteNom.trim() || undefined,
       };
       if (form.password.trim()) {
         payload.password = form.password.trim();
@@ -686,17 +706,45 @@ export default function AdminMembresPage() {
 
         <section className="form-section">
           <h3 className="form-section-title">Localisation</h3>
-          <div className="form-group">
-            <label htmlFor="regionId">Région</label>
-            <select id="regionId" name="regionId" value={form.regionId} onChange={onChange}>
-              <option value="">—</option>
-              {regions.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.nom}
-                </option>
-              ))}
-            </select>
-          </div>
+          <ComboboxField
+            id="regionId"
+            label="Région"
+            value={regionNom}
+            selectedId={form.regionId}
+            items={regions}
+            allowCreate={false}
+            emptyListLabel="Aucune région"
+            onChange={(value) => {
+              setRegionNom(value);
+              const match = regions.find((r) => r.nom.toLowerCase() === value.trim().toLowerCase());
+              setForm((f) => ({
+                ...f,
+                regionId: match ? String(match.id) : '',
+                districtId: match && String(f.regionId) === String(match.id) ? f.districtId : '',
+              }));
+              if (!match || String(form.regionId) !== String(match.id)) {
+                setDistrictNom('');
+                setParoisseId(null);
+                setParoisseNom('');
+                setParoisses([]);
+                setCommunauteNom('');
+                setCommunautes([]);
+              }
+            }}
+            onSelect={(item) => {
+              const changed = String(form.regionId) !== String(item.id);
+              setRegionNom(item.nom);
+              setForm((f) => ({ ...f, regionId: String(item.id), ...(changed ? { districtId: '' } : {}) }));
+              if (changed) {
+                setDistrictNom('');
+                setParoisseId(null);
+                setParoisseNom('');
+                setParoisses([]);
+                setCommunauteNom('');
+                setCommunautes([]);
+              }
+            }}
+          />
           <ComboboxField
             id="districtId"
             label="District CMA"
@@ -704,7 +752,6 @@ export default function AdminMembresPage() {
             selectedId={form.districtId}
             items={districts}
             disabled={!form.regionId}
-            placeholder="Choisir dans la liste ou saisir…"
             emptyListLabel="Aucun district dans cette région"
             onChange={(value) => {
               setDistrictNom(value);
@@ -712,14 +759,14 @@ export default function AdminMembresPage() {
               setForm((f) => ({ ...f, districtId: match ? String(match.id) : '' }));
               setParoisseId(null);
               setParoisseNom('');
-              communauteAc.setQuery('');
+              setCommunauteNom('');
             }}
             onSelect={(item) => {
               setDistrictNom(item.nom);
               setForm((f) => ({ ...f, districtId: String(item.id) }));
               setParoisseId(null);
               setParoisseNom('');
-              communauteAc.setQuery('');
+              setCommunauteNom('');
             }}
           />
           <ComboboxField
@@ -729,45 +776,29 @@ export default function AdminMembresPage() {
             selectedId={paroisseId || ''}
             items={paroisses}
             disabled={!form.districtId && !districtNom.trim()}
-            placeholder="Choisir dans la liste ou saisir…"
             emptyListLabel="Aucune paroisse dans ce district"
             onChange={(value) => {
               setParoisseNom(value);
               const match = paroisses.find((p) => p.nom.toLowerCase() === value.trim().toLowerCase());
               setParoisseId(match ? match.id : null);
-              communauteAc.setQuery('');
+              setCommunauteNom('');
             }}
             onSelect={(item) => {
               setParoisseNom(item.nom);
               setParoisseId(item.id);
-              communauteAc.setQuery('');
+              setCommunauteNom('');
             }}
           />
-          <div className="form-group autocomplete">
-            <label htmlFor="communaute">Communauté CMA</label>
-            <input
-              id="communaute"
-              value={communauteAc.query}
-              onChange={(e) => communauteAc.setQuery(e.target.value)}
-              onBlur={() => setTimeout(communauteAc.close, 150)}
-              placeholder="Saisir ou choisir…"
-              disabled={!paroisseNom.trim()}
-              autoComplete="off"
-            />
-            {communauteAc.open && communauteAc.suggestions.length > 0 && (
-              <div className="autocomplete-list">
-                {communauteAc.suggestions.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onMouseDown={() => communauteAc.select(item)}
-                  >
-                    {item.nom}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <ComboboxField
+            id="communaute"
+            label="Communauté CMA"
+            value={communauteNom}
+            items={communautes}
+            disabled={!paroisseNom.trim()}
+            emptyListLabel="Aucune communauté dans cette paroisse"
+            onChange={setCommunauteNom}
+            onSelect={(item) => setCommunauteNom(item.nom)}
+          />
         </section>
 
         <section className="form-section">
@@ -864,6 +895,27 @@ export default function AdminMembresPage() {
               onChange={(e) => setFilters((f) => ({ ...f, region: e.target.value }))}
               placeholder="Recherche par région…"
               aria-label="Recherche par région"
+            />
+            <input
+              type="search"
+              value={filters.district}
+              onChange={(e) => setFilters((f) => ({ ...f, district: e.target.value }))}
+              placeholder="Recherche par district…"
+              aria-label="Recherche par district"
+            />
+            <input
+              type="search"
+              value={filters.paroisse}
+              onChange={(e) => setFilters((f) => ({ ...f, paroisse: e.target.value }))}
+              placeholder="Recherche par paroisse…"
+              aria-label="Recherche par paroisse"
+            />
+            <input
+              type="search"
+              value={filters.communaute}
+              onChange={(e) => setFilters((f) => ({ ...f, communaute: e.target.value }))}
+              placeholder="Recherche par communauté…"
+              aria-label="Recherche par communauté"
             />
             <button type="submit" className="btn-search">
               Recherche

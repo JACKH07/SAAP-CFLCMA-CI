@@ -1,8 +1,16 @@
 import { useState } from 'react';
 
+function normalizeSearch(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
 /**
- * Liste déroulante saisissable : clic pour voir toutes les options,
- * saisie pour filtrer ou ajouter un nom absent de la base.
+ * Liste déroulante avec recherche : clic pour tout voir, saisie pour filtrer.
+ * allowCreate : proposer d’ajouter un nom absent de la liste.
  */
 export default function ComboboxField({
   id,
@@ -14,19 +22,24 @@ export default function ComboboxField({
   selectedId = '',
   onSelect,
   disabled = false,
-  placeholder = 'Choisir dans la liste ou saisir…',
+  placeholder = 'Rechercher ou choisir…',
   emptyListLabel = 'Aucun résultat',
+  allowCreate = true,
 }) {
   const [open, setOpen] = useState(false);
+  const [filterActive, setFilterActive] = useState(false);
   const listId = `${id}-list`;
-  const query = value.trim().toLowerCase();
-  const exact = items.find((item) => item.nom.toLowerCase() === query);
+  const query = filterActive ? normalizeSearch(value) : '';
+  const exact = items.find((item) => normalizeSearch(item.nom) === normalizeSearch(value));
   const displayed = query
-    ? [
-        ...items.filter((item) => item.nom.toLowerCase().includes(query)),
-        ...items.filter((item) => !item.nom.toLowerCase().includes(query)),
-      ]
+    ? items.filter((item) => normalizeSearch(item.nom).includes(query))
     : items;
+
+  function openList() {
+    if (disabled) return;
+    setOpen(true);
+    setFilterActive(false);
+  }
 
   return (
     <div className={`form-group autocomplete${open && !disabled ? ' is-open' : ''}`}>
@@ -42,9 +55,10 @@ export default function ComboboxField({
           value={value}
           onChange={(e) => {
             onChange(e.target.value);
+            setFilterActive(true);
             setOpen(true);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={openList}
           onBlur={() => setTimeout(() => setOpen(false), 180)}
           placeholder={placeholder}
           required={required}
@@ -65,6 +79,7 @@ export default function ComboboxField({
             e.preventDefault();
             if (disabled) return;
             setOpen((isOpen) => !isOpen);
+            setFilterActive(false);
             const input = document.getElementById(id);
             if (input) input.focus();
           }}
@@ -77,22 +92,28 @@ export default function ComboboxField({
               key={item.id}
               type="button"
               role="option"
-              className={query && item.nom.toLowerCase().includes(query) ? 'is-match' : undefined}
+              className={query && normalizeSearch(item.nom).includes(query) ? 'is-match' : undefined}
               aria-selected={String(item.id) === String(selectedId)}
               onMouseDown={() => {
                 onSelect(item);
+                setFilterActive(false);
                 setOpen(false);
               }}
             >
               {item.nom}
             </button>
           ))}
-          {value.trim() && !exact && (
+          {allowCreate && value.trim() && !exact && (
             <button type="button" className="is-create" onMouseDown={() => setOpen(false)}>
               Ajouter « {value.trim()} »
             </button>
           )}
-          {items.length === 0 && !value.trim() && (
+          {displayed.length === 0 && !allowCreate && (
+            <div className="autocomplete-empty">
+              {items.length === 0 ? emptyListLabel : 'Aucun résultat'}
+            </div>
+          )}
+          {displayed.length === 0 && allowCreate && !value.trim() && (
             <div className="autocomplete-empty">{emptyListLabel}</div>
           )}
         </div>

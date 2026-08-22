@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuthStore } from '../store/authStore';
-import { useAutocomplete } from '../hooks/useAutocomplete';
 import { paths } from '../config/env';
 import BrandLogo from '../components/BrandLogo';
 import DateInputFr from '../components/DateInputFr';
@@ -35,19 +34,17 @@ export default function RegisterPage() {
   const { register, logout, loading, error } = useAuthStore();
   const [form, setForm] = useState(INITIAL);
   const [regions, setRegions] = useState([]);
+  const [regionNom, setRegionNom] = useState('');
   const [districts, setDistricts] = useState([]);
   const [districtNom, setDistrictNom] = useState('');
   const [paroisses, setParoisses] = useState([]);
   const [paroisseNom, setParoisseNom] = useState('');
+  const [communautes, setCommunautes] = useState([]);
+  const [communauteNom, setCommunauteNom] = useState('');
   const [roles, setRoles] = useState([]);
   const [message, setMessage] = useState('');
   const [localError, setLocalError] = useState('');
   const [photo, setPhoto] = useState(null);
-
-  const communauteAc = useAutocomplete({
-    endpoint: '/communautes',
-    params: form.paroisseId ? { paroisseId: form.paroisseId } : {},
-  });
 
   useEffect(() => {
     Promise.all([api.get('/regions'), api.get('/roles')]).then(([r, rolesRes]) => {
@@ -68,7 +65,8 @@ export default function RegisterPage() {
       setDistrictNom('');
       setParoisses([]);
       setParoisseNom('');
-      communauteAc.setQuery('');
+      setCommunautes([]);
+      setCommunauteNom('');
     });
   }, [form.regionId]);
 
@@ -83,9 +81,27 @@ export default function RegisterPage() {
       .catch(() => setParoisses([]));
   }, [form.districtId]);
 
+  useEffect(() => {
+    if (!form.paroisseId) {
+      setCommunautes([]);
+      return;
+    }
+    api
+      .get('/communautes', { params: { paroisseId: form.paroisseId, limit: 100 } })
+      .then((res) => setCommunautes(res.data.data || []))
+      .catch(() => setCommunautes([]));
+  }, [form.paroisseId]);
+
   function onChange(e) {
     const { name, value } = e.target;
     setForm((f) => ({ ...f, [name]: value }));
+  }
+
+  function applyRegion(nextId, nextNom) {
+    setRegionNom(nextNom);
+    setForm((f) =>
+      String(f.regionId || '') === String(nextId || '') ? f : { ...f, regionId: nextId || '' }
+    );
   }
 
   function applyDistrict(nextId, nextNom) {
@@ -94,9 +110,25 @@ export default function RegisterPage() {
     setForm((f) => ({ ...f, districtId: nextId, ...(districtChanged ? { paroisseId: '' } : {}) }));
     if (districtChanged) {
       setParoisseNom('');
-      communauteAc.setQuery('');
+      setCommunauteNom('');
+      setCommunautes([]);
       if (!nextId) setParoisses([]);
     }
+  }
+
+  function applyParoisse(nextId, nextNom) {
+    const changed = String(form.paroisseId || '') !== String(nextId || '');
+    setParoisseNom(nextNom);
+    setForm((f) => ({ ...f, paroisseId: nextId }));
+    if (changed) {
+      setCommunauteNom('');
+      if (!nextId) setCommunautes([]);
+    }
+  }
+
+  function onRegionChange(value) {
+    const match = regions.find((r) => r.nom.toLowerCase() === value.trim().toLowerCase());
+    applyRegion(match ? String(match.id) : '', value);
   }
 
   function onDistrictChange(value) {
@@ -104,21 +136,13 @@ export default function RegisterPage() {
     applyDistrict(match ? String(match.id) : '', value);
   }
 
-  function onDistrictSelect(item) {
-    applyDistrict(String(item.id), item.nom);
-  }
-
   function onParoisseChange(value) {
-    setParoisseNom(value);
     const match = paroisses.find((p) => p.nom.toLowerCase() === value.trim().toLowerCase());
-    setForm((f) => ({ ...f, paroisseId: match ? String(match.id) : '' }));
-    communauteAc.setQuery('');
+    applyParoisse(match ? String(match.id) : '', value);
   }
 
-  function onParoisseSelect(item) {
-    setParoisseNom(item.nom);
-    setForm((f) => ({ ...f, paroisseId: String(item.id) }));
-    communauteAc.setQuery('');
+  function onCommunauteChange(value) {
+    setCommunauteNom(value);
   }
 
   async function onSubmit(e) {
@@ -126,6 +150,10 @@ export default function RegisterPage() {
     setLocalError('');
     setMessage('');
 
+    if (!form.regionId) {
+      setLocalError('Sélectionnez une région');
+      return;
+    }
     if (!districtNom.trim()) {
       setLocalError('Indiquez un district');
       return;
@@ -134,7 +162,7 @@ export default function RegisterPage() {
       setLocalError('Indiquez une paroisse');
       return;
     }
-    if (!communauteAc.query.trim()) {
+    if (!communauteNom.trim()) {
       setLocalError('La communauté est obligatoire');
       return;
     }
@@ -157,7 +185,7 @@ export default function RegisterPage() {
         paroisseNom: paroisseNom.trim(),
         fonctionId: form.fonctionId ? Number(form.fonctionId) : null,
         titreId: form.titreId ? Number(form.titreId) : null,
-        communauteNom: communauteAc.query.trim(),
+        communauteNom: communauteNom.trim(),
         photo: photo || undefined,
       });
       setMessage(data.message || 'Inscription réussie');
@@ -325,19 +353,18 @@ export default function RegisterPage() {
             required
             split
           />
-          <div className="form-group">
-            <label htmlFor="regionId">
-              Région <span className="req">*</span>
-            </label>
-            <select id="regionId" name="regionId" value={form.regionId} onChange={onChange} required>
-              <option value="">Veuillez sélectionner…</option>
-              {regions.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.nom}
-                </option>
-              ))}
-            </select>
-          </div>
+          <ComboboxField
+            id="regionId"
+            label="Région"
+            required
+            value={regionNom}
+            selectedId={form.regionId}
+            items={regions}
+            allowCreate={false}
+            emptyListLabel="Aucune région"
+            onChange={onRegionChange}
+            onSelect={(item) => applyRegion(String(item.id), item.nom)}
+          />
           <ComboboxField
             id="district"
             label="District"
@@ -348,7 +375,7 @@ export default function RegisterPage() {
             disabled={!form.regionId}
             emptyListLabel="Aucun district dans cette région"
             onChange={onDistrictChange}
-            onSelect={onDistrictSelect}
+            onSelect={(item) => applyDistrict(String(item.id), item.nom)}
           />
           <ComboboxField
             id="paroisse"
@@ -360,36 +387,19 @@ export default function RegisterPage() {
             disabled={!districtNom.trim()}
             emptyListLabel="Aucune paroisse dans ce district"
             onChange={onParoisseChange}
-            onSelect={onParoisseSelect}
+            onSelect={(item) => applyParoisse(String(item.id), item.nom)}
           />
-          <div className="form-group autocomplete">
-            <label htmlFor="communaute">
-              Communauté <span className="req">*</span>
-            </label>
-            <input
-              id="communaute"
-              value={communauteAc.query}
-              onChange={(e) => communauteAc.setQuery(e.target.value)}
-              onBlur={() => setTimeout(communauteAc.close, 150)}
-              placeholder="Saisir ou choisir…"
-              required
-              disabled={!paroisseNom.trim()}
-              autoComplete="off"
-            />
-            {communauteAc.open && communauteAc.suggestions.length > 0 && (
-              <div className="autocomplete-list">
-                {communauteAc.suggestions.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onMouseDown={() => communauteAc.select(item)}
-                  >
-                    {item.nom}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <ComboboxField
+            id="communaute"
+            label="Communauté"
+            required
+            value={communauteNom}
+            items={communautes}
+            disabled={!paroisseNom.trim()}
+            emptyListLabel="Aucune communauté dans cette paroisse"
+            onChange={onCommunauteChange}
+            onSelect={(item) => setCommunauteNom(item.nom)}
+          />
 
           
           <div className="form-group form-span-2">

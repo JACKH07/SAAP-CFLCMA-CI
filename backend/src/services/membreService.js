@@ -22,7 +22,18 @@ class MembreService {
     return withAdminFlag(membre);
   }
 
-  async list({ page = 1, limit = 20, search, regionId, statut, roleId } = {}) {
+  async list({
+    page = 1,
+    limit = 20,
+    search,
+    regionId,
+    statut,
+    roleId,
+    region,
+    district,
+    paroisse,
+    communaute,
+  } = {}) {
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const take = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
     const skip = (pageNum - 1) * take;
@@ -31,6 +42,14 @@ class MembreService {
     if (regionId) where.regionId = Number(regionId);
     if (statut) where.statut = statut;
     if (roleId) where.roleId = Number(roleId);
+    const regionQ = String(region || '').trim();
+    const districtQ = String(district || '').trim();
+    const paroisseQ = String(paroisse || '').trim();
+    const communauteQ = String(communaute || '').trim();
+    if (regionQ) where.region = { nom: { contains: regionQ } };
+    if (districtQ) where.district = { nom: { contains: districtQ } };
+    if (paroisseQ) where.paroisse = { nom: { contains: paroisseQ } };
+    if (communauteQ) where.communaute = { nom: { contains: communauteQ } };
     if (search) {
       const q = String(search).trim();
       if (q) {
