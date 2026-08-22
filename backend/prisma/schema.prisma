@@ -74,7 +74,8 @@ model Role {
   id                 Int      @id @default(autoincrement())
   nom                String   @unique @db.VarChar(100)
   niveauHierarchique Int      @map("niveau_hierarchique")
-  membres            Membre[]
+  membres            Membre[] @relation("MembreGrade")
+  membresTitre       Membre[] @relation("MembreTitre")
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -98,7 +99,9 @@ model Membre {
   photoUrl        String?   @map("photo_url") @db.VarChar(500)
   idMembre        String    @unique @map("id_membre") @db.VarChar(50)
   roleId          Int       @map("role_id")
-  role            Role      @relation(fields: [roleId], references: [id])
+  role            Role      @relation("MembreGrade", fields: [roleId], references: [id])
+  titreId         Int?      @map("titre_id")
+  titre           Role?     @relation("MembreTitre", fields: [titreId], references: [id])
   regionId        Int?      @map("region_id")
   region          Region?   @relation(fields: [regionId], references: [id])
   districtId      Int?      @map("district_id")
@@ -123,6 +126,7 @@ model Membre {
   updatedAt       DateTime  @updatedAt
 
   @@index([roleId])
+  @@index([titreId])
   @@index([regionId])
   @@index([districtId])
   @@index([paroisseId])

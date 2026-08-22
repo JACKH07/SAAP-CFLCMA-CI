@@ -151,6 +151,7 @@ CREATE TABLE `membres` (
   `lieu_naissance` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
   `id_membre` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `role_id` int NOT NULL,
+  `titre_id` int DEFAULT NULL,
   `region_id` int DEFAULT NULL,
   `district_id` int DEFAULT NULL,
   `paroisse_id` int DEFAULT NULL,
@@ -165,6 +166,7 @@ CREATE TABLE `membres` (
   UNIQUE KEY `membres_id_membre_key` (`id_membre`),
   UNIQUE KEY `membres_email_key` (`email`),
   KEY `membres_role_id_idx` (`role_id`),
+  KEY `membres_titre_id_idx` (`titre_id`),
   KEY `membres_region_id_idx` (`region_id`),
   KEY `membres_district_id_idx` (`district_id`),
   KEY `membres_paroisse_id_idx` (`paroisse_id`),
@@ -175,7 +177,8 @@ CREATE TABLE `membres` (
   CONSTRAINT `membres_mandate_par_fkey` FOREIGN KEY (`mandate_par`) REFERENCES `membres` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `membres_paroisse_id_fkey` FOREIGN KEY (`paroisse_id`) REFERENCES `paroisses` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `membres_region_id_fkey` FOREIGN KEY (`region_id`) REFERENCES `regions` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `membres_role_id_fkey` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+  CONSTRAINT `membres_role_id_fkey` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `membres_titre_id_fkey` FOREIGN KEY (`titre_id`) REFERENCES `roles` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

@@ -13,3 +13,7 @@
 .role-fields .form-group {
   margin-bottom: 0;
 }
+
+.role-fields.form-span-2 {
+  margin-bottom: 1rem;
+}

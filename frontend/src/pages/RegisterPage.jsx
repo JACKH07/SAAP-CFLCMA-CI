@@ -9,6 +9,7 @@ import DateInputFr from '../components/DateInputFr';
 import ProfilePhotoCapture from '../components/ProfilePhotoCapture';
 import PasswordInput from '../components/PasswordInput';
 import RoleSelect from '../components/RoleSelect';
+import ComboboxField from '../components/ComboboxField';
 import './Auth.css';
 
 const INITIAL = {
@@ -26,6 +27,7 @@ const INITIAL = {
   districtId: '',
   paroisseId: '',
   fonctionId: '',
+  titreId: '',
 };
 
 export default function RegisterPage() {
@@ -35,7 +37,6 @@ export default function RegisterPage() {
   const [regions, setRegions] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [districtNom, setDistrictNom] = useState('');
-  const [districtOpen, setDistrictOpen] = useState(false);
   const [paroisses, setParoisses] = useState([]);
   const [paroisseNom, setParoisseNom] = useState('');
   const [paroisseOpen, setParoisseOpen] = useState(false);
@@ -60,14 +61,12 @@ export default function RegisterPage() {
     if (!form.regionId) {
       setDistricts([]);
       setDistrictNom('');
-      setDistrictOpen(false);
       return;
     }
     api.get(`/regions/${form.regionId}/districts`).then((res) => {
       setDistricts(res.data.data || []);
       setForm((f) => ({ ...f, districtId: '', paroisseId: '' }));
       setDistrictNom('');
-      setDistrictOpen(false);
       setParoisses([]);
       setParoisseNom('');
       setParoisseOpen(false);
@@ -88,15 +87,6 @@ export default function RegisterPage() {
       .get('/paroisses', { params: { districtId: form.districtId, limit: 100, search: '' } })
       .then((res) => setParoisses(res.data.data || []));
   }, [form.districtId]);
-
-  const districtQuery = districtNom.trim().toLowerCase();
-  const districtExact = districts.find((d) => d.nom.toLowerCase() === districtQuery);
-  const districtsAffiches = districtQuery
-    ? [
-        ...districts.filter((d) => d.nom.toLowerCase().includes(districtQuery)),
-        ...districts.filter((d) => !d.nom.toLowerCase().includes(districtQuery)),
-      ]
-    : districts;
 
   const paroisseQuery = paroisseNom.trim().toLowerCase();
   const paroissesFiltrees = paroisseQuery
@@ -119,7 +109,6 @@ export default function RegisterPage() {
 
   function onDistrictChange(value) {
     setDistrictNom(value);
-    setDistrictOpen(true);
     const match = districts.find((d) => d.nom.toLowerCase() === value.trim().toLowerCase());
     setForm((f) => ({ ...f, districtId: match ? String(match.id) : '' }));
     resetParoisse();
@@ -127,13 +116,7 @@ export default function RegisterPage() {
 
   function onDistrictSelect(item) {
     setDistrictNom(item.nom);
-    setDistrictOpen(false);
     setForm((f) => ({ ...f, districtId: String(item.id) }));
-  }
-
-  function toggleDistrictListe() {
-    if (!form.regionId) return;
-    setDistrictOpen((open) => !open);
   }
 
   function onParoisseChange(value) {
@@ -191,6 +174,7 @@ export default function RegisterPage() {
         paroisseId: form.paroisseId ? Number(form.paroisseId) : undefined,
         paroisseNom: paroisseNom.trim(),
         fonctionId: form.fonctionId ? Number(form.fonctionId) : null,
+        titreId: form.titreId ? Number(form.titreId) : null,
         communauteNom: communauteAc.query.trim(),
         photo: photo || undefined,
       });
@@ -351,8 +335,10 @@ export default function RegisterPage() {
           <RoleSelect
             id="fonctionId"
             name="fonctionId"
+            titreName="titreId"
             roles={roles}
             value={form.fonctionId}
+            titreValue={form.titreId}
             onChange={onChange}
             required
             split
@@ -370,71 +356,18 @@ export default function RegisterPage() {
               ))}
             </select>
           </div>
-          <div className="form-group autocomplete">
-            <label htmlFor="district">
-              District <span className="req">*</span>
-            </label>
-            <div className="combobox">
-              <input
-                id="district"
-                value={districtNom}
-                onChange={(e) => onDistrictChange(e.target.value)}
-                onFocus={() => setDistrictOpen(true)}
-                onBlur={() => setTimeout(() => setDistrictOpen(false), 180)}
-                placeholder="Choisir dans la liste ou saisir…"
-                required
-                disabled={!form.regionId}
-                autoComplete="off"
-                role="combobox"
-                aria-expanded={districtOpen}
-                aria-controls="district-list"
-                aria-autocomplete="list"
-              />
-              <button
-                type="button"
-                className="combobox-caret"
-                tabIndex={-1}
-                disabled={!form.regionId}
-                aria-label="Afficher la liste des districts"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  toggleDistrictListe();
-                }}
-              />
-            </div>
-            {districtOpen && form.regionId && (
-              <div id="district-list" className="autocomplete-list" role="listbox">
-                {districtsAffiches.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    role="option"
-                    className={
-                      districtQuery && item.nom.toLowerCase().includes(districtQuery)
-                        ? 'is-match'
-                        : undefined
-                    }
-                    aria-selected={String(item.id) === String(form.districtId)}
-                    onMouseDown={() => onDistrictSelect(item)}
-                  >
-                    {item.nom}
-                  </button>
-                ))}
-                {districtNom.trim() && !districtExact && (
-                  <button
-                    type="button"
-                    className="is-create"
-                    onMouseDown={() => setDistrictOpen(false)}
-                  >
-                    Ajouter « {districtNom.trim()} »
-                  </button>
-                )}
-                {districts.length === 0 && !districtNom.trim() && (
-                  <div className="autocomplete-empty">Aucun district dans cette région</div>
-                )}
-              </div>
-            )}
-          </div>
+          <ComboboxField
+            id="district"
+            label="District"
+            required
+            value={districtNom}
+            selectedId={form.districtId}
+            items={districts}
+            disabled={!form.regionId}
+            emptyListLabel="Aucun district dans cette région"
+            onChange={onDistrictChange}
+            onSelect={onDistrictSelect}
+          />
           <div className="form-group autocomplete">
             <label htmlFor="paroisse">
               Paroisse <span className="req">*</span>

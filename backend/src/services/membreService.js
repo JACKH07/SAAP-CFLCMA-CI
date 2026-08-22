@@ -5,6 +5,7 @@ const config = require('../config');
 const { AppError } = require('../utils/errors');
 const { membrePublicSelect, withAdminFlag } = require('./authService');
 const { hasAdminAccess } = require('../utils/roles');
+const { resolveMembreRoles } = require('../utils/membreRoles');
 const membreIdService = require('./membreIdService');
 const auditService = require('./auditService');
 const lieuAutocompleteService = require('./lieuAutocompleteService');
@@ -77,11 +78,13 @@ class MembreService {
       branche,
       regionId,
       districtId,
+      districtNom,
       paroisseNom,
       paroisseId,
       communauteNom,
       communauteId,
       roleId,
+      titreId,
       statut = 'VALIDE',
       mandateParId,
       situationMatrimoniale,
@@ -105,13 +108,26 @@ class MembreService {
       );
     }
 
+    let finalDistrictId = districtId ? Number(districtId) : null;
+    if (!finalDistrictId && districtNom && regionId) {
+      try {
+        const { district } = await lieuAutocompleteService.findOrCreateDistrict(
+          districtNom,
+          Number(regionId)
+        );
+        finalDistrictId = district.id;
+      } catch (err) {
+        throw new AppError(err.message || "Impossible d'enregistrer le district", 400);
+      }
+    }
+
     let finalParoisseId = paroisseId ? Number(paroisseId) : null;
     let finalCommunauteId = communauteId ? Number(communauteId) : null;
 
-    if (!finalParoisseId && paroisseNom && districtId) {
+    if (!finalParoisseId && paroisseNom && finalDistrictId) {
       const { paroisse } = await lieuAutocompleteService.findOrCreateParoisse(
         paroisseNom,
-        Number(districtId)
+        Number(finalDistrictId)
       );
       finalParoisseId = paroisse.id;
     }
@@ -123,6 +139,8 @@ class MembreService {
       );
       finalCommunauteId = communaute.id;
     }
+
+    const rolesResolved = await resolveMembreRoles({ roleId, titreId });
 
     const idResult = await membreIdService.generateUniqueId(nom, prenom, dateNaissance);
     const passwordHash = await bcrypt.hash(password, 12);
@@ -142,9 +160,10 @@ class MembreService {
         responsabiliteBureau: responsabiliteBureau?.trim() || null,
         idMembre: idResult.idMembre,
         collisionSuffix: idResult.suffix,
-        roleId: Number(roleId),
+        roleId: rolesResolved.roleId,
+        titreId: rolesResolved.titreId,
         regionId: regionId ? Number(regionId) : null,
-        districtId: districtId ? Number(districtId) : null,
+        districtId: finalDistrictId,
         paroisseId: finalParoisseId,
         communauteId: finalCommunauteId,
         mandateParId: mandateParId ? Number(mandateParId) : null,
@@ -269,10 +288,35 @@ class MembreService {
       return Number(v);
     };
 
-    if (payload.roleId !== undefined) data.roleId = Number(payload.roleId);
+    if (payload.roleId !== undefined || payload.fonctionId !== undefined || payload.titreId !== undefined) {
+      const resolved = await resolveMembreRoles({
+        roleId: payload.roleId !== undefined ? payload.roleId : existing.roleId,
+        titreId: payload.titreId !== undefined ? payload.titreId : existing.titreId,
+      });
+      data.roleId = resolved.roleId;
+      data.titreId = resolved.titreId;
+    }
     if (payload.regionId !== undefined) data.regionId = toNullableInt(payload.regionId);
-    if (payload.districtId !== undefined) data.districtId = toNullableInt(payload.districtId);
     if (payload.mandateParId !== undefined) data.mandateParId = toNullableInt(payload.mandateParId);
+
+    if (payload.districtNom && (payload.regionId !== undefined || existing.regionId)) {
+      const regionForDistrict =
+        payload.regionId !== undefined ? toNullableInt(payload.regionId) : existing.regionId;
+      if (!regionForDistrict) {
+        throw new AppError('La région est requise pour enregistrer le district', 400);
+      }
+      try {
+        const { district } = await lieuAutocompleteService.findOrCreateDistrict(
+          payload.districtNom,
+          regionForDistrict
+        );
+        data.districtId = district.id;
+      } catch (err) {
+        throw new AppError(err.message || "Impossible d'enregistrer le district", 400);
+      }
+    } else if (payload.districtId !== undefined) {
+      data.districtId = toNullableInt(payload.districtId);
+    }
 
     let finalParoisseId =
       payload.paroisseId !== undefined ? toNullableInt(payload.paroisseId) : existing.paroisseId;

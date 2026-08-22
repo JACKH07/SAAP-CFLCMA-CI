@@ -101,7 +101,7 @@ function requireGeoScope(getResourceScope) {
     try {
       if (hasAdminAccess(req.user)) return next();
 
-      const niveau = req.user.role?.niveauHierarchique ?? 99;
+      const niveau = req.user.titre?.niveauHierarchique ?? 99;
 
       // Grades du mouvement (niveau > 4) : pas d'accès géo étendu
       if (niveau > 4) {

@@ -3,7 +3,8 @@ const jwt = require('jsonwebtoken');
 const prisma = require('../config/prisma');
 const config = require('../config');
 const { AppError } = require('../utils/errors');
-const { ROLE_MEMBRES_ACTIFS, hasAdminAccess } = require('../utils/roles');
+const { hasAdminAccess } = require('../utils/roles');
+const { resolveMembreRoles } = require('../utils/membreRoles');
 const membreIdService = require('./membreIdService');
 const lieuAutocompleteService = require('./lieuAutocompleteService');
 const auditService = require('./auditService');
@@ -29,11 +30,13 @@ const membrePublicSelect = {
   isSuperAdmin: true,
   statut: true,
   roleId: true,
+  titreId: true,
   regionId: true,
   districtId: true,
   paroisseId: true,
   communauteId: true,
   role: { select: { id: true, nom: true, niveauHierarchique: true } },
+  titre: { select: { id: true, nom: true, niveauHierarchique: true } },
   region: { select: { id: true, nom: true, code: true } },
   district: { select: { id: true, nom: true } },
   paroisse: { select: { id: true, nom: true } },
@@ -68,16 +71,9 @@ class AuthService {
     );
   }
 
-  async resolveRoleId(fonctionId) {
-    if (fonctionId) {
-      const role = await prisma.role.findUnique({ where: { id: Number(fonctionId) } });
-      if (!role) throw new AppError('Titre ou grade introuvable', 400);
-      return role.id;
-    }
-
-    const membresRole = await prisma.role.findUnique({ where: { nom: ROLE_MEMBRES_ACTIFS } });
-    if (!membresRole) throw new AppError('Grade par défaut non configuré (SP)', 500);
-    return membresRole.id;
+  async resolveRoleId(fonctionId, titreId) {
+    const resolved = await resolveMembreRoles({ fonctionId, titreId });
+    return resolved.roleId;
   }
 
   async register(payload, meta = {}) {
@@ -97,6 +93,7 @@ class AuthService {
       paroisseNom,
       communauteNom,
       fonctionId,
+      titreId,
       situationMatrimoniale,
       profession,
       responsabiliteBureau,
@@ -119,7 +116,7 @@ class AuthService {
     const contactNorm = contact ? String(contact).replace(/\s+/g, '').trim() : '';
 
     // Validations + hash en parallèle (bcrypt ~100–200ms)
-    const [districtFromId, existingEmail, existingContact, existingIdentity, passwordHash, roleId] =
+    const [districtFromId, existingEmail, existingContact, existingIdentity, passwordHash, rolesResolved] =
       await Promise.all([
         districtId
           ? prisma.district.findUnique({ where: { id: Number(districtId) } })
@@ -145,8 +142,9 @@ class AuthService {
           select: { id: true },
         }),
         bcrypt.hash(password, SALT_ROUNDS),
-        this.resolveRoleId(fonctionId),
+        resolveMembreRoles({ fonctionId, titreId }),
       ]);
+    const { roleId, titreId: resolvedTitreId } = rolesResolved;
 
     let district = districtFromId;
     if (districtId) {
@@ -218,6 +216,7 @@ class AuthService {
         idMembre: idResult.idMembre,
         collisionSuffix: idResult.suffix,
         roleId,
+        titreId: resolvedTitreId,
         regionId: Number(regionId),
         districtId: district.id,
         paroisseId: paroisse.id,

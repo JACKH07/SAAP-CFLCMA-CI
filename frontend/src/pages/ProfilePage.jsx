@@ -366,7 +366,7 @@ export default function ProfilePage() {
                   <div className="muted" style={{ fontSize: '0.8rem' }}>
                     Titre
                   </div>
-                  <div>{titreNom(profile.role)}</div>
+                  <div>{titreNom(profile.role, profile.titre)}</div>
                 </div>
                 <div>
                   <div className="muted" style={{ fontSize: '0.8rem' }}>
@@ -449,7 +449,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <span>Titre</span>
-              <strong>{titreNom(profile.role)}</strong>
+              <strong>{titreNom(profile.role, profile.titre)}</strong>
             </div>
             <div>
               <span>Grades</span>

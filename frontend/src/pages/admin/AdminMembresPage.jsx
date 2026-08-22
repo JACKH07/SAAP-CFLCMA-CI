@@ -9,6 +9,7 @@ import DateInputFr from '../../components/DateInputFr';
 import MemberAvatar from '../../components/MemberAvatar';
 import PasswordInput from '../../components/PasswordInput';
 import RoleSelect from '../../components/RoleSelect';
+import ComboboxField from '../../components/ComboboxField';
 import ProfilePhotoCapture from '../../components/ProfilePhotoCapture';
 import './AdminMembres.css';
 import './AdminMembreProfil.css';
@@ -40,6 +41,7 @@ const EMPTY_FORM = {
   responsabiliteBureau: '',
   statut: 'VALIDE',
   roleId: '',
+  titreId: '',
   regionId: '',
   districtId: '',
 };
@@ -69,6 +71,7 @@ export default function AdminMembresPage() {
   const [view, setView] = useState('liste');
   const [form, setForm] = useState(EMPTY_FORM);
   const [paroisseId, setParoisseId] = useState(null);
+  const [districtNom, setDistrictNom] = useState('');
   const [photo, setPhoto] = useState(null);
 
   const [regions, setRegions] = useState([]);
@@ -242,9 +245,11 @@ export default function AdminMembresPage() {
       responsabiliteBureau: m.responsabiliteBureau || '',
       statut: m.statut || 'EN_ATTENTE',
       roleId: m.roleId ? String(m.roleId) : '',
+      titreId: m.titreId ? String(m.titreId) : '',
       regionId: m.regionId ? String(m.regionId) : '',
       districtId: m.districtId ? String(m.districtId) : '',
     });
+    setDistrictNom(m.district?.nom || '');
     setParoisseId(m.paroisseId || null);
     paroisseAc.setQuery(m.paroisse?.nom || '');
     communauteAc.setQuery(m.communaute?.nom || '');
@@ -254,6 +259,7 @@ export default function AdminMembresPage() {
     setEditing(null);
     setForm(EMPTY_FORM);
     setParoisseId(null);
+    setDistrictNom('');
     paroisseAc.setQuery('');
     communauteAc.setQuery('');
     setPhoto(null);
@@ -262,6 +268,7 @@ export default function AdminMembresPage() {
   function resetFormFields() {
     setForm({ ...EMPTY_FORM, statut: 'VALIDE' });
     setParoisseId(null);
+    setDistrictNom('');
     paroisseAc.setQuery('');
     communauteAc.setQuery('');
     setPhoto(null);
@@ -292,6 +299,7 @@ export default function AdminMembresPage() {
       return next;
     });
     if (name === 'regionId') {
+      setDistrictNom('');
       setParoisseId(null);
       paroisseAc.setQuery('');
       communauteAc.setQuery('');
@@ -315,7 +323,7 @@ export default function AdminMembresPage() {
         return;
       }
       if (!form.roleId) {
-        setError('Sélectionnez un titre ou un grade');
+        setError('Sélectionnez un grade');
         setSaving(false);
         return;
       }
@@ -333,8 +341,10 @@ export default function AdminMembresPage() {
         responsabiliteBureau: form.responsabiliteBureau.trim() || '',
         statut: form.statut || 'VALIDE',
         roleId: Number(form.roleId),
+        titreId: form.titreId ? Number(form.titreId) : '',
         regionId: form.regionId ? Number(form.regionId) : '',
         districtId: form.districtId ? Number(form.districtId) : '',
+        districtNom: districtNom.trim() || '',
         paroisseNom: paroisseAc.query.trim() || '',
         paroisseId: paroisseId || '',
         communauteNom: communauteAc.query.trim() || '',
@@ -382,8 +392,10 @@ export default function AdminMembresPage() {
         responsabiliteBureau: form.responsabiliteBureau || null,
         statut: form.statut,
         roleId: Number(form.roleId),
+        titreId: form.titreId ? Number(form.titreId) : null,
         regionId: form.regionId ? Number(form.regionId) : null,
         districtId: form.districtId ? Number(form.districtId) : null,
+        districtNom: districtNom.trim() || undefined,
         paroisseNom: paroisseAc.query.trim() || undefined,
         paroisseId: paroisseId || undefined,
         communauteNom: communauteAc.query.trim() || undefined,
@@ -647,13 +659,15 @@ export default function AdminMembresPage() {
         <section className="form-section">
           <h3 className="form-section-title">Titre & grade</h3>
           <p className="muted tiny" style={{ marginTop: '-0.35rem', marginBottom: '0.75rem' }}>
-            Renseignez le titre ou le grade — un seul des deux champs.
+            Le titre et le grade sont indépendants : vous pouvez renseigner les deux.
           </p>
           <RoleSelect
             id="roleId"
             name="roleId"
+            titreName="titreId"
             roles={roles}
             value={form.roleId}
+            titreValue={form.titreId}
             onChange={onChange}
             required
           />
@@ -672,23 +686,31 @@ export default function AdminMembresPage() {
               ))}
             </select>
           </div>
-          <div className="form-group">
-            <label htmlFor="districtId">District CMA</label>
-            <select
-              id="districtId"
-              name="districtId"
-              value={form.districtId}
-              onChange={onChange}
-              disabled={!form.regionId}
-            >
-              <option value="">—</option>
-              {districts.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.nom}
-                </option>
-              ))}
-            </select>
-          </div>
+          <ComboboxField
+            id="districtId"
+            label="District CMA"
+            value={districtNom}
+            selectedId={form.districtId}
+            items={districts}
+            disabled={!form.regionId}
+            placeholder="Choisir dans la liste ou saisir…"
+            emptyListLabel="Aucun district dans cette région"
+            onChange={(value) => {
+              setDistrictNom(value);
+              const match = districts.find((d) => d.nom.toLowerCase() === value.trim().toLowerCase());
+              setForm((f) => ({ ...f, districtId: match ? String(match.id) : '' }));
+              setParoisseId(null);
+              paroisseAc.setQuery('');
+              communauteAc.setQuery('');
+            }}
+            onSelect={(item) => {
+              setDistrictNom(item.nom);
+              setForm((f) => ({ ...f, districtId: String(item.id) }));
+              setParoisseId(null);
+              paroisseAc.setQuery('');
+              communauteAc.setQuery('');
+            }}
+          />
           <div className="form-group autocomplete">
             <label htmlFor="paroisse">Paroisse CMA</label>
             <input
@@ -701,7 +723,7 @@ export default function AdminMembresPage() {
               }}
               onBlur={() => setTimeout(paroisseAc.close, 150)}
               placeholder="Saisir ou choisir…"
-              disabled={!form.districtId}
+              disabled={!form.districtId && !districtNom.trim()}
               autoComplete="off"
             />
             {paroisseAc.open && paroisseAc.suggestions.length > 0 && (

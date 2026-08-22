@@ -1,17 +1,18 @@
-import { useMemo } from 'react';
-import { isTitreRole, splitTitresAndGrades } from '../utils/roleDisplay';
+import { splitTitresAndGrades } from '../utils/roleDisplay';
 import './RoleSelect.css';
 
 /**
- * Deux champs distincts : Titre et Grades (un seul roleId en base).
+ * Titre et grade sont indépendants (deux valeurs distinctes).
  * gradesOnly : champ Grades uniquement.
  * split : Titre et Grades en deux champs séparés (grille d'inscription).
  */
 export default function RoleSelect({
   roles,
   value,
+  titreValue = '',
   onChange,
   name,
+  titreName = 'titreId',
   id,
   required = false,
   gradesOnly = false,
@@ -20,26 +21,10 @@ export default function RoleSelect({
   emptyLabel,
 }) {
   const { titres, grades } = splitTitresAndGrades(roles);
-  const options = useMemo(() => [...titres, ...grades], [titres, grades]);
-  const currentRole = options.find((r) => String(r.id) === String(value));
-
-  const titreValue =
-    currentRole && isTitreRole(currentRole) ? String(currentRole.id) : '';
-  const gradeValue =
-    currentRole && !isTitreRole(currentRole) ? String(currentRole.id) : '';
   const placeholder = emptyLabel ?? (split ? 'Veuillez sélectionner…' : '—');
-  const gradeRequired = required && !titreValue;
 
-  const emitChange = (nextValue) => {
-    onChange({ target: { name, value: nextValue } });
-  };
-
-  const onTitreChange = (e) => {
-    emitChange(e.target.value);
-  };
-
-  const onGradeChange = (e) => {
-    emitChange(e.target.value);
+  const emit = (fieldName, nextValue) => {
+    onChange({ target: { name: fieldName, value: nextValue } });
   };
 
   const titreField = (
@@ -47,8 +32,9 @@ export default function RoleSelect({
       <label htmlFor={`${id}-titre`}>Titre</label>
       <select
         id={`${id}-titre`}
-        value={titreValue}
-        onChange={onTitreChange}
+        name={titreName}
+        value={titreValue || ''}
+        onChange={(e) => emit(titreName, e.target.value)}
         disabled={disabled}
       >
         <option value="">{placeholder}</option>
@@ -65,14 +51,14 @@ export default function RoleSelect({
     <div className="form-group">
       <label htmlFor={gradesOnly ? id : `${id}-grade`}>
         Grades
-        {gradeRequired && <span className="req"> *</span>}
+        {required && <span className="req"> *</span>}
       </label>
       <select
         id={gradesOnly ? id : `${id}-grade`}
-        name={gradesOnly ? name : undefined}
-        value={gradesOnly ? value : gradeValue}
-        onChange={gradesOnly ? onChange : onGradeChange}
-        required={gradeRequired}
+        name={name}
+        value={value || ''}
+        onChange={(e) => emit(name, e.target.value)}
+        required={required}
         disabled={disabled}
       >
         <option value="">{gradesOnly && !emptyLabel ? 'Sélectionner…' : placeholder}</option>
@@ -91,10 +77,10 @@ export default function RoleSelect({
 
   if (split) {
     return (
-      <>
+      <div className="role-fields form-span-2">
         {titreField}
         {gradeField}
-      </>
+      </div>
     );
   }
 
@@ -102,9 +88,6 @@ export default function RoleSelect({
     <div className="role-fields">
       {titreField}
       {gradeField}
-      {required && (
-        <input type="hidden" name={name} value={value || ''} required={required} aria-hidden="true" />
-      )}
     </div>
   );
 }

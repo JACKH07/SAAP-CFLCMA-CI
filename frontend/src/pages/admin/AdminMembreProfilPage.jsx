@@ -171,7 +171,7 @@ export default function AdminMembreProfilPage() {
                 </div>
                 <div>
                   <div className="muted tiny">Titre</div>
-                  <div>{titreNom(profile.role)}</div>
+                  <div>{titreNom(profile.role, profile.titre)}</div>
                 </div>
                 <div>
                   <div className="muted tiny">Grades</div>
@@ -304,7 +304,7 @@ export default function AdminMembreProfilPage() {
                 </div>
                 <div>
                   <span>Titre</span>
-                  <strong>{titreNom(profile.role)}</strong>
+                  <strong>{titreNom(profile.role, profile.titre)}</strong>
                 </div>
                 <div>
                   <span>Grades</span>

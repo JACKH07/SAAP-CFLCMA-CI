@@ -461,7 +461,7 @@ export default function AdminDashboardPage() {
                           </div>
                         </div>
                       </td>
-                      <td>{titreNom(m.role)}</td>
+                      <td>{titreNom(m.role, m.titre)}</td>
                       <td>{gradeNom(m.role)}</td>
                       <td>{m.region?.nom || '—'}</td>
                       <td>{m.district?.nom || '—'}</td>

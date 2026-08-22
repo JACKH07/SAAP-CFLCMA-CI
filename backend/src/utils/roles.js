@@ -23,7 +23,8 @@ function isSuperAdmin(membre) {
 }
 
 function isCoordinateurGeneral(membre) {
-  return membre?.role?.nom === ROLE_COORDINATEUR_GENERAL;
+  const nom = membre?.titre?.nom || membre?.role?.nom;
+  return nom === ROLE_COORDINATEUR_GENERAL || nom === 'Coordinateur général (C.G.)';
 }
 
 /** @deprecated alias */

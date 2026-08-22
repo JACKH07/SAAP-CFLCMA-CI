@@ -11,7 +11,8 @@ export function roleCategoryLabel(role) {
   return isTitreRole(role) ? 'Titre' : 'Grades';
 }
 
-export function titreNom(role) {
+export function titreNom(role, titre) {
+  if (titre?.nom) return titre.nom;
   return isTitreRole(role) ? role.nom : '—';
 }
 

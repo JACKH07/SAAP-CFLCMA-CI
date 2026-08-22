@@ -5,6 +5,7 @@ import { useAutocomplete } from '../../hooks/useAutocomplete';
 import DateInputFr from '../../components/DateInputFr';
 import PasswordInput from '../../components/PasswordInput';
 import RoleSelect from '../../components/RoleSelect';
+import ComboboxField from '../../components/ComboboxField';
 import './AdminPages.css';
 
 const RESPONSABILITES = [
@@ -31,6 +32,7 @@ const EMPTY_CREATE = {
   email: '',
   password: '',
   roleId: '',
+  titreId: '',
   regionId: '',
   districtId: '',
   situationMatrimoniale: '',
@@ -94,6 +96,7 @@ export default function AdminBureauPage() {
   const [search, setSearch] = useState('');
   const [membreSearch, setMembreSearch] = useState('');
   const [paroisseId, setParoisseId] = useState(null);
+  const [districtNom, setDistrictNom] = useState('');
 
   const [createForm, setCreateForm] = useState(EMPTY_CREATE);
   const [assignForm, setAssignForm] = useState({
@@ -178,6 +181,7 @@ export default function AdminBureauPage() {
       const next = { ...f, [name]: value };
       if (name === 'regionId') {
         next.districtId = '';
+        setDistrictNom('');
         setParoisseId(null);
         paroisseAc.setQuery('');
         communauteAc.setQuery('');
@@ -212,8 +216,10 @@ export default function AdminBureauPage() {
         email: createForm.email.trim() || null,
         password: createForm.password,
         roleId: Number(createForm.roleId),
+        titreId: createForm.titreId ? Number(createForm.titreId) : null,
         regionId: createForm.regionId ? Number(createForm.regionId) : null,
         districtId: createForm.districtId ? Number(createForm.districtId) : null,
+        districtNom: districtNom.trim() || undefined,
         paroisseId: paroisseId || undefined,
         paroisseNom: paroisseAc.query.trim() || undefined,
         communauteId: undefined,
@@ -226,6 +232,7 @@ export default function AdminBureauPage() {
       setMsg('Membre du bureau créé');
       setCreateForm(EMPTY_CREATE);
       setParoisseId(null);
+      setDistrictNom('');
       paroisseAc.setQuery('');
       communauteAc.setQuery('');
       await load();
@@ -410,8 +417,10 @@ export default function AdminBureauPage() {
                   <RoleSelect
                     id="bureau-role"
                     name="roleId"
+                    titreName="titreId"
                     roles={roles}
                     value={createForm.roleId}
+                    titreValue={createForm.titreId}
                     onChange={onCreateChange}
                     required
                   />
@@ -462,23 +471,33 @@ export default function AdminBureauPage() {
                     ))}
                   </select>
                 </div>
-                <div className="form-group">
-                  <label htmlFor="bureau-district">District</label>
-                  <select
-                    id="bureau-district"
-                    name="districtId"
-                    value={createForm.districtId}
-                    onChange={onCreateChange}
-                    disabled={!createForm.regionId}
-                  >
-                    <option value="">—</option>
-                    {districts.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.nom}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <ComboboxField
+                  id="bureau-district"
+                  label="District"
+                  value={districtNom}
+                  selectedId={createForm.districtId}
+                  items={districts}
+                  disabled={!createForm.regionId}
+                  placeholder="Choisir dans la liste ou saisir…"
+                  emptyListLabel="Aucun district dans cette région"
+                  onChange={(value) => {
+                    setDistrictNom(value);
+                    const match = districts.find(
+                      (d) => d.nom.toLowerCase() === value.trim().toLowerCase()
+                    );
+                    setCreateForm((f) => ({ ...f, districtId: match ? String(match.id) : '' }));
+                    setParoisseId(null);
+                    paroisseAc.setQuery('');
+                    communauteAc.setQuery('');
+                  }}
+                  onSelect={(item) => {
+                    setDistrictNom(item.nom);
+                    setCreateForm((f) => ({ ...f, districtId: String(item.id) }));
+                    setParoisseId(null);
+                    paroisseAc.setQuery('');
+                    communauteAc.setQuery('');
+                  }}
+                />
                 <div className="form-group autocomplete">
                   <label htmlFor="bureau-paroisse">Paroisse</label>
                   <input
@@ -489,7 +508,7 @@ export default function AdminBureauPage() {
                       setParoisseId(null);
                       communauteAc.setQuery('');
                     }}
-                    disabled={!createForm.districtId}
+                    disabled={!createForm.districtId && !districtNom.trim()}
                     placeholder="Rechercher…"
                     autoComplete="off"
                   />
