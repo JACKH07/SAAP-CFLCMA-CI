@@ -29,7 +29,7 @@ export default function ComboboxField({
     : items;
 
   return (
-    <div className="form-group autocomplete">
+    <div className={`form-group autocomplete${open && !disabled ? ' is-open' : ''}`}>
       {label && (
         <label htmlFor={id}>
           {label}
@@ -63,7 +63,10 @@ export default function ComboboxField({
           aria-label="Afficher la liste"
           onMouseDown={(e) => {
             e.preventDefault();
-            if (!disabled) setOpen((isOpen) => !isOpen);
+            if (disabled) return;
+            setOpen((isOpen) => !isOpen);
+            const input = document.getElementById(id);
+            if (input) input.focus();
           }}
         />
       </div>

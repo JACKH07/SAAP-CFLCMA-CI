@@ -97,6 +97,8 @@ export default function AdminBureauPage() {
   const [membreSearch, setMembreSearch] = useState('');
   const [paroisseId, setParoisseId] = useState(null);
   const [districtNom, setDistrictNom] = useState('');
+  const [paroisses, setParoisses] = useState([]);
+  const [paroisseNom, setParoisseNom] = useState('');
 
   const [createForm, setCreateForm] = useState(EMPTY_CREATE);
   const [assignForm, setAssignForm] = useState({
@@ -105,10 +107,6 @@ export default function AdminBureauPage() {
     responsabiliteAutre: '',
   });
 
-  const paroisseAc = useAutocomplete({
-    endpoint: '/paroisses',
-    params: createForm.districtId ? { districtId: createForm.districtId } : {},
-  });
   const communauteAc = useAutocomplete({
     endpoint: '/communautes',
     params: paroisseId ? { paroisseId } : {},
@@ -144,6 +142,17 @@ export default function AdminBureauPage() {
       setDistricts(res.data.data || []);
     });
   }, [createForm.regionId]);
+
+  useEffect(() => {
+    if (!createForm.districtId) {
+      setParoisses([]);
+      return;
+    }
+    api
+      .get('/paroisses', { params: { districtId: createForm.districtId, limit: 100 } })
+      .then((res) => setParoisses(res.data.data || []))
+      .catch(() => setParoisses([]));
+  }, [createForm.districtId]);
 
   const bureauMembres = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -183,12 +192,13 @@ export default function AdminBureauPage() {
         next.districtId = '';
         setDistrictNom('');
         setParoisseId(null);
-        paroisseAc.setQuery('');
+        setParoisseNom('');
+        setParoisses([]);
         communauteAc.setQuery('');
       }
       if (name === 'districtId') {
         setParoisseId(null);
-        paroisseAc.setQuery('');
+        setParoisseNom('');
         communauteAc.setQuery('');
       }
       return next;
@@ -221,7 +231,7 @@ export default function AdminBureauPage() {
         districtId: createForm.districtId ? Number(createForm.districtId) : null,
         districtNom: districtNom.trim() || undefined,
         paroisseId: paroisseId || undefined,
-        paroisseNom: paroisseAc.query.trim() || undefined,
+        paroisseNom: paroisseNom.trim() || undefined,
         communauteId: undefined,
         communauteNom: communauteAc.query.trim() || undefined,
         situationMatrimoniale: createForm.situationMatrimoniale || null,
@@ -233,7 +243,8 @@ export default function AdminBureauPage() {
       setCreateForm(EMPTY_CREATE);
       setParoisseId(null);
       setDistrictNom('');
-      paroisseAc.setQuery('');
+      setParoisseNom('');
+      setParoisses([]);
       communauteAc.setQuery('');
       await load();
     } catch (err) {
@@ -487,56 +498,47 @@ export default function AdminBureauPage() {
                     );
                     setCreateForm((f) => ({ ...f, districtId: match ? String(match.id) : '' }));
                     setParoisseId(null);
-                    paroisseAc.setQuery('');
+                    setParoisseNom('');
                     communauteAc.setQuery('');
                   }}
                   onSelect={(item) => {
                     setDistrictNom(item.nom);
                     setCreateForm((f) => ({ ...f, districtId: String(item.id) }));
                     setParoisseId(null);
-                    paroisseAc.setQuery('');
+                    setParoisseNom('');
                     communauteAc.setQuery('');
                   }}
                 />
-                <div className="form-group autocomplete">
-                  <label htmlFor="bureau-paroisse">Paroisse</label>
-                  <input
-                    id="bureau-paroisse"
-                    value={paroisseAc.query}
-                    onChange={(e) => {
-                      paroisseAc.setQuery(e.target.value);
-                      setParoisseId(null);
-                      communauteAc.setQuery('');
-                    }}
-                    disabled={!createForm.districtId && !districtNom.trim()}
-                    placeholder="Rechercher…"
-                    autoComplete="off"
-                  />
-                  {paroisseAc.open && paroisseAc.suggestions.length > 0 && (
-                    <div className="autocomplete-list">
-                      {paroisseAc.suggestions.map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => {
-                            paroisseAc.select(p);
-                            setParoisseId(p.id);
-                            communauteAc.setQuery('');
-                          }}
-                        >
-                          {p.nom}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <ComboboxField
+                  id="bureau-paroisse"
+                  label="Paroisse"
+                  value={paroisseNom}
+                  selectedId={paroisseId || ''}
+                  items={paroisses}
+                  disabled={!createForm.districtId && !districtNom.trim()}
+                  placeholder="Choisir dans la liste ou saisir…"
+                  emptyListLabel="Aucune paroisse dans ce district"
+                  onChange={(value) => {
+                    setParoisseNom(value);
+                    const match = paroisses.find(
+                      (p) => p.nom.toLowerCase() === value.trim().toLowerCase()
+                    );
+                    setParoisseId(match ? match.id : null);
+                    communauteAc.setQuery('');
+                  }}
+                  onSelect={(item) => {
+                    setParoisseNom(item.nom);
+                    setParoisseId(item.id);
+                    communauteAc.setQuery('');
+                  }}
+                />
                 <div className="form-group autocomplete">
                   <label htmlFor="bureau-communaute">Communauté</label>
                   <input
                     id="bureau-communaute"
                     value={communauteAc.query}
                     onChange={(e) => communauteAc.setQuery(e.target.value)}
-                    disabled={!paroisseId && !paroisseAc.query}
+                    disabled={!paroisseId && !paroisseNom.trim()}
                     placeholder="Rechercher…"
                     autoComplete="off"
                   />

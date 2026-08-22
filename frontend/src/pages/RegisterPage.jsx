@@ -39,7 +39,6 @@ export default function RegisterPage() {
   const [districtNom, setDistrictNom] = useState('');
   const [paroisses, setParoisses] = useState([]);
   const [paroisseNom, setParoisseNom] = useState('');
-  const [paroisseOpen, setParoisseOpen] = useState(false);
   const [roles, setRoles] = useState([]);
   const [message, setMessage] = useState('');
   const [localError, setLocalError] = useState('');
@@ -69,59 +68,48 @@ export default function RegisterPage() {
       setDistrictNom('');
       setParoisses([]);
       setParoisseNom('');
-      setParoisseOpen(false);
       communauteAc.setQuery('');
     });
   }, [form.regionId]);
 
   useEffect(() => {
-    setForm((f) => ({ ...f, paroisseId: '' }));
-    setParoisseNom('');
-    setParoisseOpen(false);
-    communauteAc.setQuery('');
     if (!form.districtId) {
       setParoisses([]);
       return;
     }
     api
-      .get('/paroisses', { params: { districtId: form.districtId, limit: 100, search: '' } })
-      .then((res) => setParoisses(res.data.data || []));
+      .get('/paroisses', { params: { districtId: form.districtId, limit: 100 } })
+      .then((res) => setParoisses(res.data.data || []))
+      .catch(() => setParoisses([]));
   }, [form.districtId]);
-
-  const paroisseQuery = paroisseNom.trim().toLowerCase();
-  const paroissesFiltrees = paroisseQuery
-    ? paroisses.filter((p) => p.nom.toLowerCase().includes(paroisseQuery))
-    : paroisses;
-  const paroisseExacte = paroisses.find((p) => p.nom.toLowerCase() === paroisseQuery);
 
   function onChange(e) {
     const { name, value } = e.target;
     setForm((f) => ({ ...f, [name]: value }));
   }
 
-  function resetParoisse() {
-    setForm((f) => ({ ...f, paroisseId: '' }));
-    setParoisseNom('');
-    setParoisseOpen(false);
-    setParoisses([]);
-    communauteAc.setQuery('');
+  function applyDistrict(nextId, nextNom) {
+    const districtChanged = String(form.districtId || '') !== String(nextId || '');
+    setDistrictNom(nextNom);
+    setForm((f) => ({ ...f, districtId: nextId, ...(districtChanged ? { paroisseId: '' } : {}) }));
+    if (districtChanged) {
+      setParoisseNom('');
+      communauteAc.setQuery('');
+      if (!nextId) setParoisses([]);
+    }
   }
 
   function onDistrictChange(value) {
-    setDistrictNom(value);
     const match = districts.find((d) => d.nom.toLowerCase() === value.trim().toLowerCase());
-    setForm((f) => ({ ...f, districtId: match ? String(match.id) : '' }));
-    resetParoisse();
+    applyDistrict(match ? String(match.id) : '', value);
   }
 
   function onDistrictSelect(item) {
-    setDistrictNom(item.nom);
-    setForm((f) => ({ ...f, districtId: String(item.id) }));
+    applyDistrict(String(item.id), item.nom);
   }
 
   function onParoisseChange(value) {
     setParoisseNom(value);
-    setParoisseOpen(true);
     const match = paroisses.find((p) => p.nom.toLowerCase() === value.trim().toLowerCase());
     setForm((f) => ({ ...f, paroisseId: match ? String(match.id) : '' }));
     communauteAc.setQuery('');
@@ -129,14 +117,8 @@ export default function RegisterPage() {
 
   function onParoisseSelect(item) {
     setParoisseNom(item.nom);
-    setParoisseOpen(false);
     setForm((f) => ({ ...f, paroisseId: String(item.id) }));
     communauteAc.setQuery('');
-  }
-
-  function toggleParoisseListe() {
-    if (!districtNom.trim()) return;
-    setParoisseOpen((open) => !open);
   }
 
   async function onSubmit(e) {
@@ -368,66 +350,18 @@ export default function RegisterPage() {
             onChange={onDistrictChange}
             onSelect={onDistrictSelect}
           />
-          <div className="form-group autocomplete">
-            <label htmlFor="paroisse">
-              Paroisse <span className="req">*</span>
-            </label>
-            <div className="combobox">
-              <input
-                id="paroisse"
-                value={paroisseNom}
-                onChange={(e) => onParoisseChange(e.target.value)}
-                onFocus={() => setParoisseOpen(true)}
-                onBlur={() => setTimeout(() => setParoisseOpen(false), 150)}
-                placeholder="Choisir ou saisir…"
-                required
-                disabled={!districtNom.trim()}
-                autoComplete="off"
-                role="combobox"
-                aria-expanded={paroisseOpen}
-                aria-controls="paroisse-list"
-                aria-autocomplete="list"
-              />
-              <button
-                type="button"
-                className="combobox-caret"
-                tabIndex={-1}
-                disabled={!districtNom.trim()}
-                aria-label="Afficher la liste des paroisses"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  toggleParoisseListe();
-                }}
-              />
-            </div>
-            {paroisseOpen && districtNom.trim() && (
-              <div id="paroisse-list" className="autocomplete-list" role="listbox">
-                {paroissesFiltrees.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    role="option"
-                    aria-selected={String(item.id) === String(form.paroisseId)}
-                    onMouseDown={() => onParoisseSelect(item)}
-                  >
-                    {item.nom}
-                  </button>
-                ))}
-                {paroisseNom.trim() && !paroisseExacte && (
-                  <button
-                    type="button"
-                    className="is-create"
-                    onMouseDown={() => setParoisseOpen(false)}
-                  >
-                    Ajouter « {paroisseNom.trim()} »
-                  </button>
-                )}
-                {paroissesFiltrees.length === 0 && !paroisseNom.trim() && form.districtId && (
-                  <div className="autocomplete-empty">Aucune paroisse dans ce district</div>
-                )}
-              </div>
-            )}
-          </div>
+          <ComboboxField
+            id="paroisse"
+            label="Paroisse"
+            required
+            value={paroisseNom}
+            selectedId={form.paroisseId}
+            items={paroisses}
+            disabled={!districtNom.trim()}
+            emptyListLabel="Aucune paroisse dans ce district"
+            onChange={onParoisseChange}
+            onSelect={onParoisseSelect}
+          />
           <div className="form-group autocomplete">
             <label htmlFor="communaute">
               Communauté <span className="req">*</span>

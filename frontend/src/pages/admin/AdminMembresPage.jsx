@@ -72,16 +72,13 @@ export default function AdminMembresPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [paroisseId, setParoisseId] = useState(null);
   const [districtNom, setDistrictNom] = useState('');
+  const [paroisses, setParoisses] = useState([]);
+  const [paroisseNom, setParoisseNom] = useState('');
   const [photo, setPhoto] = useState(null);
 
   const [regions, setRegions] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [roles, setRoles] = useState([]);
-
-  const paroisseAc = useAutocomplete({
-    endpoint: '/paroisses',
-    params: form.districtId ? { districtId: form.districtId } : {},
-  });
 
   const communauteAc = useAutocomplete({
     endpoint: '/communautes',
@@ -154,6 +151,17 @@ export default function AdminMembresPage() {
       setDistricts(res.data.data || []);
     });
   }, [form.regionId]);
+
+  useEffect(() => {
+    if (!form.districtId) {
+      setParoisses([]);
+      return;
+    }
+    api
+      .get('/paroisses', { params: { districtId: form.districtId, limit: 100 } })
+      .then((res) => setParoisses(res.data.data || []))
+      .catch(() => setParoisses([]));
+  }, [form.districtId]);
 
   // Ouverture modification depuis la page profil (bouton Modifier)
   useEffect(() => {
@@ -251,7 +259,7 @@ export default function AdminMembresPage() {
     });
     setDistrictNom(m.district?.nom || '');
     setParoisseId(m.paroisseId || null);
-    paroisseAc.setQuery(m.paroisse?.nom || '');
+    setParoisseNom(m.paroisse?.nom || '');
     communauteAc.setQuery(m.communaute?.nom || '');
   }
 
@@ -260,7 +268,8 @@ export default function AdminMembresPage() {
     setForm(EMPTY_FORM);
     setParoisseId(null);
     setDistrictNom('');
-    paroisseAc.setQuery('');
+    setParoisseNom('');
+    setParoisses([]);
     communauteAc.setQuery('');
     setPhoto(null);
   }
@@ -269,7 +278,8 @@ export default function AdminMembresPage() {
     setForm({ ...EMPTY_FORM, statut: 'VALIDE' });
     setParoisseId(null);
     setDistrictNom('');
-    paroisseAc.setQuery('');
+    setParoisseNom('');
+    setParoisses([]);
     communauteAc.setQuery('');
     setPhoto(null);
   }
@@ -301,12 +311,13 @@ export default function AdminMembresPage() {
     if (name === 'regionId') {
       setDistrictNom('');
       setParoisseId(null);
-      paroisseAc.setQuery('');
+      setParoisseNom('');
+      setParoisses([]);
       communauteAc.setQuery('');
     }
     if (name === 'districtId') {
       setParoisseId(null);
-      paroisseAc.setQuery('');
+      setParoisseNom('');
       communauteAc.setQuery('');
     }
   }
@@ -345,7 +356,7 @@ export default function AdminMembresPage() {
         regionId: form.regionId ? Number(form.regionId) : '',
         districtId: form.districtId ? Number(form.districtId) : '',
         districtNom: districtNom.trim() || '',
-        paroisseNom: paroisseAc.query.trim() || '',
+        paroisseNom: paroisseNom.trim() || '',
         paroisseId: paroisseId || '',
         communauteNom: communauteAc.query.trim() || '',
       };
@@ -396,7 +407,7 @@ export default function AdminMembresPage() {
         regionId: form.regionId ? Number(form.regionId) : null,
         districtId: form.districtId ? Number(form.districtId) : null,
         districtNom: districtNom.trim() || undefined,
-        paroisseNom: paroisseAc.query.trim() || undefined,
+        paroisseNom: paroisseNom.trim() || undefined,
         paroisseId: paroisseId || undefined,
         communauteNom: communauteAc.query.trim() || undefined,
       };
@@ -700,49 +711,38 @@ export default function AdminMembresPage() {
               const match = districts.find((d) => d.nom.toLowerCase() === value.trim().toLowerCase());
               setForm((f) => ({ ...f, districtId: match ? String(match.id) : '' }));
               setParoisseId(null);
-              paroisseAc.setQuery('');
+              setParoisseNom('');
               communauteAc.setQuery('');
             }}
             onSelect={(item) => {
               setDistrictNom(item.nom);
               setForm((f) => ({ ...f, districtId: String(item.id) }));
               setParoisseId(null);
-              paroisseAc.setQuery('');
+              setParoisseNom('');
               communauteAc.setQuery('');
             }}
           />
-          <div className="form-group autocomplete">
-            <label htmlFor="paroisse">Paroisse CMA</label>
-            <input
-              id="paroisse"
-              value={paroisseAc.query}
-              onChange={(e) => {
-                paroisseAc.setQuery(e.target.value);
-                setParoisseId(null);
-                communauteAc.setQuery('');
-              }}
-              onBlur={() => setTimeout(paroisseAc.close, 150)}
-              placeholder="Saisir ou choisir…"
-              disabled={!form.districtId && !districtNom.trim()}
-              autoComplete="off"
-            />
-            {paroisseAc.open && paroisseAc.suggestions.length > 0 && (
-              <div className="autocomplete-list">
-                {paroisseAc.suggestions.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onMouseDown={() => {
-                      paroisseAc.select(item);
-                      setParoisseId(item.id);
-                    }}
-                  >
-                    {item.nom}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <ComboboxField
+            id="paroisse"
+            label="Paroisse CMA"
+            value={paroisseNom}
+            selectedId={paroisseId || ''}
+            items={paroisses}
+            disabled={!form.districtId && !districtNom.trim()}
+            placeholder="Choisir dans la liste ou saisir…"
+            emptyListLabel="Aucune paroisse dans ce district"
+            onChange={(value) => {
+              setParoisseNom(value);
+              const match = paroisses.find((p) => p.nom.toLowerCase() === value.trim().toLowerCase());
+              setParoisseId(match ? match.id : null);
+              communauteAc.setQuery('');
+            }}
+            onSelect={(item) => {
+              setParoisseNom(item.nom);
+              setParoisseId(item.id);
+              communauteAc.setQuery('');
+            }}
+          />
           <div className="form-group autocomplete">
             <label htmlFor="communaute">Communauté CMA</label>
             <input
@@ -751,7 +751,7 @@ export default function AdminMembresPage() {
               onChange={(e) => communauteAc.setQuery(e.target.value)}
               onBlur={() => setTimeout(communauteAc.close, 150)}
               placeholder="Saisir ou choisir…"
-              disabled={!paroisseAc.query}
+              disabled={!paroisseNom.trim()}
               autoComplete="off"
             />
             {communauteAc.open && communauteAc.suggestions.length > 0 && (
