@@ -13,6 +13,7 @@ const membreRoutes = require('./routes/membreRoutes');
 const cotisationRoutes = require('./routes/cotisationRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const uploadServe = require('./middlewares/uploadServe');
+const { createOrangeWebpayProxy } = require('./middlewares/orangeWebpayProxy');
 const cotisationService = require('./services/cotisationService');
 
 cotisationService.ensureUploadDir();
@@ -30,6 +31,8 @@ if (config.appEnv === 'production' || config.appEnv === 'preprod') {
     next();
   });
 }
+
+app.use(createOrangeWebpayProxy());
 
 app.use(
   helmet({
@@ -74,7 +77,12 @@ const serveFrontend =
 if (serveFrontend) {
   app.use(express.static(publicDir));
   app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+    if (
+      req.path.startsWith('/api') ||
+      req.path.startsWith('/uploads') ||
+      req.path.startsWith('/sx') ||
+      req.path.startsWith('/ci')
+    ) {
       return next();
     }
     return res.sendFile(path.join(publicDir, 'index.html'), (err) => {

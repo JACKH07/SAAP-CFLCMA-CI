@@ -13,6 +13,8 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': apiProxyTarget,
         '/uploads': apiProxyTarget,
+        '/sx': apiProxyTarget,
+        '/ci': apiProxyTarget,
       },
     },
   };

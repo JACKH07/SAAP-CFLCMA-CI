@@ -6,12 +6,7 @@ import api from '../api/client';
 import { useAuthStore } from '../store/authStore';
 import { paths } from '../config/env';
 import { enabledPaymentMethods } from '../payments/paymentMethods';
-import {
-  chromeIntentUrl,
-  isAndroidDevice,
-  redirectToOrangeCheckout,
-  toWebPayCheckoutUrl,
-} from '../payments/orangeWebpay';
+import { toSameOriginCheckoutUrl, toWebPayCheckoutUrl } from '../payments/orangeWebpay';
 import './PaiementPage.css';
 
 const METHODS = enabledPaymentMethods();
@@ -44,7 +39,6 @@ export default function PaiementPage() {
   const [loadingMeta, setLoadingMeta] = useState(true);
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
-  const [pendingInfo, setPendingInfo] = useState(null);
 
   useEffect(() => {
     if (!activiteId) {
@@ -91,7 +85,6 @@ export default function PaiementPage() {
     e.preventDefault();
     setErr('');
     setMsg('');
-    setPendingInfo(null);
     const value = Number(montant);
     if (!Number.isFinite(value) || value <= 0) {
       setErr('Saisissez un montant valide en FCFA');
@@ -118,22 +111,9 @@ export default function PaiementPage() {
           ? toWebPayCheckoutUrl(result.paymentUrl, result.payToken)
           : result.paymentUrl;
       if (checkoutUrl) {
-        setPendingInfo({
-          message:
-            provider === 'ORANGE'
-              ? 'Redirection vers la page Orange Money WebPay…'
-              : 'Redirection vers la page de paiement…',
-          paymentUrl: checkoutUrl,
-          reference: result.referenceExterne,
-          intercepted: false,
-          provider,
-        });
-        window.setTimeout(() => {
-          setPendingInfo((current) =>
-            current ? { ...current, intercepted: true } : current
-          );
-        }, 1800);
-        redirectToOrangeCheckout(checkoutUrl);
+        window.location.assign(
+          provider === 'ORANGE' ? toSameOriginCheckoutUrl(checkoutUrl) : checkoutUrl
+        );
         return;
       }
 
@@ -180,39 +160,6 @@ export default function PaiementPage() {
         {loadingMeta && <p className="muted">Chargement…</p>}
         {msg && <div className="alert alert-success">{msg}</div>}
         {err && <div className="alert alert-error">{err}</div>}
-        {pendingInfo && (
-          <div className="alert alert-pending">
-            <strong>En attente</strong>
-            <p>{pendingInfo.message}</p>
-            {pendingInfo.reference && (
-              <p className="muted tiny">Réf. {pendingInfo.reference}</p>
-            )}
-            {pendingInfo.paymentUrl && (
-              <>
-                <a className="btn btn-block" href={pendingInfo.paymentUrl} target="_self">
-                  {pendingInfo.provider === 'WAVE'
-                    ? 'Ouvrir Wave'
-                    : 'Ouvrir la page Orange Money'}
-                </a>
-                {pendingInfo.provider !== 'WAVE' && isAndroidDevice() && (
-                  <a
-                    className="btn btn-secondary btn-block"
-                    href={chromeIntentUrl(pendingInfo.paymentUrl)}
-                  >
-                    Ouvrir dans Chrome (éviter Maxit)
-                  </a>
-                )}
-                {pendingInfo.provider !== 'WAVE' && pendingInfo.intercepted && (
-                  <p className="muted tiny">
-                    La page Orange Money doit s’ouvrir dans le navigateur (titre « Orange
-                    Money Payment »). Si Maxit s’ouvre, fermez-la et utilisez « Ouvrir dans
-                    Chrome ».
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-        )}
 
         {activite && (
           <>

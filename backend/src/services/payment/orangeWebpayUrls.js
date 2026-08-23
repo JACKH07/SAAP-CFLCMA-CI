@@ -65,6 +65,23 @@ function clipOrangeField(value, maxLength) {
   return text.length <= maxLength ? text : text.slice(0, maxLength);
 }
 
+function isOrangeWebpayHost(hostname) {
+  const host = String(hostname || '').toLowerCase();
+  return host === 'mpayment.orange-money.com' || host === 'webpayment.orange-money.com';
+}
+
+/** Chemin local /sx/... pour afficher WebPay sans sortir vers Maxit. */
+function toProxiedCheckoutPath(paymentUrl) {
+  try {
+    const parsed = new URL(String(paymentUrl));
+    if (!isOrangeWebpayHost(parsed.hostname)) return null;
+    if (!/^\/(sx|ci|dev)\/mpayment(\/|$)/i.test(parsed.pathname)) return null;
+    return `${parsed.pathname}${parsed.search}`;
+  } catch {
+    return null;
+  }
+}
+
 module.exports = {
   MPAYMENT_HOST,
   ORANGE_URL_MAX_LENGTH,
@@ -75,7 +92,9 @@ module.exports = {
   extractNotifToken,
   isHttpUrl,
   isAppOrDeepLink,
+  isOrangeWebpayHost,
   checkoutUrlFromPayToken,
   resolveCheckoutUrl,
+  toProxiedCheckoutPath,
   clipOrangeField,
 };

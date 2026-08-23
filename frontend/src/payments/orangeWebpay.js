@@ -19,21 +19,22 @@ export function toWebPayCheckoutUrl(paymentUrl, payToken) {
   return paymentUrl || null;
 }
 
-export function chromeIntentUrl(httpsUrl) {
+/**
+ * Même page WebPay, servie sur notre domaine (/sx/...) pour :
+ * - rester en navigation complète (cookies + code secret)
+ * - ne pas déclencher Maxit
+ */
+export function toSameOriginCheckoutUrl(paymentUrl) {
+  if (!paymentUrl || typeof window === 'undefined') return paymentUrl;
   try {
-    const parsed = new URL(httpsUrl);
-    return `intent://${parsed.host}${parsed.pathname}${parsed.search}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(httpsUrl)};end`;
+    const parsed = new URL(paymentUrl, window.location.origin);
+    const host = parsed.hostname.toLowerCase();
+    const isOrange =
+      host === 'mpayment.orange-money.com' || host === 'webpayment.orange-money.com';
+    if (!isOrange) return paymentUrl;
+    if (!/^\/(sx|ci|dev)\/mpayment(\/|$)/i.test(parsed.pathname)) return paymentUrl;
+    return `${window.location.origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
-    return httpsUrl;
+    return paymentUrl;
   }
-}
-
-export function isAndroidDevice() {
-  if (typeof navigator === 'undefined') return false;
-  return /Android/i.test(navigator.userAgent);
-}
-
-export function redirectToOrangeCheckout(url) {
-  if (!url || typeof window === 'undefined') return;
-  window.location.assign(isAndroidDevice() ? chromeIntentUrl(url) : url);
 }
