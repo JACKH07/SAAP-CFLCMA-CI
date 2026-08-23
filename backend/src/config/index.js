@@ -15,6 +15,16 @@ require('dotenv').config({
 const nodeEnv = process.env.NODE_ENV || 'development';
 const appEnv = process.env.APP_ENV || nodeEnv;
 
+/** Sandbox tant que l’app Orange Developer n’est pas abonnée à WebPay CI. */
+function resolveOrangeWebpayEnv() {
+  const raw = String(process.env.ORANGE_MONEY_ENV || 'dev').toLowerCase();
+  if (raw === 'ci' && process.env.ORANGE_MONEY_ALLOW_CI === 'true') return 'ci';
+  return 'dev';
+}
+
+const orangeWebpayEnv = resolveOrangeWebpayEnv();
+const orangeCurrency = orangeWebpayEnv === 'ci' ? 'XOF' : 'OUV';
+
 if ((appEnv === 'production' || appEnv === 'preprod') && (!process.env.JWT_SECRET || process.env.JWT_SECRET.includes('change'))) {
   console.warn(
     `[config] ATTENTION (${appEnv}) : définissez un JWT_SECRET fort et unique dans .env.${appEnv}`
@@ -66,10 +76,8 @@ module.exports = {
   orangeMoney: {
     apiUrl: process.env.ORANGE_MONEY_API_URL || 'https://api.orange.com/orange-money-webpay',
     oauthUrl: process.env.ORANGE_MONEY_OAUTH_URL || 'https://api.orange.com/oauth/v3/token',
-    env: process.env.ORANGE_MONEY_ENV || 'dev',
-    currency:
-      process.env.ORANGE_MONEY_CURRENCY ||
-      (process.env.ORANGE_MONEY_ENV === 'ci' ? 'XOF' : 'OUV'),
+    env: orangeWebpayEnv,
+    currency: orangeCurrency,
     clientId: process.env.ORANGE_MONEY_CLIENT_ID,
     clientSecret: process.env.ORANGE_MONEY_CLIENT_SECRET,
     merchantKey: process.env.ORANGE_MONEY_MERCHANT_KEY,

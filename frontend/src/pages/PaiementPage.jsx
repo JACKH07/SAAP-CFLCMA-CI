@@ -108,23 +108,28 @@ export default function PaiementPage() {
       const status = String(result.status || '').toUpperCase();
 
       if (result.paymentUrl) {
-        window.location.assign(result.paymentUrl);
+        setPendingInfo({
+          message: 'Redirection vers Maxit / Orange Money…',
+          paymentUrl: result.paymentUrl,
+          reference: result.referenceExterne,
+        });
+        window.location.replace(result.paymentUrl);
         return;
       }
 
-      if (status === 'SUCCESS' || status === 'SUCCESSFUL') {
-        setMsg(result.message || 'Paiement enregistré');
+      if (result.mock || status === 'SUCCESS' || status === 'SUCCESSFUL') {
+        setMsg(
+          result.mock
+            ? 'Paiement simulé (mode test). Aucune redirection Maxit — désactivez PAYMENT_MOCK_MODE sur le serveur.'
+            : result.message || 'Paiement enregistré'
+        );
         setMontant('');
       } else if (status === 'FAILED') {
         setErr(result.message || 'Paiement refusé');
       } else {
-        setPendingInfo((prev) => ({
-          ...(prev || {}),
-          message:
-            result.message ||
-            'Paiement en attente de confirmation par l’opérateur.',
-          reference: result.referenceExterne || prev?.reference,
-        }));
+        setErr(
+          'Orange Money n’a pas renvoyé de lien Maxit. Vérifiez la configuration (ENV=ci, XOF, clés marchand).'
+        );
       }
 
       if (result.cotisation) setCotisation(result.cotisation);
@@ -163,8 +168,8 @@ export default function PaiementPage() {
               <p className="muted tiny">Réf. {pendingInfo.reference}</p>
             )}
             {pendingInfo.paymentUrl && (
-              <a href={pendingInfo.paymentUrl} target="_blank" rel="noreferrer">
-                Ouvrir la page de paiement
+              <a className="btn btn-block" href={pendingInfo.paymentUrl} rel="noreferrer">
+                Ouvrir Maxit
               </a>
             )}
           </div>

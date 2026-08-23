@@ -92,8 +92,16 @@ async function initiatePayment({
 }) {
   const { key, service } = getProviderService(provider);
 
-  if (isMockMode() || !service.isConfigured()) {
+  if (isMockMode()) {
     return mockInitiate({ provider: key, amount, orderId, phone });
+  }
+
+  if (!service.isConfigured()) {
+    throw new AppError(
+      `Paiement ${key} non configuré. Renseignez les clés opérateur et PAYMENT_MOCK_MODE=false.`,
+      503,
+      'PROVIDER_UNAVAILABLE'
+    );
   }
 
   if (key === 'ORANGE') {

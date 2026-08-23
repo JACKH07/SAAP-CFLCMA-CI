@@ -288,13 +288,17 @@ class CotisationService {
     const dejaPaye = Number(cotisation.montantPaye || 0);
     const returnBase = config.urls.mesCotisations;
     const apiBase = String(config.urls.apiPublic || '').replace(/\/$/, '');
-    const orangeOrderId = `${idPaiement}-${Date.now()}`;
+    const orangeOrderId = `CFL${Date.now().toString(36)}${Math.random()
+      .toString(36)
+      .slice(2, 6)}`
+      .toUpperCase()
+      .slice(0, 30);
 
     let providerResult;
     try {
       providerResult = await paymentGateway.initiatePayment({
         provider: providerKey,
-        amount: payAmount,
+        amount: Math.round(payAmount),
         orderId: orangeOrderId,
         reference: idPaiement,
         phone: String(phone).trim(),
