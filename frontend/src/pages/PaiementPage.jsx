@@ -39,6 +39,7 @@ export default function PaiementPage() {
   const [loadingMeta, setLoadingMeta] = useState(true);
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
+  const [step, setStep] = useState('form');
 
   useEffect(() => {
     if (!activiteId) {
@@ -69,6 +70,32 @@ export default function PaiementPage() {
     () => METHODS.find((m) => m.id === provider),
     [provider]
   );
+  const montantValue = Number(montant);
+  const hasMontant = Number.isFinite(montantValue) && montantValue > 0;
+
+  function validateForm() {
+    if (!hasMontant) {
+      setErr('Saisissez un montant valide en FCFA');
+      return false;
+    }
+    if (!provider) {
+      setErr('Choisissez un moyen de paiement');
+      return false;
+    }
+    if (!phone || String(phone).trim().length < 8) {
+      setErr('Numéro de téléphone requis');
+      return false;
+    }
+    return true;
+  }
+
+  function goRecap(e) {
+    e.preventDefault();
+    setErr('');
+    setMsg('');
+    if (!validateForm()) return;
+    setStep('recap');
+  }
 
   async function refreshCotisation() {
     const cRes = await api.get('/cotisations/me');
@@ -81,19 +108,15 @@ export default function PaiementPage() {
     return mine;
   }
 
-  async function onSubmit(e) {
+  async function confirmPayment(e) {
     e.preventDefault();
     setErr('');
     setMsg('');
-    const value = Number(montant);
-    if (!Number.isFinite(value) || value <= 0) {
-      setErr('Saisissez un montant valide en FCFA');
+    if (!validateForm()) {
+      setStep('form');
       return;
     }
-    if (!provider) {
-      setErr('Choisissez un moyen de paiement');
-      return;
-    }
+    const value = montantValue;
     setLoading(true);
     try {
       const { data } = await api.post('/cotisations', {
@@ -145,14 +168,20 @@ export default function PaiementPage() {
         <button
           type="button"
           className="paiement-back"
-          onClick={() => navigate(paths.mesCotisations)}
+          onClick={() =>
+            step === 'recap' ? setStep('form') : navigate(paths.mesCotisations)
+          }
         >
-          ← Mes cotisations
+          {step === 'recap' ? '← Modifier' : '← Mes cotisations'}
         </button>
 
         <div>
-          <h1>Paiement</h1>
-          <p className="muted">Saisissez le montant à verser — aucun montant fixe. Test Orange Money : 10.</p>
+          <h1>{step === 'recap' ? 'Récapitulatif' : 'Paiement'}</h1>
+          <p className="muted">
+            {step === 'recap'
+              ? 'Vérifiez les informations puis confirmez le paiement.'
+              : 'Saisissez le montant à verser — aucun montant fixe. Test Orange Money : 10.'}
+          </p>
         </div>
 
         {loadingMeta && <p className="muted">Chargement…</p>}
@@ -169,7 +198,8 @@ export default function PaiementPage() {
               </div>
             </div>
 
-            <form className="card" onSubmit={onSubmit}>
+            {step === 'form' && (
+            <form className="card" onSubmit={goRecap}>
               <div className="form-group">
                 <label htmlFor="montant">Montant (FCFA)</label>
                 <input
@@ -216,14 +246,51 @@ export default function PaiementPage() {
                 />
               </div>
 
-              <button className="btn btn-block" type="submit" disabled={loading}>
-                {loading
-                  ? 'Paiement…'
-                  : selectedMethod
-                    ? `Payer avec ${selectedMethod.name}`
-                    : 'Payer par Mobile Money'}
+              <button
+                className={`btn btn-block btn-pay ${hasMontant ? 'is-ready' : ''} ${
+                  hasMontant && provider === 'ORANGE' ? 'is-orange' : ''
+                } ${hasMontant && provider === 'WAVE' ? 'is-wave' : ''}`}
+                type="submit"
+                disabled={loading}
+              >
+                {selectedMethod
+                  ? `Payer avec ${selectedMethod.name}`
+                  : 'Payer par Mobile Money'}
               </button>
             </form>
+            )}
+
+            {step === 'recap' && (
+            <form className="card paiement-recap" onSubmit={confirmPayment}>
+              <dl className="paiement-recap-list">
+                <div>
+                  <dt>Activité</dt>
+                  <dd>{activite.nom}</dd>
+                </div>
+                <div>
+                  <dt>Montant</dt>
+                  <dd>{montantValue.toLocaleString('fr-FR')} FCFA</dd>
+                </div>
+                <div>
+                  <dt>Moyen</dt>
+                  <dd>{selectedMethod?.name || provider}</dd>
+                </div>
+                <div>
+                  <dt>Numéro</dt>
+                  <dd>{phone}</dd>
+                </div>
+              </dl>
+              <button
+                className={`btn btn-block btn-pay is-ready ${
+                  provider === 'ORANGE' ? 'is-orange' : ''
+                } ${provider === 'WAVE' ? 'is-wave' : ''}`}
+                type="submit"
+                disabled={loading}
+              >
+                {loading ? 'Paiement…' : 'Confirmer le paiement'}
+              </button>
+            </form>
+            )}
           </>
         )}
 

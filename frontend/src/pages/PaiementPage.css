@@ -44,6 +44,51 @@
   color: #1e293b;
 }
 
+.paiement-page .btn-pay.is-ready.is-orange {
+  background: #ff7900;
+  color: #fff;
+}
+
+.paiement-page .btn-pay.is-ready.is-orange:hover:not(:disabled) {
+  background: #e56d00;
+}
+
+.paiement-page .btn-pay.is-ready.is-wave {
+  background: #1ba7ff;
+  color: #fff;
+}
+
+.paiement-page .btn-pay.is-ready.is-wave:hover:not(:disabled) {
+  background: #0d8de0;
+}
+
+.paiement-recap-list {
+  margin: 0 0 1.15rem;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.paiement-recap-list > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.paiement-recap-list dt {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.paiement-recap-list dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+}
+
 .alert-pending {
   background: #fff7ed;
   border: 1px solid #fdba74;
