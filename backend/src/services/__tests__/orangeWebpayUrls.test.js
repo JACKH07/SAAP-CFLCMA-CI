@@ -1,5 +1,5 @@
 const {
-  WEBPAY_CHECKOUT_BASE,
+  MPAYMENT_HOST,
   isAppOrDeepLink,
   checkoutUrlFromPayToken,
   resolveCheckoutUrl,
@@ -9,55 +9,49 @@ const {
 } = require('../payment/orangeWebpayUrls');
 
 describe('orangeWebpayUrls', () => {
-  const payToken = 'f5720dd906203c62033ffe64ed75614785878b0ab2231d9c582b2908fca0ab9a';
+  const payToken = 'v1gcdfxk0pdsfhmarekfwwj3unstmmplwulegmkafztsby7rptb6cknr';
+  const orangeUrl = `${MPAYMENT_HOST}/sx/mpayment/abstract/${payToken}`;
 
-  test('détecte les liens Maxit / deep link', () => {
+  test('détecte les liens Maxit / deep link sans toucher à mpayment', () => {
     expect(isAppOrDeepLink('maxit://pay/abc')).toBe(true);
     expect(isAppOrDeepLink('intent://maxit.orange.ci#Intent;end')).toBe(true);
     expect(isAppOrDeepLink('https://maxit.orange.ci/pay/abc')).toBe(true);
-    expect(isAppOrDeepLink('https://webpayment.orange-money.com/payment/pay_token/abc')).toBe(
+    expect(isAppOrDeepLink(orangeUrl)).toBe(false);
+    expect(isAppOrDeepLink('https://webpayment.orange-money.com/ci/mpayment/abstract/abc')).toBe(
       false
     );
   });
 
-  test('construit la page WebPay officielle depuis le pay_token', () => {
-    expect(checkoutUrlFromPayToken(payToken)).toBe(`${WEBPAY_CHECKOUT_BASE}/${payToken}`);
+  test('fallback sandbox = /sx/mpayment/abstract', () => {
+    expect(checkoutUrlFromPayToken(payToken, 'dev')).toBe(orangeUrl);
   });
 
-  test('sandbox ignore un lien Maxit et utilise /payment/pay_token', () => {
+  test('fallback prod CI = /ci/mpayment/abstract', () => {
+    expect(checkoutUrlFromPayToken(payToken, 'ci')).toBe(
+      `${MPAYMENT_HOST}/ci/mpayment/abstract/${payToken}`
+    );
+  });
+
+  test('conserve la payment_url exacte renvoyée par Orange', () => {
     const url = resolveCheckoutUrl(
       {
         pay_token: payToken,
-        payment_url: 'https://maxit.orange.ci/session/xyz',
+        payment_url: orangeUrl,
       },
       'dev'
     );
-    expect(url).toBe(`${WEBPAY_CHECKOUT_BASE}/${payToken}`);
+    expect(url).toBe(orangeUrl);
   });
 
-  test('sandbox reconstruit l’URL même si payment_url est déjà WebPay', () => {
-    const url = resolveCheckoutUrl(
-      {
-        pay_token: payToken,
-        payment_url: 'https://webpayment.orange-money.com/ci/mpayment/abc',
-      },
-      'dev'
-    );
-    expect(url).toBe(`${WEBPAY_CHECKOUT_BASE}/${payToken}`);
+  test('ne remplace pas une payment_url web d’un autre pays', () => {
+    const raw = 'https://webpayment.orange-money.com/cm/mpayment/abstract/abc';
+    expect(resolveCheckoutUrl({ pay_token: payToken, payment_url: raw }, 'dev')).toBe(raw);
   });
 
-  test('production CI conserve une payment_url web', () => {
-    const raw = 'https://webpayment.orange-money.com/ci/mpayment/abc';
-    expect(resolveCheckoutUrl({ pay_token: payToken, payment_url: raw }, 'ci')).toBe(raw);
-  });
-
-  test('production CI remplace un deep link Maxit', () => {
+  test('remplace uniquement un deep link Maxit', () => {
     expect(
-      resolveCheckoutUrl(
-        { pay_token: payToken, payment_url: 'maxit://pay/abc' },
-        'ci'
-      )
-    ).toBe(`${WEBPAY_CHECKOUT_BASE}/${payToken}`);
+      resolveCheckoutUrl({ pay_token: payToken, payment_url: 'maxit://pay/abc' }, 'dev')
+    ).toBe(orangeUrl);
   });
 
   test('extrait le pay_token imbriqué', () => {

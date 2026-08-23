@@ -9,6 +9,7 @@ import { enabledPaymentMethods } from '../payments/paymentMethods';
 import {
   chromeIntentUrl,
   isAndroidDevice,
+  redirectToOrangeCheckout,
   toWebPayCheckoutUrl,
 } from '../payments/orangeWebpay';
 import './PaiementPage.css';
@@ -132,7 +133,7 @@ export default function PaiementPage() {
             current ? { ...current, intercepted: true } : current
           );
         }, 1800);
-        window.location.assign(checkoutUrl);
+        redirectToOrangeCheckout(checkoutUrl);
         return;
       }
 
@@ -193,21 +194,19 @@ export default function PaiementPage() {
                     ? 'Ouvrir Wave'
                     : 'Ouvrir la page Orange Money'}
                 </a>
-                {pendingInfo.provider !== 'WAVE' &&
-                  pendingInfo.intercepted &&
-                  isAndroidDevice() && (
-                    <a
-                      className="btn btn-secondary btn-block"
-                      href={chromeIntentUrl(pendingInfo.paymentUrl)}
-                    >
-                      Ouvrir dans Chrome (éviter Maxit)
-                    </a>
-                  )}
+                {pendingInfo.provider !== 'WAVE' && isAndroidDevice() && (
+                  <a
+                    className="btn btn-secondary btn-block"
+                    href={chromeIntentUrl(pendingInfo.paymentUrl)}
+                  >
+                    Ouvrir dans Chrome (éviter Maxit)
+                  </a>
+                )}
                 {pendingInfo.provider !== 'WAVE' && pendingInfo.intercepted && (
                   <p className="muted tiny">
-                    Si l’application Maxit s’est ouverte, revenez ici et utilisez le bouton
-                    ci-dessus : le paiement sandbox se fait sur la page web Orange Money, pas
-                    dans Maxit.
+                    La page Orange Money doit s’ouvrir dans le navigateur (titre « Orange
+                    Money Payment »). Si Maxit s’ouvre, fermez-la et utilisez « Ouvrir dans
+                    Chrome ».
                   </p>
                 )}
               </>

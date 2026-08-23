@@ -1,5 +1,5 @@
-/** Page WebPay sandbox officielle (pas Maxit). */
-const WEBPAY_CHECKOUT_BASE = 'https://webpayment.orange-money.com/payment/pay_token';
+/** Page checkout actuelle renvoyée par Orange (sandbox = /sx, prod CI = /ci). */
+const MPAYMENT_HOST = 'https://mpayment.orange-money.com';
 
 const ORANGE_URL_MAX_LENGTH = 120;
 const ORDER_ID_MAX_LENGTH = 30;
@@ -29,35 +29,34 @@ function extractNotifToken(data = {}) {
   return data.notif_token || data.notifToken || nested.notif_token || nested.notifToken || null;
 }
 
+function isHttpUrl(url) {
+  return /^https?:\/\//i.test(String(url || '').trim());
+}
+
 function isAppOrDeepLink(url) {
   const raw = String(url || '').trim();
   if (!raw) return true;
   const lower = raw.toLowerCase();
-  if (!/^https?:\/\//i.test(raw)) return true;
-  return /maxit|max-it|intent:/i.test(lower);
+  if (!isHttpUrl(raw)) return true;
+  return /(?:^|[/.])maxit(?:[/.]|$)|max-it|intent:/i.test(lower);
 }
 
-function checkoutUrlFromPayToken(payToken) {
+function checkoutUrlFromPayToken(payToken, env = 'dev') {
   if (!payToken) return null;
-  return `${WEBPAY_CHECKOUT_BASE}/${encodeURIComponent(String(payToken))}`;
+  const country = String(env).toLowerCase() === 'ci' ? 'ci' : 'sx';
+  return `${MPAYMENT_HOST}/${country}/mpayment/abstract/${encodeURIComponent(String(payToken))}`;
 }
 
 /**
- * Sandbox (/dev) : toujours la page WebPay officielle.
- * Production CI : payment_url Orange si c’est une page web, sinon fallback pay_token.
+ * Utilise toujours la payment_url d’Orange (ex. mpayment.orange-money.com/sx/...).
+ * Ne reconstruit un fallback que si le lien est absent ou n’est pas une page web.
  */
 function resolveCheckoutUrl(data = {}, env = 'dev') {
-  const payToken = extractPayToken(data);
   const raw = extractPaymentUrl(data);
-  const official = checkoutUrlFromPayToken(payToken);
-
-  if (String(env).toLowerCase() !== 'ci' && official) {
-    return official;
-  }
-  if (raw && !isAppOrDeepLink(raw)) {
+  if (raw && isHttpUrl(raw) && !isAppOrDeepLink(raw)) {
     return raw;
   }
-  return official || raw || null;
+  return checkoutUrlFromPayToken(extractPayToken(data), env) || raw || null;
 }
 
 function clipOrangeField(value, maxLength) {
@@ -67,13 +66,14 @@ function clipOrangeField(value, maxLength) {
 }
 
 module.exports = {
-  WEBPAY_CHECKOUT_BASE,
+  MPAYMENT_HOST,
   ORANGE_URL_MAX_LENGTH,
   ORDER_ID_MAX_LENGTH,
   REFERENCE_MAX_LENGTH,
   extractPaymentUrl,
   extractPayToken,
   extractNotifToken,
+  isHttpUrl,
   isAppOrDeepLink,
   checkoutUrlFromPayToken,
   resolveCheckoutUrl,
