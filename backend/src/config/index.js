@@ -64,7 +64,12 @@ module.exports = {
         (appEnv === 'development' || nodeEnv === 'development')),
   },
   orangeMoney: {
-    apiUrl: process.env.ORANGE_MONEY_API_URL,
+    apiUrl: process.env.ORANGE_MONEY_API_URL || 'https://api.orange.com/orange-money-webpay',
+    oauthUrl: process.env.ORANGE_MONEY_OAUTH_URL || 'https://api.orange.com/oauth/v3/token',
+    env: process.env.ORANGE_MONEY_ENV || 'dev',
+    currency:
+      process.env.ORANGE_MONEY_CURRENCY ||
+      (process.env.ORANGE_MONEY_ENV === 'ci' ? 'XOF' : 'OUV'),
     clientId: process.env.ORANGE_MONEY_CLIENT_ID,
     clientSecret: process.env.ORANGE_MONEY_CLIENT_SECRET,
     merchantKey: process.env.ORANGE_MONEY_MERCHANT_KEY,

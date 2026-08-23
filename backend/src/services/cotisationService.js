@@ -8,6 +8,41 @@ const path = require('path');
 const fs = require('fs');
 const config = require('../config');
 
+const REFERENCE_MAX_LENGTH = 100;
+
+function parsePaymentNotes(notes) {
+  if (!notes) return {};
+  try {
+    const parsed = JSON.parse(notes);
+    if (parsed && typeof parsed === 'object') return parsed;
+  } catch {
+    // ancien format pending:1234
+  }
+  const match = String(notes).match(/^pending:(\d+(?:\.\d+)?)$/);
+  return match ? { pendingAmount: Number(match[1]) } : {};
+}
+
+function clipReference(value) {
+  if (!value) return null;
+  const text = String(value);
+  return text.length <= REFERENCE_MAX_LENGTH ? text : text.slice(0, REFERENCE_MAX_LENGTH);
+}
+
+function pendingAmountFromNotes(notes, fallback) {
+  const parsed = parsePaymentNotes(notes);
+  if (parsed.pendingAmount != null && Number.isFinite(Number(parsed.pendingAmount))) {
+    return Number(parsed.pendingAmount);
+  }
+  return fallback;
+}
+
+function idPaiementFromOrangeOrderId(orderId) {
+  if (!orderId) return null;
+  const raw = String(orderId);
+  const match = raw.match(/^(.*)-(\d{10,})$/);
+  return match ? match[1] : raw;
+}
+
 class CotisationService {
   async listMine(membreId) {
     return prisma.cotisation.findMany({
@@ -253,13 +288,15 @@ class CotisationService {
     const dejaPaye = Number(cotisation.montantPaye || 0);
     const returnBase = config.urls.mesCotisations;
     const apiBase = String(config.urls.apiPublic || '').replace(/\/$/, '');
+    const orangeOrderId = `${idPaiement}-${Date.now()}`;
 
     let providerResult;
     try {
       providerResult = await paymentGateway.initiatePayment({
         provider: providerKey,
         amount: payAmount,
-        orderId: idPaiement,
+        orderId: orangeOrderId,
+        reference: idPaiement,
         phone: String(phone).trim(),
         returnUrl: `${returnBase}?paiement=ok&id=${encodeURIComponent(idPaiement)}`,
         cancelUrl: `${returnBase}?paiement=annule&id=${encodeURIComponent(idPaiement)}`,
@@ -280,8 +317,15 @@ class CotisationService {
     }
 
     const status = String(providerResult.status || 'PENDING').toUpperCase();
-    const referenceExterne =
-      providerResult.referenceExterne || `MM-${Date.now()}-${cotisation.id}`;
+    const referenceExterne = clipReference(
+      providerResult.referenceExterne || `MM-${Date.now()}-${cotisation.id}`
+    );
+    const pendingNotes = JSON.stringify({
+      pendingAmount: payAmount,
+      orangeOrderId,
+      payToken: providerResult.payToken || null,
+      notifToken: providerResult.notifToken || null,
+    });
 
     const include = {
       activite: true,
@@ -382,8 +426,7 @@ class CotisationService {
         modePaiement: 'MOBILE_MONEY',
         provider: providerKey,
         referenceExterne,
-        // conserve le montant attendu du versement en cours côté notes
-        notes: `pending:${payAmount}`,
+        notes: pendingNotes,
       },
       include,
     });
@@ -420,30 +463,82 @@ class CotisationService {
     };
   }
 
+  async findForWebhook({ idPaiement, referenceExterne }) {
+    if (idPaiement) {
+      const exact = await prisma.cotisation.findUnique({ where: { idPaiement } });
+      if (exact) return exact;
+
+      const resolved = idPaiementFromOrangeOrderId(idPaiement);
+      if (resolved && resolved !== idPaiement) {
+        const byPrefix = await prisma.cotisation.findUnique({ where: { idPaiement: resolved } });
+        if (byPrefix) return byPrefix;
+      }
+
+      const byOrder = await prisma.cotisation.findFirst({
+        where: { notes: { contains: `"orangeOrderId":"${idPaiement}"` } },
+      });
+      if (byOrder) return byOrder;
+    }
+
+    if (referenceExterne) {
+      const byRef = await prisma.cotisation.findFirst({ where: { referenceExterne } });
+      if (byRef) return byRef;
+
+      const byNotes = await prisma.cotisation.findFirst({
+        where: { notes: { contains: String(referenceExterne) } },
+      });
+      if (byNotes) return byNotes;
+    }
+
+    return null;
+  }
+
+  /**
+   * Après retour WebPay : interroge transactionstatus puis confirme.
+   */
+  async verifyMobileMoney(idPaiement, acteur) {
+    const cotisation = await prisma.cotisation.findUnique({ where: { idPaiement } });
+    if (!cotisation) throw new AppError('Cotisation introuvable', 404);
+
+    if (acteur && !acteur.isAdmin && cotisation.membreId !== acteur.id) {
+      throw new AppError('Vous ne pouvez vérifier que votre propre paiement', 403);
+    }
+
+    if (cotisation.statut === 'PAYE') return cotisation;
+
+    const notes = parsePaymentNotes(cotisation.notes);
+    const result = await paymentGateway.checkStatus({
+      provider: cotisation.provider || 'ORANGE',
+      orderId: notes.orangeOrderId || idPaiement,
+      payToken: notes.payToken || cotisation.referenceExterne,
+      amount: notes.pendingAmount,
+    });
+
+    return this.confirmWebhook({
+      idPaiement,
+      referenceExterne: cotisation.referenceExterne,
+      status: result.status,
+      amount: notes.pendingAmount,
+      provider: cotisation.provider || 'ORANGE',
+    });
+  }
+
   /**
    * Confirmation webhook mobile money.
    */
   async confirmWebhook({ idPaiement, referenceExterne, status, amount, provider }) {
-    let cotisation = null;
-    if (idPaiement) {
-      cotisation = await prisma.cotisation.findUnique({ where: { idPaiement } });
-    } else if (referenceExterne) {
-      cotisation = await prisma.cotisation.findFirst({ where: { referenceExterne } });
-    }
+    let cotisation = await this.findForWebhook({ idPaiement, referenceExterne });
 
     if (!cotisation) throw new AppError('Cotisation introuvable pour ce webhook', 404);
 
     const statusUp = String(status || '').toUpperCase();
 
-    if (statusUp === 'SUCCESS' || statusUp === 'SUCCESSFUL' || statusUp === 'SUCCEEDED') {
+    if (statusUp === 'SUCCESS' || statusUp === 'SUCCESSFUL' || statusUp === 'SUCCEEDED' || statusUp === 'SUCCESSFULL') {
       const dejaPaye = Number(cotisation.montantPaye || 0);
       let payAmount =
         amount != null
           ? Number(amount)
-          : (() => {
-              const m = String(cotisation.notes || '').match(/^pending:(\d+(?:\.\d+)?)$/);
-              return m ? Number(m[1]) : Number(cotisation.montant) - dejaPaye;
-            })();
+          : pendingAmountFromNotes(cotisation.notes, Number(cotisation.montant) - dejaPaye);
       if (!Number.isFinite(payAmount) || payAmount <= 0) {
         payAmount = Number(cotisation.montant) || 0;
       }

@@ -57,6 +57,11 @@ exports.create = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, data });
 });
 
+exports.verify = asyncHandler(async (req, res) => {
+  const data = await cotisationService.verifyMobileMoney(req.params.idPaiement, req.user);
+  res.json({ success: true, data });
+});
+
 exports.remove = asyncHandler(async (req, res) => {
   const data = await cotisationService.remove(req.params.id, req.user.id, { ip: req.ip });
   res.json({ success: true, data, message: 'Paiement supprimé' });

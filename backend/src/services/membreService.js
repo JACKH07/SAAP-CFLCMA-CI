@@ -29,6 +29,7 @@ class MembreService {
     regionId,
     statut,
     roleId,
+    branche,
     region,
     district,
     paroisse,
@@ -42,6 +43,9 @@ class MembreService {
     if (regionId) where.regionId = Number(regionId);
     if (statut) where.statut = statut;
     if (roleId) where.roleId = Number(roleId);
+    if (branche && ['FLAMBEAUX', 'LUMIERES'].includes(String(branche).toUpperCase())) {
+      where.branche = String(branche).toUpperCase();
+    }
     const regionQ = String(region || '').trim();
     const districtQ = String(district || '').trim();
     const paroisseQ = String(paroisse || '').trim();

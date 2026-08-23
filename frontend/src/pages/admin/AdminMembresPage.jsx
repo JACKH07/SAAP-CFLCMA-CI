@@ -26,6 +26,33 @@ function initials(prenom, nom) {
 
 const PAGE_SIZE = 20;
 
+const FILTER_FIELDS = [
+  { id: 'all', label: 'Tous les champs', type: 'text', placeholder: 'ID, nom, téléphone, e-mail…' },
+  { id: 'id', label: 'ID membre', type: 'text', placeholder: 'Ex. KOJA19950312' },
+  { id: 'nom', label: 'Nom ou prénom', type: 'text', placeholder: 'Rechercher un nom…' },
+  { id: 'region', label: 'Région', type: 'region' },
+  { id: 'district', label: 'District', type: 'district' },
+  { id: 'paroisse', label: 'Paroisse', type: 'paroisse' },
+  { id: 'communaute', label: 'Communauté', type: 'communaute' },
+  { id: 'branche', label: 'Branche', type: 'branche' },
+  { id: 'statut', label: 'Statut', type: 'statut' },
+];
+
+const EMPTY_LIST_FILTER = { field: 'all', value: '' };
+
+function listQueryFromFilter(applied) {
+  const field = applied.field || 'all';
+  const value = String(applied.value || '').trim();
+  if (!value) return {};
+  if (field === 'region') return { region: value };
+  if (field === 'district') return { district: value };
+  if (field === 'paroisse') return { paroisse: value };
+  if (field === 'communaute') return { communaute: value };
+  if (field === 'branche') return { branche: value };
+  if (field === 'statut') return { statut: value };
+  return { search: value };
+}
+
 const EMPTY_FORM = {
   nom: '',
   prenom: '',
@@ -57,22 +84,8 @@ export default function AdminMembresPage() {
     totalPages: 1,
   });
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({
-    id: '',
-    nom: '',
-    region: '',
-    district: '',
-    paroisse: '',
-    communaute: '',
-  });
-  const [applied, setApplied] = useState({
-    id: '',
-    nom: '',
-    region: '',
-    district: '',
-    paroisse: '',
-    communaute: '',
-  });
+  const [filters, setFilters] = useState(EMPTY_LIST_FILTER);
+  const [applied, setApplied] = useState(EMPTY_LIST_FILTER);
   const [selected, setSelected] = useState(() => new Set());
   const [openMenuId, setOpenMenuId] = useState(null);
   const [msg, setMsg] = useState('');
@@ -95,6 +108,9 @@ export default function AdminMembresPage() {
   const [regions, setRegions] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [filterDistricts, setFilterDistricts] = useState([]);
+  const [filterParoisses, setFilterParoisses] = useState([]);
+  const [filterCommunautes, setFilterCommunautes] = useState([]);
 
   async function load({
     pageNum = page,
@@ -103,19 +119,11 @@ export default function AdminMembresPage() {
     setError('');
     setLoading(true);
     try {
-      const idQ = (filtersOverride.id || '').trim();
-      const nomQ = (filtersOverride.nom || '').trim();
-      const search = idQ || nomQ || undefined;
-
       const { data: res } = await api.get('/membres', {
         params: {
           page: pageNum,
           limit: PAGE_SIZE,
-          search,
-          region: (filtersOverride.region || '').trim() || undefined,
-          district: (filtersOverride.district || '').trim() || undefined,
-          paroisse: (filtersOverride.paroisse || '').trim() || undefined,
-          communaute: (filtersOverride.communaute || '').trim() || undefined,
+          ...listQueryFromFilter(filtersOverride),
         },
       });
       setData({
@@ -135,10 +143,18 @@ export default function AdminMembresPage() {
   }
 
   useEffect(() => {
-    Promise.all([api.get('/regions'), api.get('/roles')]).then(([r, rolesRes]) => {
-      const regs = r.data.data || [];
-      setRegions(regs);
+    Promise.all([
+      api.get('/regions'),
+      api.get('/roles'),
+      api.get('/districts'),
+      api.get('/paroisses', { params: { all: true } }),
+      api.get('/communautes', { params: { all: true } }),
+    ]).then(([r, rolesRes, dRes, pRes, cRes]) => {
+      setRegions(r.data.data || []);
       setRoles(rolesRes.data.data || []);
+      setFilterDistricts(dRes.data.data || []);
+      setFilterParoisses(pRes.data.data || []);
+      setFilterCommunautes(cRes.data.data || []);
       load({ pageNum: 1 });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -198,12 +214,28 @@ export default function AdminMembresPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state]);
 
-  function runSearch(e) {
-    e?.preventDefault();
-    const next = { ...filters };
+  function applyListFilter(next) {
+    setFilters(next);
     setApplied(next);
     setPage(1);
     load({ pageNum: 1, filtersOverride: next });
+  }
+
+  function runSearch(e) {
+    e?.preventDefault();
+    applyListFilter({ ...filters });
+  }
+
+  function resetListFilter() {
+    applyListFilter({ ...EMPTY_LIST_FILTER });
+  }
+
+  function changeFilterField(field) {
+    const next = { field, value: '' };
+    setFilters(next);
+    if (applied.value) {
+      applyListFilter(next);
+    }
   }
 
   function goPrev() {
@@ -562,6 +594,7 @@ export default function AdminMembresPage() {
   const allIds = items.map((m) => m.id);
   const allSelected = allIds.length > 0 && allIds.every((id) => selected.has(id));
   const isInscription = view === 'inscription';
+  const activeFilter = FILTER_FIELDS.find((field) => field.id === filters.field) || FILTER_FIELDS[0];
 
   function renderMembreForm(isCreate) {
     return (
@@ -875,51 +908,122 @@ export default function AdminMembresPage() {
           </div>
 
           <form className="membres-search-bar" onSubmit={runSearch}>
-            <input
-              type="search"
-              value={filters.id}
-              onChange={(e) => setFilters((f) => ({ ...f, id: e.target.value }))}
-              placeholder="Recherche par ID membre…"
-              aria-label="Recherche par ID"
-            />
-            <input
-              type="search"
-              value={filters.nom}
-              onChange={(e) => setFilters((f) => ({ ...f, nom: e.target.value }))}
-              placeholder="Recherche par nom…"
-              aria-label="Recherche par nom"
-            />
-            <input
-              type="search"
-              value={filters.region}
-              onChange={(e) => setFilters((f) => ({ ...f, region: e.target.value }))}
-              placeholder="Recherche par région…"
-              aria-label="Recherche par région"
-            />
-            <input
-              type="search"
-              value={filters.district}
-              onChange={(e) => setFilters((f) => ({ ...f, district: e.target.value }))}
-              placeholder="Recherche par district…"
-              aria-label="Recherche par district"
-            />
-            <input
-              type="search"
-              value={filters.paroisse}
-              onChange={(e) => setFilters((f) => ({ ...f, paroisse: e.target.value }))}
-              placeholder="Recherche par paroisse…"
-              aria-label="Recherche par paroisse"
-            />
-            <input
-              type="search"
-              value={filters.communaute}
-              onChange={(e) => setFilters((f) => ({ ...f, communaute: e.target.value }))}
-              placeholder="Recherche par communauté…"
-              aria-label="Recherche par communauté"
-            />
-            <button type="submit" className="btn-search">
-              Recherche
-            </button>
+            <label className="membres-filter-field" htmlFor="membres-filter-by">
+              <span>Filtrer par</span>
+              <select
+                id="membres-filter-by"
+                value={filters.field}
+                onChange={(e) => changeFilterField(e.target.value)}
+                aria-label="Filtrer par"
+              >
+                {FILTER_FIELDS.map((field) => (
+                  <option key={field.id} value={field.id}>
+                    {field.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {activeFilter.type === 'region' && (
+              <select
+                aria-label="Région"
+                value={filters.value}
+                onChange={(e) => applyListFilter({ field: 'region', value: e.target.value })}
+              >
+                <option value="">Toutes les régions</option>
+                {regions.map((r) => (
+                  <option key={r.id} value={r.nom}>
+                    {r.nom}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {activeFilter.type === 'district' && (
+              <ComboboxField
+                id="filtre-district"
+                value={filters.value}
+                onChange={(nom) => setFilters((f) => ({ ...f, value: nom }))}
+                items={filterDistricts}
+                allowCreate={false}
+                placeholder="Choisir ou rechercher un district…"
+                emptyListLabel="Aucun district"
+                onSelect={(item) => applyListFilter({ field: 'district', value: item.nom })}
+              />
+            )}
+
+            {activeFilter.type === 'paroisse' && (
+              <ComboboxField
+                id="filtre-paroisse"
+                value={filters.value}
+                onChange={(nom) => setFilters((f) => ({ ...f, value: nom }))}
+                items={filterParoisses}
+                allowCreate={false}
+                placeholder="Choisir ou rechercher une paroisse…"
+                emptyListLabel="Aucune paroisse"
+                onSelect={(item) => applyListFilter({ field: 'paroisse', value: item.nom })}
+              />
+            )}
+
+            {activeFilter.type === 'communaute' && (
+              <ComboboxField
+                id="filtre-communaute"
+                value={filters.value}
+                onChange={(nom) => setFilters((f) => ({ ...f, value: nom }))}
+                items={filterCommunautes}
+                allowCreate={false}
+                placeholder="Choisir ou rechercher une communauté…"
+                emptyListLabel="Aucune communauté"
+                onSelect={(item) => applyListFilter({ field: 'communaute', value: item.nom })}
+              />
+            )}
+
+            {activeFilter.type === 'branche' && (
+              <select
+                aria-label="Branche"
+                value={filters.value}
+                onChange={(e) => applyListFilter({ field: 'branche', value: e.target.value })}
+              >
+                <option value="">Toutes les branches</option>
+                <option value="FLAMBEAUX">Flambeaux</option>
+                <option value="LUMIERES">Lumières</option>
+              </select>
+            )}
+
+            {activeFilter.type === 'statut' && (
+              <select
+                aria-label="Statut"
+                value={filters.value}
+                onChange={(e) => applyListFilter({ field: 'statut', value: e.target.value })}
+              >
+                <option value="">Tous les statuts</option>
+                <option value="VALIDE">Validé</option>
+                <option value="EN_ATTENTE">En attente</option>
+                <option value="SUSPENDU">Suspendu</option>
+                <option value="REJETE">Rejeté</option>
+              </select>
+            )}
+
+            {activeFilter.type === 'text' && (
+              <input
+                type="search"
+                value={filters.value}
+                onChange={(e) => setFilters((f) => ({ ...f, value: e.target.value }))}
+                placeholder={activeFilter.placeholder}
+                aria-label={activeFilter.label}
+              />
+            )}
+
+            <div className="membres-search-actions">
+              <button type="submit" className="btn-search">
+                Recherche
+              </button>
+              {(filters.field !== 'all' || filters.value) && (
+                <button type="button" className="btn-search-reset" onClick={resetListFilter}>
+                  Réinitialiser
+                </button>
+              )}
+            </div>
           </form>
 
           {loading ? (

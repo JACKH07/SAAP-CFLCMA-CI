@@ -108,15 +108,8 @@ export default function PaiementPage() {
       const status = String(result.status || '').toUpperCase();
 
       if (result.paymentUrl) {
-        setPendingInfo({
-          message:
-            result.message ||
-            'Redirection vers l’opérateur… Confirmez le paiement sur votre téléphone.',
-          paymentUrl: result.paymentUrl,
-          reference: result.referenceExterne,
-        });
-        // Ouverture opérateur (WebPay / Wave Checkout) si URL fournie
-        window.open(result.paymentUrl, '_blank', 'noopener,noreferrer');
+        window.location.assign(result.paymentUrl);
+        return;
       }
 
       if (status === 'SUCCESS' || status === 'SUCCESSFUL') {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import api from '../api/client';
 import { paths } from '../config/env';
@@ -7,9 +7,11 @@ import './MesCotisationsPage.css';
 
 export default function MesCotisationsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [cotisations, setCotisations] = useState([]);
   const [activites, setActivites] = useState([]);
   const [err, setErr] = useState('');
+  const [info, setInfo] = useState('');
 
   async function load() {
     try {
@@ -27,6 +29,48 @@ export default function MesCotisationsPage() {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    const paiement = searchParams.get('paiement');
+    const id = searchParams.get('id');
+    if (!paiement) return;
+
+    const clearParams = () => {
+      const next = new URLSearchParams(searchParams);
+      next.delete('paiement');
+      next.delete('id');
+      setSearchParams(next, { replace: true });
+    };
+
+    if (paiement === 'ok' && id) {
+      setInfo('Vérification du paiement Orange Money…');
+      api
+        .post(`/cotisations/verify/${encodeURIComponent(id)}`)
+        .then((res) => {
+          const statut = res.data?.data?.statut;
+          setInfo(
+            statut === 'PAYE'
+              ? 'Paiement confirmé.'
+              : 'Paiement en cours de confirmation par Orange Money.'
+          );
+          return load();
+        })
+        .catch(() => {
+          setInfo(
+            'Paiement en cours de confirmation. Le statut sera mis à jour dès réception de la notification Orange.'
+          );
+        })
+        .finally(clearParams);
+      return;
+    }
+
+    if (paiement === 'annule') {
+      setErr('Paiement annulé.');
+    } else if (paiement === 'echec') {
+      setErr('Paiement échoué.');
+    }
+    clearParams();
+  }, [searchParams, setSearchParams]);
 
   function goPayer(activiteId) {
     navigate(`${paths.mesCotisations}/payer/${activiteId}`);
@@ -47,6 +91,7 @@ export default function MesCotisationsPage() {
         </div>
 
         {err && <div className="alert alert-error">{err}</div>}
+        {info && <div className="alert alert-success">{info}</div>}
 
         <div className="stack cotisations-list">
           {activites.map((a) => {

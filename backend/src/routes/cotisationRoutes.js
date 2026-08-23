@@ -15,6 +15,7 @@ router.use(authenticate);
 router.get('/me', cotisationController.listMine);
 router.get('/', requireAdmin, cotisationController.list);
 router.get('/search/:idPaiement', requireAdmin, cotisationController.findByPaymentId);
+router.post('/verify/:idPaiement', cotisationController.verify);
 router.post('/', upload.single('justificatif'), cotisationController.create);
 router.delete('/:id', requireAdmin, cotisationController.remove);
 
