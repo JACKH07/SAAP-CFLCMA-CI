@@ -67,6 +67,7 @@ app.use('/api/activites', require('./routes/activiteRoutes'));
 app.use('/api/membres', membreRoutes);
 app.use('/api/admins', require('./routes/adminAccountRoutes'));
 app.use('/api/cotisations', cotisationRoutes);
+app.use('/api/paiement', require('./routes/paiementRoutes'));
 app.use('/api/dashboard', dashboardRoutes);
 
 const publicDir = path.resolve(__dirname, '../public');

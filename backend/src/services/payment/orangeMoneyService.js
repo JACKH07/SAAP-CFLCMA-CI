@@ -159,10 +159,10 @@ class OrangeMoneyService {
 
     const payToken = extractPayToken(data);
     const notifToken = extractNotifToken(data);
-    const paymentUrl = resolveCheckoutUrl(data, this.cfg.env);
+    const paymentUrl = data.payment_url || resolveCheckoutUrl(data, this.cfg.env);
     if (!paymentUrl) {
       throw new AppError(
-        'Orange Money n’a pas renvoyé de lien WebPay (payment_url / pay_token). Vérifiez les clés marchand et ORANGE_MONEY_ENV=dev.',
+        'Orange Money n’a pas renvoyé de payment_url. Vérifiez CLIENT_ID, CLIENT_SECRET et MERCHANT_KEY.',
         502,
         'PAYMENT_REFUSED'
       );
@@ -227,11 +227,11 @@ class OrangeMoneyService {
   parseWebhook(body = {}) {
     return {
       provider: 'ORANGE',
-      idPaiement: body.idPaiement || body.order_id || body.orderId || null,
+      idPaiement: body.order_id || body.orderId || body.idPaiement || null,
       referenceExterne:
-        body.referenceExterne ||
-        body.notif_token ||
         body.txnid ||
+        body.notif_token ||
+        body.referenceExterne ||
         body.pay_token ||
         null,
       status: mapOrangeStatus(body.status || body.payment_status),
@@ -240,14 +240,9 @@ class OrangeMoneyService {
     };
   }
 
-  verifyWebhookSignature(req) {
-    const secret = this.cfg.webhookSecret;
-    if (!secret) return true;
-    const header =
-      req.headers['x-orange-signature'] ||
-      req.headers['x-webhook-signature'] ||
-      req.headers['x-hmac-sha256'];
-    return Boolean(header);
+  /** WebPay e-commerce : notification JSON (status, order_id, txnid), sans HMAC. */
+  verifyWebhookSignature() {
+    return true;
   }
 }
 

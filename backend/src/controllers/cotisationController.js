@@ -83,7 +83,22 @@ async function handleProviderWebhook(provider, req, res) {
 }
 
 exports.webhookOrange = asyncHandler(async (req, res) => {
-  await handleProviderWebhook('ORANGE', req, res);
+  const parsed = paymentGateway.parseWebhook('ORANGE', req.body || {});
+  try {
+    const data = await cotisationService.confirmWebhook({
+      idPaiement: parsed.idPaiement,
+      referenceExterne: parsed.referenceExterne,
+      status: parsed.status,
+      amount: parsed.amount,
+      provider: 'ORANGE',
+    });
+    return res.status(200).json({ success: true, data });
+  } catch (err) {
+    if (err.statusCode === 404 || err.status === 404) {
+      return res.status(200).json({ success: true, ignored: true });
+    }
+    throw err;
+  }
 });
 
 exports.webhookWave = asyncHandler(async (req, res) => {
