@@ -38,14 +38,7 @@ const REGIONS_CI = [
 const HIERARCHIE_CODES = new Set(HIERARCHIE_GEO.map((h) => h.code));
 
 const ROLE_MIGRATIONS = GRADE_MIGRATIONS;
-
-const ACTIVITES = [
-  { nom: 'Évangélique', prefixeIdPaiement: 'EYAWA', montantDefaut: 0 },
-  { nom: 'Mission', prefixeIdPaiement: 'NGLIÈ', montantDefaut: 0 },
-  { nom: 'Investissement / Siège (Écolet Motel)', prefixeIdPaiement: 'SIEGE', montantDefaut: 0 },
-  { nom: 'Activité sociale', prefixeIdPaiement: 'SOCIAL', montantDefaut: 0 },
-  { nom: 'Journée Nationale', prefixeIdPaiement: 'JN', montantDefaut: 0 },
-];
+const { DEFAULT_ACTIVITES, ensureDefaultActivites } = require('../constants/activites');
 
 async function upsertParoisse(districtId, nom) {
   const nomNormalise = normalizeText(nom);
@@ -497,18 +490,8 @@ async function seed() {
   }
   console.log(`✓ ${REGIONS_CI.filter((r) => !HIERARCHIE_CODES.has(r.code)).length} autres régions`);
 
-  for (const activite of ACTIVITES) {
-    await prisma.activite.upsert({
-      where: { prefixeIdPaiement: activite.prefixeIdPaiement },
-      update: {
-        nom: activite.nom,
-        montantDefaut: activite.montantDefaut,
-        active: true,
-      },
-      create: activite,
-    });
-  }
-  console.log(`✓ ${ACTIVITES.length} activités`);
+  const nbActivites = await ensureDefaultActivites(prisma);
+  console.log(`✓ ${nbActivites} activités`);
 
   const adminEmail = (process.env.ADMIN_EMAIL || 'admin@flccmaci.org').trim().toLowerCase();
   const adminPassword = process.env.ADMIN_PASSWORD || 'AdminFLCCMACI2026!';

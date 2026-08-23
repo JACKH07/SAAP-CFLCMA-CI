@@ -149,7 +149,7 @@ export default function PaiementPage() {
 
         <div>
           <h1>Paiement</h1>
-          <p className="muted">Saisissez le montant à verser — aucun montant fixe</p>
+          <p className="muted">Saisissez le montant à verser — aucun montant fixe. Test Orange Money : 10.</p>
         </div>
 
         {loadingMeta && <p className="muted">Chargement…</p>}

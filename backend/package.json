@@ -12,6 +12,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:push": "prisma db push",
     "seed": "node src/seed/seed.js",
+    "seed:activites": "node scripts/seedActivites.js",
     "seed:preprod": "APP_ENV=preprod NODE_ENV=production node src/seed/seed.js",
     "seed:production": "APP_ENV=production NODE_ENV=production node src/seed/seed.js",
     "admin:reset:production": "APP_ENV=production NODE_ENV=production node scripts/resetAdmin.js",
