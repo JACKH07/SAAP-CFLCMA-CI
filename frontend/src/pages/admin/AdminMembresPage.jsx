@@ -10,6 +10,7 @@ import PasswordInput from '../../components/PasswordInput';
 import RoleSelect from '../../components/RoleSelect';
 import ComboboxField from '../../components/ComboboxField';
 import ProfilePhotoCapture from '../../components/ProfilePhotoCapture';
+import { splitTitresAndGrades } from '../../utils/roleDisplay';
 import './AdminMembres.css';
 import './AdminMembreProfil.css';
 
@@ -34,8 +35,20 @@ const FILTER_FIELDS = [
   { id: 'district', label: 'District', type: 'district' },
   { id: 'paroisse', label: 'Paroisse', type: 'paroisse' },
   { id: 'communaute', label: 'Communauté', type: 'communaute' },
+  { id: 'titre', label: 'Titre', type: 'titre' },
+  { id: 'grade', label: 'Grade', type: 'grade' },
+  { id: 'situation', label: 'Situation matrimoniale', type: 'situation' },
   { id: 'branche', label: 'Branche', type: 'branche' },
   { id: 'statut', label: 'Statut', type: 'statut' },
+];
+
+const SITUATIONS_MATRIMONIALES = [
+  'Célibataire',
+  'Marié(e)',
+  'Divorcé(e)',
+  'Veuf(ve)',
+  'Concubinage',
+  'Autre',
 ];
 
 const EMPTY_LIST_FILTER = { field: 'all', value: '' };
@@ -50,6 +63,9 @@ function listQueryFromFilter(applied) {
   if (field === 'communaute') return { communaute: value };
   if (field === 'branche') return { branche: value };
   if (field === 'statut') return { statut: value };
+  if (field === 'titre') return { titreId: value };
+  if (field === 'grade') return { roleId: value };
+  if (field === 'situation') return { situationMatrimoniale: value };
   return { search: value };
 }
 
@@ -595,6 +611,7 @@ export default function AdminMembresPage() {
   const allSelected = allIds.length > 0 && allIds.every((id) => selected.has(id));
   const isInscription = view === 'inscription';
   const activeFilter = FILTER_FIELDS.find((field) => field.id === filters.field) || FILTER_FIELDS[0];
+  const { titres: titreOptions, grades: gradeOptions } = splitTitresAndGrades(roles);
 
   function renderMembreForm(isCreate) {
     return (
@@ -976,6 +993,51 @@ export default function AdminMembresPage() {
                 emptyListLabel="Aucune communauté"
                 onSelect={(item) => applyListFilter({ field: 'communaute', value: item.nom })}
               />
+            )}
+
+            {activeFilter.type === 'titre' && (
+              <select
+                aria-label="Titre"
+                value={filters.value}
+                onChange={(e) => applyListFilter({ field: 'titre', value: e.target.value })}
+              >
+                <option value="">Tous les titres</option>
+                {titreOptions.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nom}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {activeFilter.type === 'grade' && (
+              <select
+                aria-label="Grade"
+                value={filters.value}
+                onChange={(e) => applyListFilter({ field: 'grade', value: e.target.value })}
+              >
+                <option value="">Tous les grades</option>
+                {gradeOptions.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.nom}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {activeFilter.type === 'situation' && (
+              <select
+                aria-label="Situation matrimoniale"
+                value={filters.value}
+                onChange={(e) => applyListFilter({ field: 'situation', value: e.target.value })}
+              >
+                <option value="">Toutes les situations</option>
+                {SITUATIONS_MATRIMONIALES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
             )}
 
             {activeFilter.type === 'branche' && (

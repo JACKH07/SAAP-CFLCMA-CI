@@ -29,7 +29,9 @@ class MembreService {
     regionId,
     statut,
     roleId,
+    titreId,
     branche,
+    situationMatrimoniale,
     region,
     district,
     paroisse,
@@ -43,8 +45,12 @@ class MembreService {
     if (regionId) where.regionId = Number(regionId);
     if (statut) where.statut = statut;
     if (roleId) where.roleId = Number(roleId);
+    if (titreId) where.titreId = Number(titreId);
     if (branche && ['FLAMBEAUX', 'LUMIERES'].includes(String(branche).toUpperCase())) {
       where.branche = String(branche).toUpperCase();
+    }
+    if (situationMatrimoniale) {
+      where.situationMatrimoniale = String(situationMatrimoniale).trim();
     }
     const regionQ = String(region || '').trim();
     const districtQ = String(district || '').trim();
