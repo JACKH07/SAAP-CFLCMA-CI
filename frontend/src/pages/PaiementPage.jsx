@@ -6,6 +6,7 @@ import api from '../api/client';
 import { useAuthStore } from '../store/authStore';
 import { paths } from '../config/env';
 import { enabledPaymentMethods } from '../payments/paymentMethods';
+import { toSameOriginCheckoutUrl } from '../payments/orangeWebpay';
 import './PaiementPage.css';
 
 const METHODS = enabledPaymentMethods();
@@ -106,7 +107,11 @@ export default function PaiementPage() {
       const status = String(result.status || '').toUpperCase();
 
       if (result.paymentUrl) {
-        window.location.assign(result.paymentUrl);
+        const checkoutUrl =
+          provider === 'ORANGE'
+            ? toSameOriginCheckoutUrl(result.paymentUrl)
+            : result.paymentUrl;
+        window.location.assign(checkoutUrl);
         return;
       }
 

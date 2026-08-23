@@ -82,6 +82,14 @@ function toProxiedCheckoutPath(paymentUrl) {
   }
 }
 
+/** URL client sur notre domaine — Maxit n’intercepte pas cfl.flambeauxcmaci.com. */
+function toPublicCheckoutUrl(paymentUrl, publicOrigin) {
+  const checkoutPath = toProxiedCheckoutPath(paymentUrl);
+  if (!checkoutPath) return paymentUrl;
+  const origin = String(publicOrigin || '').replace(/\/$/, '');
+  return origin ? `${origin}${checkoutPath}` : checkoutPath;
+}
+
 module.exports = {
   MPAYMENT_HOST,
   ORANGE_URL_MAX_LENGTH,
@@ -96,5 +104,6 @@ module.exports = {
   checkoutUrlFromPayToken,
   resolveCheckoutUrl,
   toProxiedCheckoutPath,
+  toPublicCheckoutUrl,
   clipOrangeField,
 };

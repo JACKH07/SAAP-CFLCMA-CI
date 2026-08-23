@@ -7,6 +7,7 @@ const {
   extractNotifToken,
   extractPayToken,
   resolveCheckoutUrl,
+  toProxiedCheckoutPath,
 } = require('./orangeWebpayUrls');
 
 const SUCCESS_STATUSES = new Set(['SUCCESS', 'SUCCESSFUL', 'SUCCESSFULL', 'SUCCEEDED']);
@@ -159,14 +160,16 @@ class OrangeMoneyService {
 
     const payToken = extractPayToken(data);
     const notifToken = extractNotifToken(data);
-    const paymentUrl = data.payment_url || resolveCheckoutUrl(data, this.cfg.env);
-    if (!paymentUrl) {
+    const orangePaymentUrl = data.payment_url || resolveCheckoutUrl(data, this.cfg.env);
+    if (!orangePaymentUrl) {
       throw new AppError(
         'Orange Money n’a pas renvoyé de payment_url. Vérifiez CLIENT_ID, CLIENT_SECRET et MERCHANT_KEY.',
         502,
         'PAYMENT_REFUSED'
       );
     }
+
+    const paymentUrl = toProxiedCheckoutPath(orangePaymentUrl) || orangePaymentUrl;
 
     return {
       provider: 'ORANGE',

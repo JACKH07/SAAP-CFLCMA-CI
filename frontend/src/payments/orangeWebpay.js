@@ -26,6 +26,9 @@ export function toWebPayCheckoutUrl(paymentUrl, payToken) {
  */
 export function toSameOriginCheckoutUrl(paymentUrl) {
   if (!paymentUrl || typeof window === 'undefined') return paymentUrl;
+  if (paymentUrl.startsWith('/sx/') || paymentUrl.startsWith('/ci/')) {
+    return paymentUrl;
+  }
   try {
     const parsed = new URL(paymentUrl, window.location.origin);
     const host = parsed.hostname.toLowerCase();
@@ -33,7 +36,7 @@ export function toSameOriginCheckoutUrl(paymentUrl) {
       host === 'mpayment.orange-money.com' || host === 'webpayment.orange-money.com';
     if (!isOrange) return paymentUrl;
     if (!/^\/(sx|ci|dev)\/mpayment(\/|$)/i.test(parsed.pathname)) return paymentUrl;
-    return `${window.location.origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
     return paymentUrl;
   }

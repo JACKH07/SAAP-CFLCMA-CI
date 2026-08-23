@@ -37,4 +37,14 @@ describe('orange webpay proxy', () => {
       )
     ).toBe('/sx/mpayment/abstract/v1abcxyz');
   });
+
+  test('expose la page WebPay sur le domaine du site', () => {
+    const { toPublicCheckoutUrl } = require('../payment/orangeWebpayUrls');
+    expect(
+      toPublicCheckoutUrl(
+        'https://mpayment.orange-money.com/sx/mpayment/abstract/v1abcxyz',
+        'https://cfl.flambeauxcmaci.com'
+      )
+    ).toBe('https://cfl.flambeauxcmaci.com/sx/mpayment/abstract/v1abcxyz');
+  });
 });
