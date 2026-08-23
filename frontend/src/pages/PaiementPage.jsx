@@ -6,6 +6,11 @@ import api from '../api/client';
 import { useAuthStore } from '../store/authStore';
 import { paths } from '../config/env';
 import { enabledPaymentMethods } from '../payments/paymentMethods';
+import {
+  chromeIntentUrl,
+  isAndroidDevice,
+  toWebPayCheckoutUrl,
+} from '../payments/orangeWebpay';
 import './PaiementPage.css';
 
 const METHODS = enabledPaymentMethods();
@@ -107,20 +112,34 @@ export default function PaiementPage() {
       const result = data.data || {};
       const status = String(result.status || '').toUpperCase();
 
-      if (result.paymentUrl) {
+      const checkoutUrl =
+        provider === 'ORANGE'
+          ? toWebPayCheckoutUrl(result.paymentUrl, result.payToken)
+          : result.paymentUrl;
+      if (checkoutUrl) {
         setPendingInfo({
-          message: 'Redirection vers Maxit / Orange Money…',
-          paymentUrl: result.paymentUrl,
+          message:
+            provider === 'ORANGE'
+              ? 'Redirection vers la page Orange Money WebPay…'
+              : 'Redirection vers la page de paiement…',
+          paymentUrl: checkoutUrl,
           reference: result.referenceExterne,
+          intercepted: false,
+          provider,
         });
-        window.location.replace(result.paymentUrl);
+        window.setTimeout(() => {
+          setPendingInfo((current) =>
+            current ? { ...current, intercepted: true } : current
+          );
+        }, 1800);
+        window.location.assign(checkoutUrl);
         return;
       }
 
       if (result.mock || status === 'SUCCESS' || status === 'SUCCESSFUL') {
         setMsg(
           result.mock
-            ? 'Paiement simulé (mode test). Aucune redirection Maxit — désactivez PAYMENT_MOCK_MODE sur le serveur.'
+            ? 'Paiement simulé (mode test). Aucune redirection WebPay — désactivez PAYMENT_MOCK_MODE sur le serveur.'
             : result.message || 'Paiement enregistré'
         );
         setMontant('');
@@ -128,7 +147,7 @@ export default function PaiementPage() {
         setErr(result.message || 'Paiement refusé');
       } else {
         setErr(
-          'Orange Money n’a pas renvoyé de lien Maxit. Vérifiez la configuration (ENV=ci, XOF, clés marchand).'
+          'Orange Money n’a pas renvoyé de lien WebPay. Vérifiez ORANGE_MONEY_ENV=dev, la devise OUV et les clés marchand.'
         );
       }
 
@@ -168,9 +187,30 @@ export default function PaiementPage() {
               <p className="muted tiny">Réf. {pendingInfo.reference}</p>
             )}
             {pendingInfo.paymentUrl && (
-              <a className="btn btn-block" href={pendingInfo.paymentUrl} rel="noreferrer">
-                Ouvrir Maxit
-              </a>
+              <>
+                <a className="btn btn-block" href={pendingInfo.paymentUrl} target="_self">
+                  {pendingInfo.provider === 'WAVE'
+                    ? 'Ouvrir Wave'
+                    : 'Ouvrir la page Orange Money'}
+                </a>
+                {pendingInfo.provider !== 'WAVE' &&
+                  pendingInfo.intercepted &&
+                  isAndroidDevice() && (
+                    <a
+                      className="btn btn-secondary btn-block"
+                      href={chromeIntentUrl(pendingInfo.paymentUrl)}
+                    >
+                      Ouvrir dans Chrome (éviter Maxit)
+                    </a>
+                  )}
+                {pendingInfo.provider !== 'WAVE' && pendingInfo.intercepted && (
+                  <p className="muted tiny">
+                    Si l’application Maxit s’est ouverte, revenez ici et utilisez le bouton
+                    ci-dessus : le paiement sandbox se fait sur la page web Orange Money, pas
+                    dans Maxit.
+                  </p>
+                )}
+              </>
             )}
           </div>
         )}

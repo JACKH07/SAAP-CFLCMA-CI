@@ -1,20 +1,16 @@
 const { AppError } = require('../../utils/errors');
 const config = require('../../config');
+const {
+  ORDER_ID_MAX_LENGTH,
+  REFERENCE_MAX_LENGTH,
+  clipOrangeField,
+  extractNotifToken,
+  extractPayToken,
+  resolveCheckoutUrl,
+} = require('./orangeWebpayUrls');
 
 const SUCCESS_STATUSES = new Set(['SUCCESS', 'SUCCESSFUL', 'SUCCESSFULL', 'SUCCEEDED']);
 const FAILED_STATUSES = new Set(['FAILED', 'EXPIRED', 'CANCELLED', 'CANCELED']);
-
-function extractPaymentUrl(data = {}) {
-  const nested = data.data && typeof data.data === 'object' ? data.data : {};
-  return (
-    data.payment_url ||
-    data.paymentUrl ||
-    data.pay_url ||
-    nested.payment_url ||
-    nested.paymentUrl ||
-    null
-  );
-}
 
 function mapOrangeStatus(raw) {
   const statusRaw = String(raw || '').toUpperCase();
@@ -106,7 +102,7 @@ class OrangeMoneyService {
    * @param {{ amount: number, currency?: string, orderId: string, phone?: string, reference?: string, returnUrl?: string, cancelUrl?: string, notifUrl?: string }} payload
    */
   async initiatePayment(payload) {
-    const { amount, orderId, phone, reference, returnUrl, cancelUrl, notifUrl } = payload;
+    const { amount, orderId, reference, returnUrl, cancelUrl, notifUrl } = payload;
     const { accessToken } = await this.getAccessToken();
     const url = `${this.webpayBaseUrl()}/webpayment`;
     const currency = this.cfg.currency || 'OUV';
@@ -114,13 +110,13 @@ class OrangeMoneyService {
     const body = {
       merchant_key: this.cfg.merchantKey,
       currency,
-      order_id: String(orderId).slice(0, 30),
+      order_id: clipOrangeField(orderId, ORDER_ID_MAX_LENGTH),
       amount: Math.round(Number(amount)),
       return_url: returnUrl || this.cfg.returnUrl,
       cancel_url: cancelUrl || this.cfg.cancelUrl,
       notif_url: notifUrl || this.cfg.notifUrl || this.cfg.callbackUrl,
       lang: 'fr',
-      reference: String(reference || phone || 'CFLCMACI').slice(0, 50),
+      reference: clipOrangeField(reference || 'CFLCMACI', REFERENCE_MAX_LENGTH),
     };
 
     const res = await fetch(url, {
@@ -161,17 +157,16 @@ class OrangeMoneyService {
       );
     }
 
-    const paymentUrl = extractPaymentUrl(data);
+    const payToken = extractPayToken(data);
+    const notifToken = extractNotifToken(data);
+    const paymentUrl = resolveCheckoutUrl(data, this.cfg.env);
     if (!paymentUrl) {
       throw new AppError(
-        'Orange Money n’a pas renvoyé de lien Maxit (payment_url). Vérifiez ENV=ci, devise XOF et les clés marchand.',
+        'Orange Money n’a pas renvoyé de lien WebPay (payment_url / pay_token). Vérifiez les clés marchand et ORANGE_MONEY_ENV=dev.',
         502,
         'PAYMENT_REFUSED'
       );
     }
-
-    const payToken = data.pay_token || data.data?.pay_token || null;
-    const notifToken = data.notif_token || data.data?.notif_token || null;
 
     return {
       provider: 'ORANGE',

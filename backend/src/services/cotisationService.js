@@ -329,6 +329,7 @@ class CotisationService {
       orangeOrderId,
       payToken: providerResult.payToken || null,
       notifToken: providerResult.notifToken || null,
+      paymentUrl: providerResult.paymentUrl || null,
     });
 
     const include = {
@@ -387,6 +388,7 @@ class CotisationService {
         status: 'SUCCESS',
         statut: 'PAYE',
         paymentUrl: providerResult.paymentUrl || null,
+        payToken: providerResult.payToken || null,
         mock: Boolean(providerResult.mock),
         message:
           providerResult.message ||
@@ -458,11 +460,12 @@ class CotisationService {
       provider: providerKey,
       status: 'PENDING',
       statut: cotisation.statut,
-      paymentUrl: providerResult.paymentUrl || null,
-      mock: Boolean(providerResult.mock),
-      message:
-        providerResult.message ||
-        `Paiement ${providerKey} initié. Confirmez sur votre téléphone.`,
+        paymentUrl: providerResult.paymentUrl || null,
+        payToken: providerResult.payToken || null,
+        mock: Boolean(providerResult.mock),
+        message:
+          providerResult.message ||
+          `Paiement ${providerKey} initié. Confirmez sur la page Orange Money.`,
       cotisation,
     };
   }
