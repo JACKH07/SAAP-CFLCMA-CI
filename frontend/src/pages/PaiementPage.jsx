@@ -7,6 +7,7 @@ import { useAuthStore } from '../store/authStore';
 import { paths } from '../config/env';
 import { enabledPaymentMethods } from '../payments/paymentMethods';
 import { toSameOriginCheckoutUrl } from '../payments/orangeWebpay';
+import { formatDateHeure, moyenPaiement, totalVersements } from '../utils/paiement';
 import './PaiementPage.css';
 
 const METHODS = enabledPaymentMethods();
@@ -65,7 +66,11 @@ export default function PaiementPage() {
       .finally(() => setLoadingMeta(false));
   }, [activiteId]);
 
-  const dejaPaye = useMemo(() => Number(cotisation?.montantPaye || 0), [cotisation]);
+  const dejaPaye = useMemo(
+    () => totalVersements(cotisation),
+    [cotisation]
+  );
+  const versements = cotisation?.versements || [];
   const selectedMethod = useMemo(
     () => METHODS.find((m) => m.id === provider),
     [provider]
@@ -192,8 +197,20 @@ export default function PaiementPage() {
               <strong>{activite.nom}</strong>
               <div className="muted tiny">{activite.prefixeIdPaiement}</div>
               <div className="paiement-deja">
-                Déjà versé : <strong>{dejaPaye.toLocaleString('fr-FR')} FCFA</strong>
+                Total versé : <strong>{dejaPaye.toLocaleString('fr-FR')} FCFA</strong>
               </div>
+              {versements.length > 0 && (
+                <ul className="paiement-versements">
+                  {versements.map((v) => (
+                    <li key={v.id}>
+                      <span>
+                        {formatDateHeure(v.datePaiement)} · {moyenPaiement(v)}
+                      </span>
+                      <strong>{Number(v.montant).toLocaleString('fr-FR')} FCFA</strong>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             {step === 'form' && (

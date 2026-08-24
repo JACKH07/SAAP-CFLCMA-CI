@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import api from '../api/client';
 import { paths } from '../config/env';
+import { formatDateHeure, moyenPaiement, totalVersements } from '../utils/paiement';
 import './MesCotisationsPage.css';
 
 export default function MesCotisationsPage() {
@@ -96,7 +97,8 @@ export default function MesCotisationsPage() {
         <div className="stack cotisations-list">
           {activites.map((a) => {
             const c = findCotisation(a.id);
-            const paye = Number(c?.montantPaye || 0);
+            const paye = totalVersements(c);
+            const versements = c?.versements || [];
             const statut = c?.statut || 'EN_ATTENTE';
             return (
               <button
@@ -113,6 +115,16 @@ export default function MesCotisationsPage() {
                   <span className="cotisation-paye">
                     {paye.toLocaleString('fr-FR')} FCFA versés
                   </span>
+                  {versements.length > 0 && (
+                    <ul className="cotisation-versements">
+                      {versements.map((v) => (
+                        <li key={v.id}>
+                          {formatDateHeure(v.datePaiement)} · {moyenPaiement(v)} ·{' '}
+                          {Number(v.montant).toLocaleString('fr-FR')} F
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
                 <span
                   className={`badge ${

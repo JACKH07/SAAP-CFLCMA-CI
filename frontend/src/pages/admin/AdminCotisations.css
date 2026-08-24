@@ -192,6 +192,17 @@
   margin-top: 0.15rem;
 }
 
+.cotis-versements {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.18rem;
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
 .cotis-list-meta {
   display: flex;
   flex-direction: column;

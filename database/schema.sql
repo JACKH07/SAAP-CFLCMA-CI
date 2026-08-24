@@ -61,6 +61,7 @@ CREATE TABLE `communautes` (
   CONSTRAINT `communautes_paroisse_id_fkey` FOREIGN KEY (`paroisse_id`) REFERENCES `paroisses` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `versements`;
 DROP TABLE IF EXISTS `cotisations`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -100,6 +101,25 @@ CREATE TABLE `cotisations` (
   CONSTRAINT `cotisations_membre_id_fkey` FOREIGN KEY (`membre_id`) REFERENCES `membres` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `cotisations_paroisse_id_fkey` FOREIGN KEY (`paroisse_id`) REFERENCES `paroisses` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `cotisations_region_id_fkey` FOREIGN KEY (`region_id`) REFERENCES `regions` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `versements`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `versements` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `cotisation_id` int NOT NULL,
+  `montant` decimal(12,2) NOT NULL,
+  `mode_paiement` enum('MOBILE_MONEY','MANUEL') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `provider` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reference_externe` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `cle_idempotence` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `date_paiement` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `versements_cle_idempotence_key` (`cle_idempotence`),
+  KEY `versements_cotisation_id_idx` (`cotisation_id`),
+  CONSTRAINT `versements_cotisation_id_fkey` FOREIGN KEY (`cotisation_id`) REFERENCES `cotisations` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `districts`;

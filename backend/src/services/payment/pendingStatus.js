@@ -24,10 +24,12 @@ function isTerminalPaymentStatus(status) {
 
 function canPollProviderStatus(cotisation) {
   if (!cotisation) return false;
-  if (!['EN_ATTENTE', 'PARTIEL'].includes(cotisation.statut)) return false;
   if (cotisation.modePaiement && cotisation.modePaiement !== 'MOBILE_MONEY') return false;
 
   const notes = parseNotes(cotisation.notes);
+  const hasPending = notes.pendingAmount != null;
+  if (!['EN_ATTENTE', 'PARTIEL'].includes(cotisation.statut) && !hasPending) return false;
+
   const provider = String(cotisation.provider || 'ORANGE').toUpperCase();
 
   if (provider === 'WAVE') {

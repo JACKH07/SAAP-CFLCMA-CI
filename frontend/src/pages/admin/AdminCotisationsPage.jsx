@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import AdminShell from '../../components/AdminShell';
 import api from '../../api/client';
+import { formatDateHeure, moyenPaiement, totalVersements } from '../../utils/paiement';
 import './AdminCotisations.css';
 
 function formatMoney(n) {
@@ -417,17 +418,31 @@ export default function AdminCotisationsPage() {
             </div>
             <ul className="cotis-list">
               {items.length === 0 && <li className="muted">Aucune cotisation</li>}
-              {items.slice(0, 20).map((c) => (
+              {items.slice(0, 20).map((c) => {
+                const versements = c.versements || [];
+                const total = totalVersements(c);
+                return (
                 <li key={c.id} className="cotis-list-item">
                   <div className="cotis-list-main">
                     <strong>{c.idPaiement}</strong>
                     <em>
                       {c.membre?.prenom} {c.membre?.nom} · {c.activite?.nom}
                     </em>
+                    {versements.length > 0 && (
+                      <ul className="cotis-versements">
+                        {versements.map((v) => (
+                          <li key={v.id}>
+                            {formatDateHeure(v.datePaiement)} · {moyenPaiement(v)} ·{' '}
+                            {Number(v.montant).toLocaleString('fr-FR')} F
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                   <div className="cotis-list-meta">
                     <span>
-                      {Number(c.montantPaye).toLocaleString('fr-FR')} F versés
+                      Total {total.toLocaleString('fr-FR')} F
+                      {versements.length > 1 ? ` · ${versements.length} versements` : ''}
                     </span>
                     <span
                       className={`badge ${
@@ -451,7 +466,8 @@ export default function AdminCotisationsPage() {
                     </button>
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </div>
         </div>

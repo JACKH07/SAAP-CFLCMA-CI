@@ -26,7 +26,8 @@ describe('pendingStatus', () => {
       }),
     };
     expect(canPollProviderStatus(pending)).toBe(true);
-    expect(canPollProviderStatus({ ...pending, statut: 'PAYE' })).toBe(false);
+    expect(canPollProviderStatus({ ...pending, statut: 'PAYE' })).toBe(true);
+    expect(canPollProviderStatus({ ...pending, statut: 'PAYE', notes: null })).toBe(false);
     expect(canPollProviderStatus({ ...pending, notes: null, referenceExterne: null })).toBe(
       false
     );

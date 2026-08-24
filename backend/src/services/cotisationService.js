@@ -8,12 +8,29 @@ const {
   canPollProviderStatus,
   buildStatusCheckPayload,
   isTerminalPaymentStatus,
+  SUCCESS_STATUSES,
 } = require('./payment/pendingStatus');
+const {
+  resolveVersementIncrement,
+  buildIdempotenceKey,
+} = require('./payment/versementUtils');
 const path = require('path');
 const fs = require('fs');
 const config = require('../config');
 
 const REFERENCE_MAX_LENGTH = 100;
+
+const VERSEMENTS_INCLUDE = {
+  versements: { orderBy: { datePaiement: 'asc' } },
+};
+
+const COTISATION_MEMBRE_SELECT = {
+  id: true,
+  nom: true,
+  prenom: true,
+  idMembre: true,
+  contact: true,
+};
 
 function parsePaymentNotes(notes) {
   if (!notes) return {};
@@ -33,14 +50,6 @@ function clipReference(value) {
   return text.length <= REFERENCE_MAX_LENGTH ? text : text.slice(0, REFERENCE_MAX_LENGTH);
 }
 
-function pendingAmountFromNotes(notes, fallback) {
-  const parsed = parsePaymentNotes(notes);
-  if (parsed.pendingAmount != null && Number.isFinite(Number(parsed.pendingAmount))) {
-    return Number(parsed.pendingAmount);
-  }
-  return fallback;
-}
-
 function idPaiementFromOrangeOrderId(orderId) {
   if (!orderId) return null;
   const raw = String(orderId);
@@ -58,6 +67,7 @@ class CotisationService {
         district: { select: { id: true, nom: true } },
         paroisse: { select: { id: true, nom: true } },
         communaute: { select: { id: true, nom: true } },
+        ...VERSEMENTS_INCLUDE,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -111,16 +121,11 @@ class CotisationService {
         include: {
           activite: true,
           membre: {
-            select: {
-              id: true,
-              nom: true,
-              prenom: true,
-              idMembre: true,
-              contact: true,
-            },
+            select: COTISATION_MEMBRE_SELECT,
           },
           region: { select: { id: true, nom: true } },
           district: { select: { id: true, nom: true } },
+          ...VERSEMENTS_INCLUDE,
         },
       }),
       prisma.cotisation.count({ where }),
@@ -134,11 +139,12 @@ class CotisationService {
       where: { idPaiement },
       include: {
         activite: true,
-        membre: { select: { id: true, nom: true, prenom: true, idMembre: true, contact: true } },
+        membre: { select: COTISATION_MEMBRE_SELECT },
         region: true,
         district: true,
         paroisse: true,
         communaute: true,
+        ...VERSEMENTS_INCLUDE,
       },
     });
     if (!cotisation) throw new AppError('Paiement introuvable', 404);
@@ -151,6 +157,196 @@ class CotisationService {
     if (p <= 0) return 'EN_ATTENTE';
     if (p >= m) return 'PAYE';
     return 'PARTIEL';
+  }
+
+  cotisationDetailInclude() {
+    return {
+      activite: true,
+      membre: { select: COTISATION_MEMBRE_SELECT },
+      ...VERSEMENTS_INCLUDE,
+    };
+  }
+
+  async refreshCotisationTotals(id, extra = {}) {
+    const sum = await prisma.versement.aggregate({
+      where: { cotisationId: id },
+      _sum: { montant: true },
+    });
+    const total = Number(sum._sum.montant || 0);
+    const data = {
+      montant: total,
+      montantPaye: total,
+      statut: total > 0 ? 'PAYE' : extra.fallbackStatut || 'EN_ATTENTE',
+      datePaiement: total > 0 ? extra.datePaiement || new Date() : null,
+    };
+    if (extra.clearPendingNotes) data.notes = null;
+    if (extra.provider) data.provider = extra.provider;
+    if (extra.modePaiement) data.modePaiement = extra.modePaiement;
+    if (extra.referenceExterne) {
+      data.referenceExterne = clipReference(extra.referenceExterne);
+    }
+    return prisma.cotisation.update({
+      where: { id },
+      data,
+      include: this.cotisationDetailInclude(),
+    });
+  }
+
+  async addVersement(cotisation, payload) {
+    const increment = resolveVersementIncrement({
+      pendingAmount: payload.montant,
+      amount: payload.amount,
+    });
+    if (!increment) {
+      throw new AppError('Montant de versement invalide', 400);
+    }
+
+    const cleIdempotence = buildIdempotenceKey(cotisation.id, {
+      orderId: payload.orderId,
+      referenceExterne: payload.referenceExterne,
+    });
+
+    if (cleIdempotence) {
+      const existing = await prisma.versement.findUnique({ where: { cleIdempotence } });
+      if (existing) {
+        return this.refreshCotisationTotals(cotisation.id, {
+          clearPendingNotes: payload.clearPendingNotes !== false,
+          provider: payload.provider,
+          modePaiement: payload.modePaiement,
+          referenceExterne: payload.referenceExterne,
+        });
+      }
+    }
+
+    try {
+      await prisma.versement.create({
+        data: {
+          cotisationId: cotisation.id,
+          montant: increment,
+          modePaiement: payload.modePaiement || cotisation.modePaiement || 'MOBILE_MONEY',
+          provider: payload.provider || cotisation.provider || null,
+          referenceExterne: clipReference(payload.referenceExterne || cotisation.referenceExterne),
+          cleIdempotence,
+          datePaiement: payload.datePaiement || new Date(),
+        },
+      });
+    } catch (err) {
+      if (err.code === 'P2002') {
+        return this.refreshCotisationTotals(cotisation.id, {
+          clearPendingNotes: payload.clearPendingNotes !== false,
+        });
+      }
+      throw err;
+    }
+
+    return this.refreshCotisationTotals(cotisation.id, {
+      clearPendingNotes: payload.clearPendingNotes !== false,
+      provider: payload.provider,
+      modePaiement: payload.modePaiement,
+      referenceExterne: payload.referenceExterne,
+      datePaiement: payload.datePaiement,
+    });
+  }
+
+  /**
+   * Reconstruit l’historique à partir des journaux d’audit (paiements écrasés).
+   */
+  async backfillVersementsFromAudit() {
+    const cotisations = await prisma.cotisation.findMany({
+      where: { montantPaye: { gt: 0 } },
+      include: { _count: { select: { versements: true } } },
+    });
+    const toFill = cotisations.filter((c) => c._count.versements === 0);
+    if (!toFill.length) return { created: 0, cotisations: 0 };
+
+    let created = 0;
+    for (const cotisation of toFill) {
+      const logs = await prisma.auditLog.findMany({
+        where: {
+          entite: 'Cotisation',
+          entiteId: String(cotisation.id),
+          action: {
+            in: [
+              'PAIEMENT_MOBILE_MONEY_VALIDE',
+              'WEBHOOK_MOBILE_MONEY',
+              'SAISIE_PAIEMENT_MANUEL',
+            ],
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      const lines = [];
+      for (const log of logs) {
+        const details = log.details || {};
+        if (log.action === 'WEBHOOK_MOBILE_MONEY') {
+          const status = String(details.status || '').toUpperCase();
+          if (!SUCCESS_STATUSES.has(status)) continue;
+        }
+        const montant = Number(details.montant ?? details.montantPaye ?? details.amount);
+        if (!Number.isFinite(montant) || montant <= 0) continue;
+
+        const prev = lines[lines.length - 1];
+        const at = new Date(log.createdAt);
+        if (
+          prev &&
+          prev.montant === montant &&
+          Math.abs(at.getTime() - prev.at.getTime()) < 15_000
+        ) {
+          continue;
+        }
+
+        lines.push({
+          montant,
+          unique: details.referenceExterne || details.orangeOrderId || null,
+          at,
+          provider: details.provider || cotisation.provider,
+          mode:
+            log.action === 'SAISIE_PAIEMENT_MANUEL'
+              ? 'MANUEL'
+              : cotisation.modePaiement || 'MOBILE_MONEY',
+        });
+      }
+
+      if (!lines.length) {
+        lines.push({
+          montant: Number(cotisation.montantPaye),
+          unique: cotisation.referenceExterne,
+          at: cotisation.datePaiement || cotisation.updatedAt,
+          provider: cotisation.provider,
+          mode: cotisation.modePaiement || 'MOBILE_MONEY',
+        });
+      }
+
+      for (const line of lines) {
+        const cleIdempotence =
+          buildIdempotenceKey(cotisation.id, {
+            orderId: line.unique,
+            referenceExterne: line.unique,
+          }) || `${cotisation.id}:backfill:${line.at.getTime()}:${line.montant}`;
+        try {
+          await prisma.versement.create({
+            data: {
+              cotisationId: cotisation.id,
+              montant: line.montant,
+              modePaiement: line.mode,
+              provider: line.provider || null,
+              referenceExterne: clipReference(line.unique || cotisation.referenceExterne),
+              cleIdempotence,
+              datePaiement: line.at,
+            },
+          });
+          created += 1;
+        } catch (err) {
+          if (err.code !== 'P2002') throw err;
+        }
+      }
+
+      await this.refreshCotisationTotals(cotisation.id, { clearPendingNotes: false });
+    }
+
+    dashboardService.invalidateStatsCache();
+    return { created, cotisations: toFill.length };
   }
 
   /**
@@ -184,7 +380,7 @@ class CotisationService {
     let cotisation = await prisma.cotisation.findUnique({ where: { idPaiement } });
 
     const paye = Number(montantPaye);
-    if (paye < 0) throw new AppError('Montant invalide', 400);
+    if (paye <= 0) throw new AppError('Montant invalide', 400);
 
     if (!cotisation) {
       cotisation = await prisma.cotisation.create({
@@ -192,11 +388,10 @@ class CotisationService {
           membreId: membre.id,
           activiteId: activite.id,
           idPaiement,
-          montant: paye,
-          montantPaye: paye,
-          statut: 'PAYE',
+          montant: 0,
+          montantPaye: 0,
+          statut: 'EN_ATTENTE',
           modePaiement: 'MANUEL',
-          datePaiement: datePaiement ? new Date(datePaiement) : new Date(),
           regionId: membre.regionId,
           districtId: membre.districtId,
           paroisseId: membre.paroisseId,
@@ -205,25 +400,26 @@ class CotisationService {
           justificatifUrl: justificatifUrl || null,
           notes: notes || null,
         },
-        include: { activite: true, membre: { select: { id: true, nom: true, prenom: true, idMembre: true } } },
       });
     } else {
-      const nouveauMontantPaye = Number(cotisation.montantPaye) + paye;
       cotisation = await prisma.cotisation.update({
         where: { id: cotisation.id },
         data: {
-          montant: nouveauMontantPaye,
-          montantPaye: nouveauMontantPaye,
-          statut: 'PAYE',
-          modePaiement: 'MANUEL',
-          datePaiement: datePaiement ? new Date(datePaiement) : new Date(),
           saisiParId: acteurId,
           justificatifUrl: justificatifUrl || cotisation.justificatifUrl,
           notes: notes || cotisation.notes,
+          modePaiement: 'MANUEL',
         },
-        include: { activite: true, membre: { select: { id: true, nom: true, prenom: true, idMembre: true } } },
       });
     }
+
+    cotisation = await this.addVersement(cotisation, {
+      montant: paye,
+      modePaiement: 'MANUEL',
+      datePaiement: datePaiement ? new Date(datePaiement) : new Date(),
+      clearPendingNotes: false,
+      referenceExterne: `MANUEL-${Date.now()}-${paye}`,
+    });
 
     await auditService.log({
       acteurId,
@@ -337,33 +533,15 @@ class CotisationService {
       paymentUrl: providerResult.paymentUrl || null,
     });
 
-    const include = {
-      activite: true,
-      membre: {
-        select: {
-          id: true,
-          nom: true,
-          prenom: true,
-          idMembre: true,
-          contact: true,
-        },
-      },
-    };
+    const include = this.cotisationDetailInclude();
 
     if (status === 'SUCCESS' || status === 'SUCCESSFUL') {
-      const nouveauMontantPaye = dejaPaye + payAmount;
-      cotisation = await prisma.cotisation.update({
-        where: { id: cotisation.id },
-        data: {
-          montant: nouveauMontantPaye,
-          montantPaye: nouveauMontantPaye,
-          statut: 'PAYE',
-          modePaiement: 'MOBILE_MONEY',
-          provider: providerKey,
-          referenceExterne,
-          datePaiement: new Date(),
-        },
-        include,
+      cotisation = await this.addVersement(cotisation, {
+        montant: payAmount,
+        modePaiement: 'MOBILE_MONEY',
+        provider: providerKey,
+        referenceExterne,
+        orderId: orangeOrderId,
       });
 
       await auditService.log({
@@ -376,7 +554,7 @@ class CotisationService {
           phone,
           referenceExterne,
           montant: payAmount,
-          totalPaye: nouveauMontantPaye,
+          totalPaye: Number(cotisation.montantPaye),
           mock: Boolean(providerResult.mock),
         },
       });
@@ -388,7 +566,7 @@ class CotisationService {
         idPaiement: cotisation.idPaiement,
         referenceExterne,
         montant: payAmount,
-        totalPaye: nouveauMontantPaye,
+        totalPaye: Number(cotisation.montantPaye),
         provider: providerKey,
         status: 'SUCCESS',
         statut: 'PAYE',
@@ -544,7 +722,6 @@ class CotisationService {
     const rows = await prisma.cotisation.findMany({
       where: {
         modePaiement: 'MOBILE_MONEY',
-        statut: { in: ['EN_ATTENTE', 'PARTIEL'] },
         notes: { not: null },
         updatedAt: { gte: since },
       },
@@ -560,7 +737,12 @@ class CotisationService {
       checked += 1;
       try {
         const after = await this.verifyMobileMoney(row.idPaiement);
-        if (after.statut !== row.statut) updated += 1;
+        if (
+          after.statut !== row.statut ||
+          Number(after.montantPaye) !== Number(row.montantPaye)
+        ) {
+          updated += 1;
+        }
       } catch (err) {
         console.warn(`[payments] statut ${row.idPaiement} : ${err.message}`);
       }
@@ -585,42 +767,30 @@ class CotisationService {
     const statusUp = String(status || '').toUpperCase();
 
     if (statusUp === 'SUCCESS' || statusUp === 'SUCCESSFUL' || statusUp === 'SUCCEEDED' || statusUp === 'SUCCESSFULL') {
-      const dejaPaye = Number(cotisation.montantPaye || 0);
-      let payAmount =
-        amount != null
-          ? Number(amount)
-          : pendingAmountFromNotes(cotisation.notes, Number(cotisation.montant) - dejaPaye);
-      if (!Number.isFinite(payAmount) || payAmount <= 0) {
-        payAmount = Number(cotisation.montant) || 0;
+      const increment = resolveVersementIncrement({
+        pendingAmount: existingNotes.pendingAmount,
+        amount,
+      });
+      if (!increment) {
+        return cotisation;
       }
-      const nouveauMontantPaye = dejaPaye + (amount != null ? Math.max(0, payAmount - dejaPaye) : payAmount);
-      // Si amount = total payé côté opérateur, on prend max ; sinon cumul du pending
-      const finalPaye =
-        amount != null && Number(amount) >= dejaPaye
-          ? Math.max(dejaPaye, Number(amount))
-          : Math.max(dejaPaye, nouveauMontantPaye);
-
-      cotisation = await prisma.cotisation.update({
-        where: { id: cotisation.id },
-        data: {
-          montant: Math.max(Number(cotisation.montant), finalPaye),
-          montantPaye: finalPaye,
-          statut: 'PAYE',
-          modePaiement: 'MOBILE_MONEY',
-          provider: provider || cotisation.provider,
-          referenceExterne: referenceExterne || cotisation.referenceExterne,
-          datePaiement: new Date(),
-          notes: null,
-        },
+      cotisation = await this.addVersement(cotisation, {
+        montant: increment,
+        modePaiement: 'MOBILE_MONEY',
+        provider: provider || cotisation.provider,
+        referenceExterne: referenceExterne || cotisation.referenceExterne,
+        orderId: existingNotes.orangeOrderId,
+        clearPendingNotes: true,
       });
     } else if (statusUp === 'FAILED' || statusUp === 'CANCELLED' || statusUp === 'EXPIRED') {
       const dejaPaye = Number(cotisation.montantPaye || 0);
       cotisation = await prisma.cotisation.update({
         where: { id: cotisation.id },
         data: {
-          statut: dejaPaye > 0 ? this.computeStatut(cotisation.montant, dejaPaye) : 'ECHOUE',
+          statut: dejaPaye > 0 ? 'PAYE' : 'ECHOUE',
           notes: null,
         },
+        include: this.cotisationDetailInclude(),
       });
     }
 

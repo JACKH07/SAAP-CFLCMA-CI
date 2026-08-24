@@ -188,6 +188,7 @@ model Cotisation {
   notes           String?        @db.Text
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
+  versements      Versement[]
 
   @@unique([membreId, activiteId])
   @@index([activiteId])
@@ -207,6 +208,23 @@ enum StatutPaiement {
 enum ModePaiement {
   MOBILE_MONEY
   MANUEL
+}
+
+/// Un versement réel (plusieurs paiements par cotisation / activité).
+model Versement {
+  id               Int           @id @default(autoincrement())
+  cotisationId     Int           @map("cotisation_id")
+  cotisation       Cotisation    @relation(fields: [cotisationId], references: [id], onDelete: Cascade)
+  montant          Decimal       @db.Decimal(12, 2)
+  modePaiement     ModePaiement? @map("mode_paiement")
+  provider         String?       @db.VarChar(50)
+  referenceExterne String?       @map("reference_externe") @db.VarChar(100)
+  cleIdempotence   String?       @unique @map("cle_idempotence") @db.VarChar(120)
+  datePaiement     DateTime      @default(now()) @map("date_paiement")
+  createdAt        DateTime      @default(now())
+
+  @@index([cotisationId])
+  @@map("versements")
 }
 
 model HistoriqueMandat {
