@@ -177,11 +177,9 @@ export default function PaiementPage() {
 
         <div>
           <h1>{step === 'recap' ? 'Récapitulatif' : 'Paiement'}</h1>
-          <p className="muted">
-            {step === 'recap'
-              ? 'Vérifiez les informations puis confirmez le paiement.'
-              : 'Saisissez le montant à verser — aucun montant fixe. Test Orange Money : 10.'}
-          </p>
+          {step === 'recap' && (
+            <p className="muted">Vérifiez les informations puis confirmez le paiement.</p>
+          )}
         </div>
 
         {loadingMeta && <p className="muted">Chargement…</p>}

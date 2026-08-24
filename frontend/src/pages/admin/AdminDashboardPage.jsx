@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bar,
   BarChart,
@@ -20,6 +20,8 @@ import { paths, adminMembreProfilPath } from '../../config/env';
 import { titreNom, gradeNom } from '../../utils/roleDisplay';
 import './AdminDashboard.css';
 import './AdminMembreProfil.css';
+
+const DASHBOARD_REFRESH_MS = 20_000;
 
 const COLORS = {
   primary: '#1c7c38',
@@ -67,16 +69,21 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [range, setRange] = useState('1A');
+  const inFlightRef = useRef(false);
+  const hasStatsRef = useRef(false);
 
-  async function load(rid = regionId, { soft = false } = {}) {
-    setError('');
-    if (soft && stats) setRefreshing(true);
-    else setLoading(true);
+  async function load(rid = regionId, { soft = false, silent = false } = {}) {
+    if (silent && inFlightRef.current) return;
+    inFlightRef.current = true;
+    if (!silent) setError('');
+    if (!silent && soft && hasStatsRef.current) setRefreshing(true);
+    else if (!silent) setLoading(true);
     try {
       const params = rid ? { regionId: rid } : {};
       const { data } = await api.get('/dashboard/stats', { params });
       const payload = data.data;
       setStats(payload);
+      hasStatsRef.current = true;
       if (payload?.regions?.length) {
         setRegions(payload.regions);
       } else if (!regions.length) {
@@ -84,17 +91,38 @@ export default function AdminDashboardPage() {
         setRegions(r.data.data || []);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Impossible de charger les stats');
+      if (!silent) {
+        setError(err.response?.data?.message || 'Impossible de charger les stats');
+      }
     } finally {
+      inFlightRef.current = false;
       setLoading(false);
       setRefreshing(false);
     }
   }
 
   useEffect(() => {
-    load('');
+    load(regionId, { soft: hasStatsRef.current });
+
+    const timer = setInterval(() => {
+      load(regionId, { silent: true });
+    }, DASHBOARD_REFRESH_MS);
+
+    function onVisible() {
+      if (document.visibilityState === 'visible') {
+        load(regionId, { silent: true });
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [regionId]);
 
   function exportFile(type) {
     api
@@ -179,7 +207,6 @@ export default function AdminDashboardPage() {
           value={regionId}
           onChange={(e) => {
             setRegionId(e.target.value);
-            load(e.target.value, { soft: true });
           }}
         >
           <option value="">Toutes les régions</option>

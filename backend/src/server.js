@@ -2,6 +2,7 @@ const app = require('./app');
 const config = require('./config');
 const prisma = require('./config/prisma');
 const { ensureDefaultActivites } = require('./constants/activites');
+const { startPaymentStatusPoller } = require('./services/paymentStatusPoller');
 
 async function start() {
   try {
@@ -13,6 +14,7 @@ async function start() {
 
   app.listen(config.port, () => {
     console.log(`SAAP CFLCMA-CI API [${config.appEnv}] sur le port ${config.port}`);
+    startPaymentStatusPoller();
   });
 }
 

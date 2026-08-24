@@ -122,5 +122,12 @@ module.exports = {
           : undefined,
     // success | pending | failed | timeout
     mockResult: process.env.PAYMENT_MOCK_RESULT || 'success',
+    /** 0 = désactivé. Minimum effectif 5 s. */
+    statusPollIntervalMs: parseInt(process.env.PAYMENT_STATUS_POLL_MS || '20000', 10),
+    statusPollMaxAgeMs: parseInt(
+      process.env.PAYMENT_STATUS_POLL_MAX_AGE_MS || `${24 * 60 * 60 * 1000}`,
+      10
+    ),
+    statusPollBatchSize: parseInt(process.env.PAYMENT_STATUS_POLL_BATCH || '20', 10),
   },
 };

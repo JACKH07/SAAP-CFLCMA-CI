@@ -4,6 +4,11 @@ const membreIdService = require('./membreIdService');
 const auditService = require('./auditService');
 const paymentGateway = require('./payment');
 const dashboardService = require('./dashboardService');
+const {
+  canPollProviderStatus,
+  buildStatusCheckPayload,
+  isTerminalPaymentStatus,
+} = require('./payment/pendingStatus');
 const path = require('path');
 const fs = require('fs');
 const config = require('../config');
@@ -511,15 +516,13 @@ class CotisationService {
       throw new AppError('Vous ne pouvez vérifier que votre propre paiement', 403);
     }
 
-    if (cotisation.statut === 'PAYE') return cotisation;
-
     const notes = parsePaymentNotes(cotisation.notes);
-    const result = await paymentGateway.checkStatus({
-      provider: cotisation.provider || 'ORANGE',
-      orderId: notes.orangeOrderId || idPaiement,
-      payToken: notes.payToken || cotisation.referenceExterne,
-      amount: notes.pendingAmount,
-    });
+    if (cotisation.statut === 'PAYE' && notes.pendingAmount == null) return cotisation;
+
+    const result = await paymentGateway.checkStatus(buildStatusCheckPayload(cotisation));
+    if (!isTerminalPaymentStatus(result.status)) {
+      return cotisation;
+    }
 
     return this.confirmWebhook({
       idPaiement,
@@ -531,12 +534,53 @@ class CotisationService {
   }
 
   /**
+   * Interroge Orange/Wave pour les cotisations encore en attente.
+   */
+  async syncPendingMobileMoney({ maxAgeMs, batchSize } = {}) {
+    const maxAge = maxAgeMs ?? config.payment.statusPollMaxAgeMs;
+    const take = batchSize ?? config.payment.statusPollBatchSize;
+    const since = new Date(Date.now() - maxAge);
+
+    const rows = await prisma.cotisation.findMany({
+      where: {
+        modePaiement: 'MOBILE_MONEY',
+        statut: { in: ['EN_ATTENTE', 'PARTIEL'] },
+        notes: { not: null },
+        updatedAt: { gte: since },
+      },
+      orderBy: { updatedAt: 'asc' },
+      take,
+    });
+
+    let checked = 0;
+    let updated = 0;
+
+    for (const row of rows) {
+      if (!canPollProviderStatus(row)) continue;
+      checked += 1;
+      try {
+        const after = await this.verifyMobileMoney(row.idPaiement);
+        if (after.statut !== row.statut) updated += 1;
+      } catch (err) {
+        console.warn(`[payments] statut ${row.idPaiement} : ${err.message}`);
+      }
+    }
+
+    return { checked, updated };
+  }
+
+  /**
    * Confirmation webhook mobile money.
    */
   async confirmWebhook({ idPaiement, referenceExterne, status, amount, provider }) {
     let cotisation = await this.findForWebhook({ idPaiement, referenceExterne });
 
     if (!cotisation) throw new AppError('Cotisation introuvable pour ce webhook', 404);
+
+    const existingNotes = parsePaymentNotes(cotisation.notes);
+    if (cotisation.statut === 'PAYE' && existingNotes.pendingAmount == null) {
+      return cotisation;
+    }
 
     const statusUp = String(status || '').toUpperCase();
 
