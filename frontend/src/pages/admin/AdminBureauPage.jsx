@@ -85,6 +85,7 @@ function ResponsabiliteFields({ form, setForm, idPrefix }) {
 export default function AdminBureauPage() {
   const [mode, setMode] = useState('create');
   const [membres, setMembres] = useState([]);
+  const [bureauList, setBureauList] = useState([]);
   const [roles, setRoles] = useState([]);
   const [regions, setRegions] = useState([]);
   const [districts, setDistricts] = useState([]);
@@ -113,8 +114,12 @@ export default function AdminBureauPage() {
     setError('');
     setLoading(true);
     try {
-      const { data } = await api.get('/membres', { params: { limit: 200, statut: 'VALIDE' } });
-      setMembres(data.items || []);
+      const [bureauRes, candidatsRes] = await Promise.all([
+        api.get('/membres', { params: { limit: 500, bureau: true } }),
+        api.get('/membres', { params: { limit: 100, statut: 'VALIDE' } }),
+      ]);
+      setBureauList(bureauRes.data.items || []);
+      setMembres(candidatsRes.data.items || []);
     } catch (e) {
       setError(e.response?.data?.message || 'Erreur de chargement');
     } finally {
@@ -164,23 +169,25 @@ export default function AdminBureauPage() {
 
   const bureauMembres = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return membres.filter((m) => {
+    return bureauList.filter((m) => {
       if (!m.responsabiliteBureau?.trim()) return false;
       if (!q) return true;
       const hay = [
         m.prenom,
         m.nom,
         m.idMembre,
+        m.contact,
         m.responsabiliteBureau,
         m.region?.nom,
         m.district?.nom,
+        m.paroisse?.nom,
       ]
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
       return hay.includes(q);
     });
-  }, [membres, search]);
+  }, [bureauList, search]);
 
   const candidats = useMemo(() => {
     const q = membreSearch.trim().toLowerCase();
@@ -306,6 +313,71 @@ export default function AdminBureauPage() {
       <section className="admin-page">
         {msg && <div className="alert alert-success">{msg}</div>}
         {error && <div className="alert alert-error">{error}</div>}
+
+        <div className="card bureau-list-card">
+          <div className="card-head-simple">
+            <h2>Membres du bureau</h2>
+            <p className="muted">{bureauMembres.length} membre(s) désigné(s)</p>
+          </div>
+          <div className="form-group">
+            <label htmlFor="bureau-search">Recherche</label>
+            <input
+              id="bureau-search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Nom, responsabilité, région…"
+            />
+          </div>
+          {loading ? (
+            <p className="muted">Chargement…</p>
+          ) : bureauMembres.length === 0 ? (
+            <p className="muted">Aucun membre dans le bureau. Ajoutez-en via le formulaire ci-dessous.</p>
+          ) : (
+            <div className="data-table-wrap">
+              <table className="data-table data-table-responsive">
+                <thead>
+                  <tr>
+                    <th>Membre</th>
+                    <th>Responsabilité</th>
+                    <th>Contact</th>
+                    <th>Branche</th>
+                    <th>Région</th>
+                    <th>District</th>
+                    <th>Paroisse</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bureauMembres.map((m) => (
+                    <tr key={m.id}>
+                      <td data-label="Membre">
+                        <strong>
+                          {m.prenom} {m.nom}
+                        </strong>
+                        <div className="muted tiny">{m.idMembre}</div>
+                      </td>
+                      <td data-label="Responsabilité">{m.responsabiliteBureau}</td>
+                      <td data-label="Contact">{m.contact || '—'}</td>
+                      <td data-label="Branche">{m.branche === 'LUMIERES' ? 'Lumières' : 'Flambeaux'}</td>
+                      <td data-label="Région">{m.region?.nom || '—'}</td>
+                      <td data-label="District">{m.district?.nom || '—'}</td>
+                      <td data-label="Paroisse">{m.paroisse?.nom || '—'}</td>
+                      <td className="actions-cell" data-label="Action">
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => removeFromBureau(m.id)}
+                        >
+                          Retirer
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
         <div className="card bureau-form-card">
           <div className="card-head-simple">
@@ -628,69 +700,6 @@ export default function AdminBureauPage() {
                 </button>
               </div>
             </form>
-          )}
-        </div>
-
-        <div className="card">
-          <div className="card-head-simple">
-            <h2>Membres du bureau</h2>
-            <p className="muted">{bureauMembres.length} membre(s) désigné(s)</p>
-          </div>
-          <div className="form-group">
-            <label htmlFor="bureau-search">Recherche</label>
-            <input
-              id="bureau-search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Nom, responsabilité, région…"
-            />
-          </div>
-          {loading ? (
-            <p className="muted">Chargement…</p>
-          ) : bureauMembres.length === 0 ? (
-            <p className="muted">Aucun membre dans le bureau. Ajoutez-en via le formulaire ci-dessus.</p>
-          ) : (
-            <div className="data-table-wrap">
-              <table className="data-table data-table-responsive">
-                <thead>
-                  <tr>
-                    <th>Membre</th>
-                    <th>Responsabilité bureau</th>
-                    <th>Branche</th>
-                    <th>Région</th>
-                    <th>District</th>
-                    <th>Paroisse</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bureauMembres.map((m) => (
-                    <tr key={m.id}>
-                      <td data-label="Membre">
-                        <strong>
-                          {m.prenom} {m.nom}
-                        </strong>
-                        <div className="muted tiny">{m.idMembre}</div>
-                      </td>
-                      <td data-label="Responsabilité">{m.responsabiliteBureau}</td>
-                      <td data-label="Branche">{m.branche === 'LUMIERES' ? 'Lumières' : 'Flambeaux'}</td>
-                      <td data-label="Région">{m.region?.nom || '—'}</td>
-                      <td data-label="District">{m.district?.nom || '—'}</td>
-                      <td data-label="Paroisse">{m.paroisse?.nom || '—'}</td>
-                      <td className="actions-cell" data-label="Action">
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => removeFromBureau(m.id)}
-                        >
-                          Retirer
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
           )}
         </div>
       </section>

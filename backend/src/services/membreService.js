@@ -36,9 +36,12 @@ class MembreService {
     district,
     paroisse,
     communaute,
+    bureau,
   } = {}) {
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
-    const take = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+    const bureauOnly = bureau === true || bureau === 'true' || bureau === '1';
+    const maxTake = bureauOnly ? 500 : 100;
+    const take = Math.min(maxTake, Math.max(1, parseInt(limit, 10) || 20));
     const skip = (pageNum - 1) * take;
     const where = {};
 
@@ -51,6 +54,12 @@ class MembreService {
     }
     if (situationMatrimoniale) {
       where.situationMatrimoniale = String(situationMatrimoniale).trim();
+    }
+    if (bureauOnly) {
+      where.AND = [
+        { responsabiliteBureau: { not: null } },
+        { NOT: { responsabiliteBureau: '' } },
+      ];
     }
     const regionQ = String(region || '').trim();
     const districtQ = String(district || '').trim();
