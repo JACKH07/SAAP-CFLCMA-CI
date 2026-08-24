@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
@@ -40,7 +38,7 @@ export default function AdminCotisationsPage() {
 
   async function loadList() {
     const { data } = await api.get('/cotisations', {
-      params: { search: search || undefined, limit: 40 },
+      params: { search: search || undefined, limit: 200 },
     });
     setItems(data.items || []);
   }
@@ -102,15 +100,58 @@ export default function AdminCotisationsPage() {
       }));
   }, [stats]);
 
-  const activiteChart = useMemo(() => {
-    return (stats?.parActivite || []).map((a) => ({
-      name: (a.nom || a.prefixe || 'Act.').slice(0, 12),
-      fullName: a.nom,
-      percu: Number(a.montantPercu || 0),
-      attendu: Number(a.montantAttendu || 0),
-      versements: Number(a.nbVersements || 0),
+  const totauxParActivite = useMemo(() => {
+    const fromStats = stats?.parActivite || [];
+    if (fromStats.length) {
+      return [...fromStats]
+        .map((a) => ({
+          id: a.activiteId,
+          nom: a.nom || a.prefixe || 'Activité',
+          percu: Number(a.montantPercu || 0),
+          versements: Number(a.nbVersements || 0),
+        }))
+        .sort((a, b) => b.percu - a.percu);
+    }
+    return (activites || []).map((a) => ({
+      id: a.id,
+      nom: a.nom,
+      percu: 0,
+      versements: 0,
     }));
-  }, [stats]);
+  }, [stats, activites]);
+
+  const membresAyantPaye = useMemo(() => {
+    const byMembre = new Map();
+    for (const cotisation of items) {
+      const total = totalVersements(cotisation);
+      if (total <= 0) continue;
+      const membreId = cotisation.membre?.id || cotisation.membreId;
+      if (!membreId) continue;
+      const current = byMembre.get(membreId) || {
+        id: membreId,
+        nom: cotisation.membre?.nom || '',
+        prenom: cotisation.membre?.prenom || '',
+        idMembre: cotisation.membre?.idMembre || '',
+        contact: cotisation.membre?.contact || '',
+        cotisations: [],
+        total: 0,
+        nbVersements: 0,
+      };
+      const versements = cotisation.versements || [];
+      current.cotisations.push({
+        id: cotisation.id,
+        activite: cotisation.activite?.nom || 'Activité',
+        idPaiement: cotisation.idPaiement,
+        total,
+        versements,
+        statut: cotisation.statut,
+      });
+      current.total += total;
+      current.nbVersements += versements.length || 1;
+      byMembre.set(membreId, current);
+    }
+    return [...byMembre.values()].sort((a, b) => b.total - a.total);
+  }, [items]);
 
   async function searchPayment(e) {
     e.preventDefault();
@@ -281,40 +322,26 @@ export default function AdminCotisationsPage() {
           </div>
 
           <div className="cotis-panel">
-            <h2>Montants par activité</h2>
-            <div className="cotis-chart-box">
-              <ResponsiveContainer width="100%" height={260}>
-                <AreaChart data={activiteChart} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="cotisArea" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#4f7cff" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#4f7cff" stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <Tooltip
-                    formatter={(v, _name, item) => {
-                      const n = item?.payload?.versements || 0;
-                      return [
-                        `${formatMoney(v)}${n ? ` · ${n} versement${n > 1 ? 's' : ''}` : ''}`,
-                        'Total',
-                      ];
-                    }}
-                    labelFormatter={(_, p) => p?.[0]?.payload?.fullName || ''}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="percu"
-                    name="Perçu"
-                    stroke="#4f7cff"
-                    strokeWidth={2.5}
-                    fill="url(#cotisArea)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            <h2>Montant par activité</h2>
+            {totauxParActivite.length === 0 ? (
+              <p className="muted">Aucune activité</p>
+            ) : (
+              <ul className="cotis-activite-totals">
+                {totauxParActivite.map((a) => (
+                  <li key={a.id || a.nom}>
+                    <div className="cotis-activite-totals-main">
+                      <strong>{a.nom}</strong>
+                      <em>
+                        {a.versements > 0
+                          ? `${a.versements} versement${a.versements > 1 ? 's' : ''}`
+                          : 'Aucun versement'}
+                      </em>
+                    </div>
+                    <span className="cotis-activite-totals-amount">{formatMoney(a.percu)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
 
@@ -390,16 +417,16 @@ export default function AdminCotisationsPage() {
             </form>
           </div>
 
-          <div className="cotis-panel">
+          <div className="cotis-panel cotis-membres-panel">
             <div className="cotis-panel-head">
-              <h2>Dernières cotisations</h2>
+              <h2>Membres ayant payé</h2>
               <div className="cotis-panel-tools">
                 <form className="cotis-search" onSubmit={searchPayment}>
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="ID paiement…"
-                    aria-label="Rechercher un ID paiement"
+                    placeholder="Nom, prénom ou ID membre…"
+                    aria-label="Rechercher un membre"
                   />
                   <button type="submit" className="btn btn-secondary btn-sm">
                     OK
@@ -417,59 +444,76 @@ export default function AdminCotisationsPage() {
                 </button>
               </div>
             </div>
-            <ul className="cotis-list">
-              {items.length === 0 && <li className="muted">Aucune cotisation</li>}
-              {items.slice(0, 20).map((c) => {
-                const versements = c.versements || [];
-                const total = totalVersements(c);
-                return (
-                <li key={c.id} className="cotis-list-item">
-                  <div className="cotis-list-main">
-                    <strong>{c.idPaiement}</strong>
-                    <em>
-                      {c.membre?.prenom} {c.membre?.nom} · {c.activite?.nom}
-                    </em>
-                    {versements.length > 0 && (
-                      <ul className="cotis-versements">
-                        {versements.map((v) => (
-                          <li key={v.id}>
-                            {formatDateHeure(v.datePaiement)} · {moyenPaiement(v)} ·{' '}
-                            {Number(v.montant).toLocaleString('fr-FR')} F
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                  <div className="cotis-list-meta">
-                    <span>
-                      Total {total.toLocaleString('fr-FR')} F
-                      {versements.length > 1 ? ` · ${versements.length} versements` : ''}
-                    </span>
-                    <span
-                      className={`badge ${
-                        c.statut === 'PAYE'
-                          ? 'badge-paye'
-                          : c.statut === 'PARTIEL'
-                            ? 'badge-partiel'
-                            : 'badge-attente'
-                      }`}
-                    >
-                      {c.statut}
-                    </span>
-                    <button
-                      type="button"
-                      className="btn-cotis-delete"
-                      disabled={deletingId === c.id}
-                      onClick={() => removePayment(c)}
-                      title="Supprimer ce paiement"
-                    >
-                      {deletingId === c.id ? '…' : 'Supprimer'}
-                    </button>
-                  </div>
-                </li>
-                );
-              })}
-            </ul>
+            {membresAyantPaye.length === 0 ? (
+              <p className="muted">Aucun membre n’a encore effectué de paiement.</p>
+            ) : (
+              <ul className="cotis-membres-list">
+                {membresAyantPaye.map((membre) => (
+                  <li key={membre.id} className="cotis-membre-card">
+                    <div className="cotis-membre-head">
+                      <div>
+                        <strong>
+                          {membre.prenom} {membre.nom}
+                        </strong>
+                        <em>
+                          {membre.idMembre}
+                          {membre.contact ? ` · ${membre.contact}` : ''}
+                          {` · ${membre.nbVersements} versement${
+                            membre.nbVersements > 1 ? 's' : ''
+                          }`}
+                        </em>
+                      </div>
+                      <span className="cotis-activite-totals-amount">
+                        {formatMoney(membre.total)}
+                      </span>
+                    </div>
+                    <ul className="cotis-membre-activites">
+                      {membre.cotisations.map((cotisation) => (
+                        <li key={cotisation.id}>
+                          <div className="cotis-membre-activite">
+                            <div>
+                              <strong>{cotisation.activite}</strong>
+                              <em>{cotisation.idPaiement}</em>
+                              {(cotisation.versements || []).length > 0 && (
+                                <ul className="cotis-versements">
+                                  {cotisation.versements.map((v) => (
+                                    <li key={v.id}>
+                                      {formatDateHeure(v.datePaiement)} · {moyenPaiement(v)} ·{' '}
+                                      {Number(v.montant).toLocaleString('fr-FR')} F
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                            <div className="cotis-list-meta">
+                              <span>{formatMoney(cotisation.total)}</span>
+                              <button
+                                type="button"
+                                className="btn-cotis-delete"
+                                disabled={deletingId === cotisation.id}
+                                onClick={() =>
+                                  removePayment({
+                                    id: cotisation.id,
+                                    idPaiement: cotisation.idPaiement,
+                                    membre: {
+                                      prenom: membre.prenom,
+                                      nom: membre.nom,
+                                    },
+                                  })
+                                }
+                                title="Supprimer ce paiement"
+                              >
+                                {deletingId === cotisation.id ? '…' : 'Supprimer'}
+                              </button>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </section>
