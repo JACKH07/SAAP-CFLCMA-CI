@@ -143,6 +143,17 @@ export default function AdminShell({ children, title = 'Analytique', crumbs = ['
             </div>
           ))}
         </nav>
+
+        <button
+          type="button"
+          className="btn-logout-sidebar"
+          onClick={() => {
+            setOpen(false);
+            handleLogout();
+          }}
+        >
+          Déconnexion
+        </button>
       </aside>
 
       {open && (
@@ -178,12 +189,6 @@ export default function AdminShell({ children, title = 'Analytique', crumbs = ['
                 <small>{user?.role?.nom || 'Coordinateur Général (CG)'}</small>
               </div>
             </div>
-            <button type="button" className="btn-logout-sm" onClick={handleLogout}>
-              <span className="logout-label">Déconnexion</span>
-              <span className="logout-icon" aria-hidden>
-                ⎋
-              </span>
-            </button>
           </div>
         </header>
 

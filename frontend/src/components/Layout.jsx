@@ -30,11 +30,6 @@ export default function Layout({ children }) {
               <small>CFLCMA-CI</small>
             </span>
           </NavLink>
-          {user && (
-            <button type="button" className="btn-logout" onClick={handleLogout}>
-              Déconnexion
-            </button>
-          )}
         </div>
       </header>
 
@@ -52,11 +47,17 @@ export default function Layout({ children }) {
               <NavLink to={paths.profil} onClick={() => setPortal('membre')}>
                 Profil
               </NavLink>
+              <button type="button" className="btn-logout-nav" onClick={handleLogout}>
+                Déconnexion
+              </button>
             </>
           ) : (
             <>
               <NavLink to={paths.profil}>Profil</NavLink>
               <NavLink to={paths.mesCotisations}>Cotisations</NavLink>
+              <button type="button" className="btn-logout-nav" onClick={handleLogout}>
+                Déconnexion
+              </button>
             </>
           )}
         </nav>
