@@ -18,6 +18,16 @@ function formatMoney(n) {
   return `${Number(n || 0).toLocaleString('fr-FR')} F`;
 }
 
+const MONTANT_PAIEMENT_ANNUEL = 150000;
+
+function isPaiementAnnuel(activite) {
+  if (!activite) return false;
+  if (isActiviteRegionale(activite)) return true;
+  const prefixe = String(activite.prefixeIdPaiement || activite.prefixe || '').toUpperCase();
+  if (prefixe === 'ANNUEL') return true;
+  return /annuel/i.test(activite.nom || '');
+}
+
 const EMPTY_ACTIVITE = {
   nom: '',
   prefixeIdPaiement: '',
@@ -53,6 +63,7 @@ export default function AdminCotisationsPage() {
   const [detailItems, setDetailItems] = useState([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [expandedRegionId, setExpandedRegionId] = useState(null);
+  const [statsAnnuel, setStatsAnnuel] = useState(null);
 
   async function loadList() {
     const { data } = await api.get('/cotisations', {
@@ -105,12 +116,47 @@ export default function AdminCotisationsPage() {
     };
   }, []);
 
-  const montantTotal = stats?.cotisations?.montantPercu ?? 0;
-  const montantAttendu = stats?.cotisations?.montantAttendu ?? 0;
-  const resteACollecter = Math.max(0, montantAttendu - montantTotal);
+  async function loadStatsAnnuel(activiteId) {
+    if (!activiteId) return;
+    try {
+      const { data } = await api.get('/dashboard/stats', { params: { activiteId } });
+      setStatsAnnuel(data.data);
+    } catch {
+      setStatsAnnuel(null);
+    }
+  }
+
+  const activiteAnnuel = useMemo(
+    () => (activites || []).find(isPaiementAnnuel) || null,
+    [activites]
+  );
+
+  useEffect(() => {
+    if (!activiteAnnuel?.id) return undefined;
+    loadStatsAnnuel(activiteAnnuel.id);
+    const timer = setInterval(() => loadStatsAnnuel(activiteAnnuel.id), 30000);
+    function onFocus() {
+      loadStatsAnnuel(activiteAnnuel.id);
+    }
+    window.addEventListener('focus', onFocus);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [activiteAnnuel?.id]);
+  const montantParRegion = montantCible(activiteAnnuel) || MONTANT_PAIEMENT_ANNUEL;
+  const nbRegions = (regions || []).length;
+  const montantTotal = montantParRegion * nbRegions;
+  const montantVerseParToutesLesRegions = useMemo(() => {
+    const parRegion = statsAnnuel?.parRegion || [];
+    if (parRegion.length) {
+      return parRegion.reduce((sum, region) => sum + Number(region.montantPercu || 0), 0);
+    }
+    return Number(statsAnnuel?.cotisations?.montantPercu || 0);
+  }, [statsAnnuel]);
+  const resteACollecter = Math.max(0, montantTotal - montantVerseParToutesLesRegions);
   const payees = stats?.cotisations?.payees ?? 0;
   const taux = stats?.cotisations?.tauxPaiement ?? 0;
-  const nbVersements = stats?.cotisations?.nbVersements ?? 0;
 
   const regionChart = useMemo(() => {
     return [...(stats?.parRegion || [])]
@@ -410,7 +456,13 @@ export default function AdminCotisationsPage() {
           <article className="cotis-kpi cotis-kpi--blue">
             <div className="cotis-kpi-text">
               <span>Montant Total</span>
-              <strong>{formatMoney(montantTotal)}</strong>
+              <strong>
+                {formatMoney(montantTotal)}
+                <small>
+                  {' '}
+                  · {Number(montantParRegion).toLocaleString('fr-FR')} F × {nbRegions}
+                </small>
+              </strong>
             </div>
             <div className="cotis-kpi-ico" aria-hidden>
               <svg viewBox="0 0 48 48" width="52" height="52">
@@ -428,8 +480,11 @@ export default function AdminCotisationsPage() {
 
           <article className="cotis-kpi cotis-kpi--green">
             <div className="cotis-kpi-text">
-              <span>Versements</span>
-              <strong>{nbVersements.toLocaleString('fr-FR')}</strong>
+              <span>Versé sur l’annuel</span>
+              <strong>
+                {formatMoney(montantVerseParToutesLesRegions)}
+                <small> sur {formatMoney(montantTotal)}</small>
+              </strong>
             </div>
             <div className="cotis-kpi-ico" aria-hidden>
               <svg viewBox="0 0 48 48" width="52" height="52">
