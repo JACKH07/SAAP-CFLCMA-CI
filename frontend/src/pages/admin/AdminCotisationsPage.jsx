@@ -10,8 +10,8 @@ import {
 } from 'recharts';
 import AdminShell from '../../components/AdminShell';
 import api from '../../api/client';
-import { formatDateHeure, moyenPaiement, totalVersements } from '../../utils/paiement';
-import { ACTIVITE_VISIBILITE, ACTIVITE_VISIBILITE_OPTIONS } from '../../utils/activiteVisibilite';
+import { formatDateHeure, moyenPaiement, totalVersements, montantCible, restantDu } from '../../utils/paiement';
+import { ACTIVITE_VISIBILITE, ACTIVITE_VISIBILITE_OPTIONS, isActiviteRegionale } from '../../utils/activiteVisibilite';
 import './AdminCotisations.css';
 
 function formatMoney(n) {
@@ -47,6 +47,12 @@ export default function AdminCotisationsPage() {
   const [loading, setLoading] = useState(false);
   const [loadingStats, setLoadingStats] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
+  const [expandedMembreId, setExpandedMembreId] = useState(null);
+  const [regions, setRegions] = useState([]);
+  const [detailActivite, setDetailActivite] = useState(null);
+  const [detailItems, setDetailItems] = useState([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [expandedRegionId, setExpandedRegionId] = useState(null);
 
   async function loadList() {
     const { data } = await api.get('/cotisations', {
@@ -76,12 +82,14 @@ export default function AdminCotisationsPage() {
     Promise.all([
       api.get('/activites', { params: { all: true } }),
       api.get('/membres', { params: { limit: 100, statut: 'VALIDE' } }),
+      api.get('/regions'),
       loadList(),
       loadStats(),
     ])
-      .then(([a, m]) => {
+      .then(([a, m, r]) => {
         setActivites(a.data.data || []);
         setMembres(m.data.items || []);
+        setRegions(r.data.data || []);
       })
       .catch((e) => setError(e.response?.data?.message || 'Erreur de chargement'));
 
@@ -119,14 +127,21 @@ export default function AdminCotisationsPage() {
 
   const totauxParActivite = useMemo(() => {
     const fromStats = stats?.parActivite || [];
+    const byId = new Map((activites || []).map((a) => [a.id, a]));
     if (fromStats.length) {
       return [...fromStats]
-        .map((a) => ({
-          id: a.activiteId,
-          nom: a.nom || a.prefixe || 'Activité',
-          percu: Number(a.montantPercu || 0),
-          versements: Number(a.nbVersements || 0),
-        }))
+        .map((a) => {
+          const meta = byId.get(a.activiteId) || {};
+          return {
+            id: a.activiteId,
+            nom: a.nom || a.prefixe || meta.nom || 'Activité',
+            percu: Number(a.montantPercu || 0),
+            versements: Number(a.nbVersements || 0),
+            visibilite: meta.visibilite,
+            montantDefaut: meta.montantDefaut,
+            prefixeIdPaiement: meta.prefixeIdPaiement || a.prefixe,
+          };
+        })
         .sort((a, b) => b.percu - a.percu);
     }
     return (activites || []).map((a) => ({
@@ -134,6 +149,9 @@ export default function AdminCotisationsPage() {
       nom: a.nom,
       percu: 0,
       versements: 0,
+      visibilite: a.visibilite,
+      montantDefaut: a.montantDefaut,
+      prefixeIdPaiement: a.prefixeIdPaiement,
     }));
   }, [stats, activites]);
 
@@ -169,6 +187,81 @@ export default function AdminCotisationsPage() {
     }
     return [...byMembre.values()].sort((a, b) => b.total - a.total);
   }, [items]);
+
+  const detailParRegion = useMemo(() => {
+    if (!detailActivite || !isActiviteRegionale(detailActivite)) return [];
+    const cible = montantCible(detailActivite);
+    const byRegion = new Map(
+      (regions || []).map((region) => [
+        region.id,
+        {
+          id: region.id,
+          nom: region.nom,
+          cotisations: [],
+          total: 0,
+          nbVersements: 0,
+        },
+      ])
+    );
+    const sansRegion = {
+      id: 0,
+      nom: 'Région non renseignée',
+      cotisations: [],
+      total: 0,
+      nbVersements: 0,
+    };
+
+    for (const cotisation of detailItems) {
+      const total = totalVersements(cotisation);
+      const regionId = cotisation.region?.id || cotisation.regionId;
+      const bucket = byRegion.get(regionId) || sansRegion;
+      bucket.cotisations.push({ ...cotisation, total });
+      bucket.total += total;
+      bucket.nbVersements += (cotisation.versements || []).length;
+    }
+
+    const list = [...byRegion.values()];
+    if (sansRegion.cotisations.length) list.push(sansRegion);
+    return list
+      .map((region) => ({
+        ...region,
+        cible,
+        restant: cible != null ? restantDu(detailActivite, region.total) : null,
+      }))
+      .sort((a, b) => b.total - a.total || a.nom.localeCompare(b.nom, 'fr'));
+  }, [detailActivite, detailItems, regions]);
+
+  const detailParMembre = useMemo(() => {
+    if (!detailActivite || isActiviteRegionale(detailActivite)) return [];
+    const byMembre = new Map();
+    for (const cotisation of detailItems) {
+      const total = totalVersements(cotisation);
+      if (total <= 0) continue;
+      const membreId = cotisation.membre?.id || cotisation.membreId;
+      if (!membreId) continue;
+      const current = byMembre.get(membreId) || {
+        id: membreId,
+        nom: cotisation.membre?.nom || '',
+        prenom: cotisation.membre?.prenom || '',
+        idMembre: cotisation.membre?.idMembre || '',
+        contact: cotisation.membre?.contact || '',
+        cotisations: [],
+        total: 0,
+        nbVersements: 0,
+      };
+      current.cotisations.push({
+        id: cotisation.id,
+        activite: cotisation.activite?.nom || detailActivite.nom,
+        idPaiement: cotisation.idPaiement,
+        total,
+        versements: cotisation.versements || [],
+      });
+      current.total += total;
+      current.nbVersements += (cotisation.versements || []).length || 1;
+      byMembre.set(membreId, current);
+    }
+    return [...byMembre.values()].sort((a, b) => b.total - a.total);
+  }, [detailActivite, detailItems]);
 
   const activiteManuelle = activites.find((a) => String(a.id) === String(form.activiteId));
   const montantFixeManuel =
@@ -207,6 +300,7 @@ export default function AdminCotisationsPage() {
       await api.delete(`/cotisations/${c.id}`);
       setMsg(`Paiement ${label} supprimé`);
       await Promise.all([loadList(), loadStats()]);
+      if (detailActivite?.id) await loadActiviteDetail(detailActivite);
     } catch (err) {
       setError(err.response?.data?.message || 'Impossible de supprimer le paiement');
     } finally {
@@ -217,6 +311,41 @@ export default function AdminCotisationsPage() {
   function resetActiviteForm() {
     setActiviteForm(EMPTY_ACTIVITE);
     setShowActiviteForm(false);
+  }
+
+  async function loadActiviteDetail(activite) {
+    if (!activite?.id) return;
+    setDetailLoading(true);
+    try {
+      const { data } = await api.get('/cotisations', {
+        params: { activiteId: activite.id, limit: 500 },
+      });
+      setDetailItems(data.items || []);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Impossible de charger le détail');
+      setDetailItems([]);
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  async function openActiviteDetail(row) {
+    const meta = activites.find((a) => a.id === row.id) || row;
+    if (detailActivite?.id === meta.id) {
+      setDetailActivite(null);
+      setDetailItems([]);
+      setExpandedRegionId(null);
+      return;
+    }
+    setDetailActivite(meta);
+    setExpandedRegionId(null);
+    await loadActiviteDetail(meta);
+  }
+
+  function closeActiviteDetail() {
+    setDetailActivite(null);
+    setDetailItems([]);
+    setExpandedRegionId(null);
   }
 
   async function submitActivite(e) {
@@ -476,15 +605,206 @@ export default function AdminCotisationsPage() {
                         {a.versements > 0
                           ? `${a.versements} versement${a.versements > 1 ? 's' : ''}`
                           : 'Aucun versement'}
+                        {isActiviteRegionale(a) ? ' · par région' : ''}
                       </em>
                     </div>
-                    <span className="cotis-activite-totals-amount">{formatMoney(a.percu)}</span>
+                    <div className="cotis-activite-totals-side">
+                      <span className="cotis-activite-totals-amount">{formatMoney(a.percu)}</span>
+                      <button
+                        type="button"
+                        className={`btn btn-secondary btn-sm${
+                          detailActivite?.id === a.id ? ' is-active' : ''
+                        }`}
+                        onClick={() => openActiviteDetail(a)}
+                      >
+                        {detailActivite?.id === a.id ? 'Fermer' : 'Détail'}
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
             )}
           </div>
         </div>
+
+        {detailActivite && (
+          <div className="cotis-panel cotis-detail-panel">
+            <div className="cotis-panel-head">
+              <div>
+                <h2>
+                  {isActiviteRegionale(detailActivite)
+                    ? `${detailActivite.nom} — paiements par région`
+                    : `Détail — ${detailActivite.nom}`}
+                </h2>
+                {montantCible(detailActivite) != null && (
+                  <p className="muted cotis-detail-sub">
+                    {Number(montantCible(detailActivite)).toLocaleString('fr-FR')} F par région,
+                    payable en une ou plusieurs fois
+                  </p>
+                )}
+              </div>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={closeActiviteDetail}>
+                Fermer
+              </button>
+            </div>
+            {detailLoading ? (
+              <p className="muted">Chargement…</p>
+            ) : isActiviteRegionale(detailActivite) ? (
+              <ul className="cotis-membres-list">
+                {detailParRegion.map((region) => {
+                  const open = expandedRegionId === region.id;
+                  return (
+                    <li key={region.id} className={`cotis-membre-card${open ? ' is-open' : ''}`}>
+                      <button
+                        type="button"
+                        className="cotis-membre-head"
+                        onClick={() => setExpandedRegionId(open ? null : region.id)}
+                        aria-expanded={open}
+                      >
+                        <div>
+                          <strong>{region.nom}</strong>
+                          <em>
+                            {region.nbVersements > 0
+                              ? `${region.nbVersements} versement${
+                                  region.nbVersements > 1 ? 's' : ''
+                                }`
+                              : 'Aucun versement'}
+                            {region.restant != null && region.total > 0
+                              ? region.restant > 0
+                                ? ` · reste ${formatMoney(region.restant)}`
+                                : ' · soldé'
+                              : ''}
+                          </em>
+                        </div>
+                        <span className="cotis-activite-totals-amount">
+                          {region.cible != null
+                            ? `${formatMoney(region.total)} / ${formatMoney(region.cible)}`
+                            : formatMoney(region.total)}
+                        </span>
+                      </button>
+                      {open &&
+                        (region.cotisations.length === 0 ? (
+                          <p className="muted">Aucun paiement pour cette région.</p>
+                        ) : (
+                          <ul className="cotis-membre-activites">
+                            {region.cotisations.map((cotisation) => (
+                              <li key={cotisation.id}>
+                                <div className="cotis-membre-activite">
+                                  <div>
+                                    <strong>
+                                      {cotisation.membre?.prenom} {cotisation.membre?.nom}
+                                    </strong>
+                                    <em>{cotisation.idPaiement}</em>
+                                    {(cotisation.versements || []).length > 0 && (
+                                      <ul className="cotis-versements">
+                                        {cotisation.versements.map((v) => (
+                                          <li key={v.id}>
+                                            {formatDateHeure(v.datePaiement)} · {moyenPaiement(v)} ·{' '}
+                                            {Number(v.montant).toLocaleString('fr-FR')} F
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    )}
+                                  </div>
+                                  <div className="cotis-list-meta">
+                                    <span>{formatMoney(cotisation.total)}</span>
+                                    <button
+                                      type="button"
+                                      className="btn-cotis-delete"
+                                      disabled={deletingId === cotisation.id}
+                                      onClick={() =>
+                                        removePayment({
+                                          id: cotisation.id,
+                                          idPaiement: cotisation.idPaiement,
+                                          membre: cotisation.membre,
+                                        })
+                                      }
+                                      title="Supprimer ce paiement"
+                                    >
+                                      {deletingId === cotisation.id ? '…' : 'Supprimer'}
+                                    </button>
+                                  </div>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        ))}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : detailParMembre.length === 0 ? (
+              <p className="muted">Aucun paiement pour cette activité.</p>
+            ) : (
+              <ul className="cotis-membres-list">
+                {detailParMembre.map((membre) => (
+                  <li key={membre.id} className="cotis-membre-card is-open">
+                    <div className="cotis-membre-head">
+                      <div>
+                        <strong>
+                          {membre.prenom} {membre.nom}
+                        </strong>
+                        <em>
+                          {membre.idMembre}
+                          {membre.contact ? ` · ${membre.contact}` : ''}
+                          {` · ${membre.nbVersements} versement${
+                            membre.nbVersements > 1 ? 's' : ''
+                          }`}
+                        </em>
+                      </div>
+                      <span className="cotis-activite-totals-amount">
+                        {formatMoney(membre.total)}
+                      </span>
+                    </div>
+                    <ul className="cotis-membre-activites">
+                      {membre.cotisations.map((cotisation) => (
+                        <li key={cotisation.id}>
+                          <div className="cotis-membre-activite">
+                            <div>
+                              <strong>{cotisation.activite}</strong>
+                              <em>{cotisation.idPaiement}</em>
+                              {(cotisation.versements || []).length > 0 && (
+                                <ul className="cotis-versements">
+                                  {cotisation.versements.map((v) => (
+                                    <li key={v.id}>
+                                      {formatDateHeure(v.datePaiement)} · {moyenPaiement(v)} ·{' '}
+                                      {Number(v.montant).toLocaleString('fr-FR')} F
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                            <div className="cotis-list-meta">
+                              <span>{formatMoney(cotisation.total)}</span>
+                              <button
+                                type="button"
+                                className="btn-cotis-delete"
+                                disabled={deletingId === cotisation.id}
+                                onClick={() =>
+                                  removePayment({
+                                    id: cotisation.id,
+                                    idPaiement: cotisation.idPaiement,
+                                    membre: {
+                                      prenom: membre.prenom,
+                                      nom: membre.nom,
+                                    },
+                                  })
+                                }
+                                title="Supprimer ce paiement"
+                              >
+                                {deletingId === cotisation.id ? '…' : 'Supprimer'}
+                              </button>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
         <div className="cotis-bottom-row">
           <div className="cotis-panel">
@@ -598,9 +918,18 @@ export default function AdminCotisationsPage() {
               <p className="muted">Aucun membre n’a encore effectué de paiement.</p>
             ) : (
               <ul className="cotis-membres-list">
-                {membresAyantPaye.map((membre) => (
-                  <li key={membre.id} className="cotis-membre-card">
-                    <div className="cotis-membre-head">
+                {membresAyantPaye.map((membre) => {
+                  const expanded = expandedMembreId === membre.id;
+                  return (
+                  <li key={membre.id} className={`cotis-membre-card${expanded ? ' is-open' : ''}`}>
+                    <button
+                      type="button"
+                      className="cotis-membre-head"
+                      onClick={() =>
+                        setExpandedMembreId(expanded ? null : membre.id)
+                      }
+                      aria-expanded={expanded}
+                    >
                       <div>
                         <strong>
                           {membre.prenom} {membre.nom}
@@ -616,7 +945,8 @@ export default function AdminCotisationsPage() {
                       <span className="cotis-activite-totals-amount">
                         {formatMoney(membre.total)}
                       </span>
-                    </div>
+                    </button>
+                    {expanded && (
                     <ul className="cotis-membre-activites">
                       {membre.cotisations.map((cotisation) => (
                         <li key={cotisation.id}>
@@ -660,8 +990,10 @@ export default function AdminCotisationsPage() {
                         </li>
                       ))}
                     </ul>
+                    )}
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
           </div>

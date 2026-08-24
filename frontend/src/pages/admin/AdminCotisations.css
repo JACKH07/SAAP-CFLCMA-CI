@@ -164,6 +164,25 @@
   white-space: nowrap;
 }
 
+.cotis-activite-totals-side {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-shrink: 0;
+}
+
+.cotis-detail-panel {
+  grid-column: 1 / -1;
+}
+
+.cotis-detail-sub {
+  margin: 0.2rem 0 0;
+}
+
+.cotis-detail-panel .cotis-membres-list {
+  max-height: 420px;
+}
+
 .cotis-panel-head {
   display: flex;
   flex-wrap: wrap;
@@ -296,6 +315,23 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 0.75rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.cotis-membre-head:hover strong,
+.cotis-membre-head:hover .cotis-activite-totals-amount {
+  color: #1c7c38;
+}
+
+.cotis-membre-card.is-open .cotis-membre-head {
   margin-bottom: 0.55rem;
 }
 
@@ -434,6 +470,15 @@
   .cotis-membre-activite {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .cotis-activite-totals li {
+    flex-wrap: wrap;
+  }
+
+  .cotis-activite-totals-side {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .cotis-list-meta {

@@ -85,6 +85,7 @@ class CotisationService {
       page = 1,
       limit = 20,
       activite,
+      activiteId,
       regionId,
       districtId,
       paroisseId,
@@ -99,6 +100,7 @@ class CotisationService {
     if (districtId) where.districtId = Number(districtId);
     if (paroisseId) where.paroisseId = Number(paroisseId);
     if (communauteId) where.communauteId = Number(communauteId);
+    if (activiteId) where.activiteId = Number(activiteId);
 
     if (activite) {
       where.activite = {
