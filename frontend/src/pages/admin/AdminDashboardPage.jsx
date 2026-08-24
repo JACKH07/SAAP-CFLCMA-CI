@@ -314,7 +314,9 @@ export default function AdminDashboardPage() {
                 {(stats.cotisations?.payees ?? 0).toLocaleString('fr-FR')}
               </div>
               <div className="kpi-foot">
-                Taux {(stats.cotisations?.tauxPaiement ?? 0).toLocaleString('fr-FR')} %
+                {(stats.cotisations?.nbVersements ?? 0).toLocaleString('fr-FR')} versement
+                {(stats.cotisations?.nbVersements ?? 0) > 1 ? 's' : ''} · taux{' '}
+                {(stats.cotisations?.tauxPaiement ?? 0).toLocaleString('fr-FR')} %
               </div>
             </div>
           </div>

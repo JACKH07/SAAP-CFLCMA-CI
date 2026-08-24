@@ -87,6 +87,7 @@ export default function AdminCotisationsPage() {
   const resteACollecter = Math.max(0, montantAttendu - montantTotal);
   const payees = stats?.cotisations?.payees ?? 0;
   const taux = stats?.cotisations?.tauxPaiement ?? 0;
+  const nbVersements = stats?.cotisations?.nbVersements ?? 0;
 
   const regionChart = useMemo(() => {
     return [...(stats?.parRegion || [])]
@@ -107,14 +108,8 @@ export default function AdminCotisationsPage() {
       fullName: a.nom,
       percu: Number(a.montantPercu || 0),
       attendu: Number(a.montantAttendu || 0),
+      versements: Number(a.nbVersements || 0),
     }));
-  }, [stats]);
-
-  const montantParActivite = useMemo(() => {
-    const list = stats?.parActivite || [];
-    if (!list.length) return 0;
-    const sum = list.reduce((s, a) => s + Number(a.montantPercu || 0), 0);
-    return Math.round(sum / list.length);
   }, [stats]);
 
   async function searchPayment(e) {
@@ -214,8 +209,8 @@ export default function AdminCotisationsPage() {
 
           <article className="cotis-kpi cotis-kpi--green">
             <div className="cotis-kpi-text">
-              <span>Montant par Activité</span>
-              <strong>{formatMoney(montantParActivite)}</strong>
+              <span>Versements</span>
+              <strong>{nbVersements.toLocaleString('fr-FR')}</strong>
             </div>
             <div className="cotis-kpi-ico" aria-hidden>
               <svg viewBox="0 0 48 48" width="52" height="52">
@@ -300,7 +295,13 @@ export default function AdminCotisationsPage() {
                   <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
                   <Tooltip
-                    formatter={(v) => formatMoney(v)}
+                    formatter={(v, _name, item) => {
+                      const n = item?.payload?.versements || 0;
+                      return [
+                        `${formatMoney(v)}${n ? ` · ${n} versement${n > 1 ? 's' : ''}` : ''}`,
+                        'Total',
+                      ];
+                    }}
                     labelFormatter={(_, p) => p?.[0]?.payload?.fullName || ''}
                   />
                   <Area

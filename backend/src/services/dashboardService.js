@@ -58,6 +58,8 @@ class DashboardService {
       membresParDistrictBranche,
       cotParDistrict,
       derniersMembres,
+      versementAgg,
+      cotisationsVersements,
     ] = await Promise.all([
       prisma.membre.groupBy({
         by: ['branche'],
@@ -161,6 +163,21 @@ class DashboardService {
           communaute: { select: { nom: true } },
         },
       }),
+      prisma.versement.aggregate({
+        where: { cotisation: cotisationWhere },
+        _sum: { montant: true },
+        _count: { _all: true },
+      }),
+      prisma.cotisation.findMany({
+        where: cotisationWhere,
+        select: {
+          activiteId: true,
+          regionId: true,
+          districtId: true,
+          montantPaye: true,
+          _count: { select: { versements: true } },
+        },
+      }),
     ]);
 
     const brancheMap = Object.fromEntries(
@@ -184,6 +201,39 @@ class DashboardService {
       else if (row.statut === 'EN_ATTENTE') enAttente = n;
       montantAttendu += Number(row._sum.montant || 0);
       montantPercu += Number(row._sum.montantPaye || 0);
+    }
+
+    const nbVersements = Number(versementAgg?._count?._all || 0);
+    const montantVersements = Number(versementAgg?._sum?.montant || 0);
+    if (nbVersements > 0) {
+      montantPercu = montantVersements;
+      montantAttendu = montantVersements;
+    }
+
+    const versementsParActivite = new Map();
+    const versementsParRegion = new Map();
+    const versementsParDistrict = new Map();
+    for (const row of cotisationsVersements || []) {
+      const n = row._count?.versements || 0;
+      const montant = Number(row.montantPaye || 0);
+      if (row.activiteId != null) {
+        const cur = versementsParActivite.get(row.activiteId) || { nb: 0, montant: 0 };
+        cur.nb += n;
+        cur.montant += montant;
+        versementsParActivite.set(row.activiteId, cur);
+      }
+      if (row.regionId != null) {
+        const cur = versementsParRegion.get(row.regionId) || { nb: 0, montant: 0 };
+        cur.nb += n;
+        cur.montant += montant;
+        versementsParRegion.set(row.regionId, cur);
+      }
+      if (row.districtId != null) {
+        const cur = versementsParDistrict.get(row.districtId) || { nb: 0, montant: 0 };
+        cur.nb += n;
+        cur.montant += montant;
+        versementsParDistrict.set(row.districtId, cur);
+      }
     }
 
     const flambeaux = brancheMap.FLAMBEAUX || 0;
@@ -223,6 +273,8 @@ class DashboardService {
         montantAttendu: 0,
         montantPercu: 0,
       };
+      const v = versementsParRegion.get(region.id) || { nb: 0, montant: 0 };
+      const montant = v.nb > 0 ? v.montant : c.montantPercu;
       return {
         regionId: region.id,
         nom: region.nom,
@@ -232,9 +284,10 @@ class DashboardService {
         lumieres: m.lumieres,
         cotisations: c.total,
         payees: c.payees,
+        nbVersements: v.nb,
         taux: c.total > 0 ? Math.round((c.payees / c.total) * 1000) / 10 : 0,
-        montantAttendu: c.montantAttendu,
-        montantPercu: c.montantPercu,
+        montantAttendu: montant,
+        montantPercu: montant,
       };
     });
 
@@ -260,15 +313,18 @@ class DashboardService {
         montantAttendu: 0,
         montantPercu: 0,
       };
+      const v = versementsParActivite.get(a.id) || { nb: 0, montant: 0 };
+      const montant = v.nb > 0 ? v.montant : c.montantPercu;
       return {
         activiteId: a.id,
         nom: a.nom,
         prefixe: a.prefixeIdPaiement,
         total: c.total,
         payees: c.payees,
+        nbVersements: v.nb,
         taux: c.total > 0 ? Math.round((c.payees / c.total) * 1000) / 10 : 0,
-        montantAttendu: c.montantAttendu,
-        montantPercu: c.montantPercu,
+        montantAttendu: montant,
+        montantPercu: montant,
       };
     });
 
@@ -302,6 +358,7 @@ class DashboardService {
           lumieres: m.lumieres,
           total: c.total,
           payees: c.payees,
+          nbVersements: (versementsParDistrict.get(d.id) || { nb: 0 }).nb,
           taux: c.total > 0 ? Math.round((c.payees / c.total) * 1000) / 10 : 0,
         };
       });
@@ -325,6 +382,7 @@ class DashboardService {
         payees,
         partielles,
         enAttente,
+        nbVersements,
         tauxPaiement,
         montantAttendu,
         montantPercu,

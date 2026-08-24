@@ -197,7 +197,10 @@ export default function PaiementPage() {
               <strong>{activite.nom}</strong>
               <div className="muted tiny">{activite.prefixeIdPaiement}</div>
               <div className="paiement-deja">
-                Total versé : <strong>{dejaPaye.toLocaleString('fr-FR')} FCFA</strong>
+                {versements.length > 0
+                  ? `${versements.length} versement${versements.length > 1 ? 's' : ''} · Total `
+                  : 'Total versé : '}
+                <strong>{dejaPaye.toLocaleString('fr-FR')} FCFA</strong>
               </div>
               {versements.length > 0 && (
                 <ul className="paiement-versements">

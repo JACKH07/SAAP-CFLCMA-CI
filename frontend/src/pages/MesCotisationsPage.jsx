@@ -88,7 +88,10 @@ export default function MesCotisationsPage() {
       <section className="stack">
         <div>
           <h1>Mes cotisations</h1>
-          <p className="muted">Choisissez une activité pour saisir le montant à payer</p>
+          <p className="muted">
+            Vous pouvez payer plusieurs fois la même activité. Le total est la somme de tous vos
+            versements.
+          </p>
         </div>
 
         {err && <div className="alert alert-error">{err}</div>}
@@ -113,7 +116,9 @@ export default function MesCotisationsPage() {
                     {c?.idPaiement || a.prefixeIdPaiement}
                   </div>
                   <span className="cotisation-paye">
-                    {paye.toLocaleString('fr-FR')} FCFA versés
+                    {versements.length > 0
+                      ? `${versements.length} versement${versements.length > 1 ? 's' : ''} · ${paye.toLocaleString('fr-FR')} FCFA`
+                      : `${paye.toLocaleString('fr-FR')} FCFA versés`}
                   </span>
                   {versements.length > 0 && (
                     <ul className="cotisation-versements">
