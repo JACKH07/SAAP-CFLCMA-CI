@@ -26,3 +26,25 @@ export function totalVersements(cotisation) {
   }
   return Number(cotisation?.montantPaye || 0);
 }
+
+export function montantCible(activite) {
+  const value = Number(activite?.montantDefaut);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+export function restantDu(activite, dejaPaye) {
+  const cible = montantCible(activite);
+  if (cible == null) return null;
+  return Math.max(0, Math.round(cible - Number(dejaPaye || 0)));
+}
+
+export function statutCotisation(cotisation, activite) {
+  const paye = totalVersements(cotisation);
+  const cible = montantCible(activite);
+  if (cible != null) {
+    if (paye <= 0) return 'EN_ATTENTE';
+    if (paye >= cible) return 'PAYE';
+    return 'PARTIEL';
+  }
+  return cotisation?.statut || 'EN_ATTENTE';
+}

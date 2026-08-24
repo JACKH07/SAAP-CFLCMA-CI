@@ -193,6 +193,25 @@
   margin-bottom: 0.75rem;
 }
 
+.cotis-activite-form {
+  margin: 0 0 1rem;
+  padding: 0.85rem 0.9rem;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #eef2f7;
+}
+
+.cotis-activite-form .form-row {
+  margin-bottom: 0;
+}
+
+.cotis-activite-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
 .cotis-search {
   display: flex;
   gap: 0.4rem;
@@ -423,7 +442,12 @@
     align-items: flex-start;
   }
 
-  .cotis-form .btn {
+  .cotis-form .btn,
+  .cotis-activite-form-actions .btn {
     width: 100%;
+  }
+
+  .cotis-activite-form-actions {
+    flex-direction: column;
   }
 }

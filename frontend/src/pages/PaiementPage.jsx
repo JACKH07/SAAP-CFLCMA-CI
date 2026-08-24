@@ -7,7 +7,8 @@ import { useAuthStore } from '../store/authStore';
 import { paths } from '../config/env';
 import { enabledPaymentMethods } from '../payments/paymentMethods';
 import { toSameOriginCheckoutUrl } from '../payments/orangeWebpay';
-import { formatDateHeure, moyenPaiement, totalVersements } from '../utils/paiement';
+import { formatDateHeure, moyenPaiement, totalVersements, montantCible, restantDu } from '../utils/paiement';
+import { isActiviteRegionale } from '../utils/activiteVisibilite';
 import './PaiementPage.css';
 
 const METHODS = enabledPaymentMethods();
@@ -71,6 +72,9 @@ export default function PaiementPage() {
     [cotisation]
   );
   const versements = cotisation?.versements || [];
+  const cible = montantCible(activite);
+  const restant = restantDu(activite, dejaPaye);
+  const solde = restant === 0;
   const selectedMethod = useMemo(
     () => METHODS.find((m) => m.id === provider),
     [provider]
@@ -78,9 +82,18 @@ export default function PaiementPage() {
   const montantValue = Number(montant);
   const hasMontant = Number.isFinite(montantValue) && montantValue > 0;
 
+  useEffect(() => {
+    if (restant == null || solde) return;
+    setMontant(String(restant));
+  }, [restant, solde]);
+
   function validateForm() {
     if (!hasMontant) {
       setErr('Saisissez un montant valide en FCFA');
+      return false;
+    }
+    if (restant != null && montantValue > restant) {
+      setErr(`Le montant restant est de ${restant.toLocaleString('fr-FR')} FCFA`);
       return false;
     }
     if (!provider) {
@@ -195,12 +208,40 @@ export default function PaiementPage() {
           <>
             <div className="card paiement-activite">
               <strong>{activite.nom}</strong>
-              <div className="muted tiny">{activite.prefixeIdPaiement}</div>
+              <div className="muted tiny">
+                {activite.prefixeIdPaiement}
+                {isActiviteRegionale(activite) && (
+                  <>
+                    {' · '}
+                    Paiement par région
+                    {user?.region?.nom ? ` — ${user.region.nom}` : ''}
+                  </>
+                )}
+              </div>
+              {cible != null && (
+                <p className="paiement-cible">
+                  Montant fixe : {cible.toLocaleString('fr-FR')} FCFA — payable en une fois ou en
+                  plusieurs versements.
+                </p>
+              )}
               <div className="paiement-deja">
-                {versements.length > 0
-                  ? `${versements.length} versement${versements.length > 1 ? 's' : ''} · Total `
-                  : 'Total versé : '}
-                <strong>{dejaPaye.toLocaleString('fr-FR')} FCFA</strong>
+                {cible != null ? (
+                  <>
+                    Versé : <strong>{dejaPaye.toLocaleString('fr-FR')} FCFA</strong>
+                    {' · '}
+                    Reste :{' '}
+                    <strong>{Number(restant || 0).toLocaleString('fr-FR')} FCFA</strong>
+                  </>
+                ) : versements.length > 0 ? (
+                  <>
+                    {versements.length} versement{versements.length > 1 ? 's' : ''} · Total{' '}
+                    <strong>{dejaPaye.toLocaleString('fr-FR')} FCFA</strong>
+                  </>
+                ) : (
+                  <>
+                    Total versé : <strong>{dejaPaye.toLocaleString('fr-FR')} FCFA</strong>
+                  </>
+                )}
               </div>
               {versements.length > 0 && (
                 <ul className="paiement-versements">
@@ -216,22 +257,39 @@ export default function PaiementPage() {
               )}
             </div>
 
-            {step === 'form' && (
+            {step === 'form' && solde && (
+              <div className="card">
+                <p className="muted">Cette cotisation est soldée. Aucun versement supplémentaire n’est nécessaire.</p>
+              </div>
+            )}
+
+            {step === 'form' && !solde && (
             <form className="card" onSubmit={goRecap}>
               <div className="form-group">
-                <label htmlFor="montant">Montant (FCFA)</label>
+                <label htmlFor="montant">
+                  {restant != null
+                    ? `Montant de ce versement (max ${restant.toLocaleString('fr-FR')} FCFA)`
+                    : 'Montant (FCFA)'}
+                </label>
                 <input
                   id="montant"
                   type="number"
                   inputMode="numeric"
                   min="1"
+                  max={restant != null ? restant : undefined}
                   step="1"
-                  placeholder="Ex. 2000"
+                  placeholder={restant != null ? String(restant) : 'Ex. 2000'}
                   value={montant}
                   onChange={(e) => setMontant(e.target.value)}
                   required
                   autoFocus
                 />
+                {restant != null && restant > 0 && (
+                  <p className="muted tiny">
+                    Laissez {restant.toLocaleString('fr-FR')} F pour tout verser maintenant, ou
+                    saisissez un montant inférieur.
+                  </p>
+                )}
               </div>
 
               <fieldset className="paiement-methods-fieldset">

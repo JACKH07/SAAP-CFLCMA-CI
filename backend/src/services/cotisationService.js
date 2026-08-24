@@ -14,6 +14,8 @@ const {
   resolveVersementIncrement,
   buildIdempotenceKey,
 } = require('./payment/versementUtils');
+const { assertCanPayActivite } = require('../utils/activiteAccess');
+const { montantCible, assertMontantVersement } = require('../utils/montantActivite');
 const path = require('path');
 const fs = require('fs');
 const config = require('../config');
@@ -30,6 +32,11 @@ const COTISATION_MEMBRE_SELECT = {
   prenom: true,
   idMembre: true,
   contact: true,
+};
+
+const MEMBRE_ACCESS_INCLUDE = {
+  role: { select: { nom: true, niveauHierarchique: true } },
+  titre: { select: { nom: true, niveauHierarchique: true } },
 };
 
 function parsePaymentNotes(notes) {
@@ -173,10 +180,22 @@ class CotisationService {
       _sum: { montant: true },
     });
     const total = Number(sum._sum.montant || 0);
+    const current = extra.activite
+      ? { activite: extra.activite }
+      : await prisma.cotisation.findUnique({
+          where: { id },
+          select: { activite: { select: { montantDefaut: true } } },
+        });
+    const cible = montantCible(current?.activite);
     const data = {
-      montant: total,
+      montant: cible != null ? cible : total,
       montantPaye: total,
-      statut: total > 0 ? 'PAYE' : extra.fallbackStatut || 'EN_ATTENTE',
+      statut:
+        cible != null
+          ? this.computeStatut(cible, total)
+          : total > 0
+            ? 'PAYE'
+            : extra.fallbackStatut || 'EN_ATTENTE',
       datePaiement: total > 0 ? extra.datePaiement || new Date() : null,
     };
     if (extra.clearPendingNotes) data.notes = null;
@@ -366,11 +385,23 @@ class CotisationService {
       throw new AppError('membreId, activiteId et montantPaye sont requis', 400);
     }
 
-    const membre = await prisma.membre.findUnique({ where: { id: Number(membreId) } });
+    const membre = await prisma.membre.findUnique({
+      where: { id: Number(membreId) },
+      include: MEMBRE_ACCESS_INCLUDE,
+    });
     if (!membre) throw new AppError('Membre introuvable', 404);
 
     const activite = await prisma.activite.findUnique({ where: { id: Number(activiteId) } });
     if (!activite) throw new AppError('Activité introuvable', 404);
+
+    const acteur = await prisma.membre.findUnique({
+      where: { id: Number(acteurId) },
+      include: MEMBRE_ACCESS_INCLUDE,
+    });
+    assertCanPayActivite({ acteur, payeur: membre, activite });
+
+    const paye = Number(montantPaye);
+    if (paye <= 0) throw new AppError('Montant invalide', 400);
 
     const idPaiement = membreIdService.buildPaymentId(
       activite.prefixeIdPaiement,
@@ -378,9 +409,9 @@ class CotisationService {
     );
 
     let cotisation = await prisma.cotisation.findUnique({ where: { idPaiement } });
+    assertMontantVersement(activite, cotisation?.montantPaye || 0, paye);
 
-    const paye = Number(montantPaye);
-    if (paye <= 0) throw new AppError('Montant invalide', 400);
+    const cible = montantCible(activite);
 
     if (!cotisation) {
       cotisation = await prisma.cotisation.create({
@@ -388,7 +419,7 @@ class CotisationService {
           membreId: membre.id,
           activiteId: activite.id,
           idPaiement,
-          montant: 0,
+          montant: cible != null ? cible : 0,
           montantPaye: 0,
           statut: 'EN_ATTENTE',
           modePaiement: 'MANUEL',
@@ -440,16 +471,24 @@ class CotisationService {
 
   /**
    * Initie un paiement mobile money (Orange Money / Wave).
-   * Le montant est libre (saisi par le membre) — pas de montant fixe d'activité.
-   * En mode mock (sans credentials) : simulation succès/échec/attente selon PAYMENT_MOCK_RESULT.
-   * Avec credentials : laisse EN_ATTENTE jusqu’au webhook / vérification statut.
+   * Montant libre, sauf activité à montant fixe (ex. Paiement Annuel 150 000 F),
+   * payable en une ou plusieurs fois jusqu’au reste dû.
    */
   async initiateMobileMoney({ membreId, activiteId, provider, phone, montant }, acteurId) {
-    const membre = await prisma.membre.findUnique({ where: { id: Number(membreId) } });
+    const membre = await prisma.membre.findUnique({
+      where: { id: Number(membreId) },
+      include: MEMBRE_ACCESS_INCLUDE,
+    });
     if (!membre) throw new AppError('Membre introuvable', 404);
 
     const activite = await prisma.activite.findUnique({ where: { id: Number(activiteId) } });
     if (!activite) throw new AppError('Activité introuvable', 404);
+
+    const acteur = await prisma.membre.findUnique({
+      where: { id: Number(acteurId) },
+      include: MEMBRE_ACCESS_INCLUDE,
+    });
+    assertCanPayActivite({ acteur, payeur: membre, activite });
 
     const payAmount = Number(montant);
     if (!Number.isFinite(payAmount) || payAmount <= 0) {
@@ -467,13 +506,16 @@ class CotisationService {
     );
 
     let cotisation = await prisma.cotisation.findUnique({ where: { idPaiement } });
+    assertMontantVersement(activite, cotisation?.montantPaye || 0, payAmount);
+    const cible = montantCible(activite);
+
     if (!cotisation) {
       cotisation = await prisma.cotisation.create({
         data: {
           membreId: membre.id,
           activiteId: activite.id,
           idPaiement,
-          montant: payAmount,
+          montant: cible != null ? cible : payAmount,
           montantPaye: 0,
           statut: 'EN_ATTENTE',
           modePaiement: 'MOBILE_MONEY',
@@ -787,7 +829,7 @@ class CotisationService {
       cotisation = await prisma.cotisation.update({
         where: { id: cotisation.id },
         data: {
-          statut: dejaPaye > 0 ? 'PAYE' : 'ECHOUE',
+          statut: dejaPaye > 0 ? this.computeStatut(cotisation.montant, dejaPaye) : 'ECHOUE',
           notes: null,
         },
         include: this.cotisationDetailInclude(),

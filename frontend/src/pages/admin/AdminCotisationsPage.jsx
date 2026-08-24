@@ -11,11 +11,20 @@ import {
 import AdminShell from '../../components/AdminShell';
 import api from '../../api/client';
 import { formatDateHeure, moyenPaiement, totalVersements } from '../../utils/paiement';
+import { ACTIVITE_VISIBILITE, ACTIVITE_VISIBILITE_OPTIONS } from '../../utils/activiteVisibilite';
 import './AdminCotisations.css';
 
 function formatMoney(n) {
   return `${Number(n || 0).toLocaleString('fr-FR')} F`;
 }
+
+const EMPTY_ACTIVITE = {
+  nom: '',
+  prefixeIdPaiement: '',
+  montantDefaut: '',
+  visibilite: ACTIVITE_VISIBILITE.TOUS,
+  active: true,
+};
 
 export default function AdminCotisationsPage() {
   const [stats, setStats] = useState(null);
@@ -29,6 +38,9 @@ export default function AdminCotisationsPage() {
     montantPaye: '',
     notes: '',
   });
+  const [activiteForm, setActiviteForm] = useState(EMPTY_ACTIVITE);
+  const [showActiviteForm, setShowActiviteForm] = useState(false);
+  const [savingActivite, setSavingActivite] = useState(false);
   const [file, setFile] = useState(null);
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
@@ -41,6 +53,11 @@ export default function AdminCotisationsPage() {
       params: { search: search || undefined, limit: 200 },
     });
     setItems(data.items || []);
+  }
+
+  async function loadActivites() {
+    const { data } = await api.get('/activites', { params: { all: true } });
+    setActivites(data.data || []);
   }
 
   async function loadStats() {
@@ -153,6 +170,10 @@ export default function AdminCotisationsPage() {
     return [...byMembre.values()].sort((a, b) => b.total - a.total);
   }, [items]);
 
+  const activiteManuelle = activites.find((a) => String(a.id) === String(form.activiteId));
+  const montantFixeManuel =
+    Number(activiteManuelle?.montantDefaut) > 0 ? Number(activiteManuelle.montantDefaut) : null;
+
   async function searchPayment(e) {
     e.preventDefault();
     setError('');
@@ -190,6 +211,34 @@ export default function AdminCotisationsPage() {
       setError(err.response?.data?.message || 'Impossible de supprimer le paiement');
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  function resetActiviteForm() {
+    setActiviteForm(EMPTY_ACTIVITE);
+    setShowActiviteForm(false);
+  }
+
+  async function submitActivite(e) {
+    e.preventDefault();
+    setSavingActivite(true);
+    setMsg('');
+    setError('');
+    try {
+      await api.post('/activites', {
+        nom: activiteForm.nom.trim(),
+        prefixeIdPaiement: activiteForm.prefixeIdPaiement.trim(),
+        montantDefaut: activiteForm.montantDefaut === '' ? null : Number(activiteForm.montantDefaut),
+        visibilite: activiteForm.visibilite,
+        active: activiteForm.active,
+      });
+      setMsg('Activité créée');
+      resetActiviteForm();
+      await Promise.all([loadActivites(), loadStats()]);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Échec de la création de l’activité');
+    } finally {
+      setSavingActivite(false);
     }
   }
 
@@ -322,7 +371,99 @@ export default function AdminCotisationsPage() {
           </div>
 
           <div className="cotis-panel">
-            <h2>Montant par activité</h2>
+            <div className="cotis-panel-head">
+              <h2>Montant par activité</h2>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => {
+                  setShowActiviteForm((open) => !open);
+                  setActiviteForm(EMPTY_ACTIVITE);
+                  setError('');
+                }}
+              >
+                {showActiviteForm ? 'Fermer' : 'Ajouter une activité'}
+              </button>
+            </div>
+            {showActiviteForm && (
+              <form className="cotis-form cotis-activite-form" onSubmit={submitActivite}>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor="cotis-act-nom">Nom</label>
+                    <input
+                      id="cotis-act-nom"
+                      value={activiteForm.nom}
+                      onChange={(e) => setActiviteForm((f) => ({ ...f, nom: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="cotis-act-prefixe">Préfixe ID paiement</label>
+                    <input
+                      id="cotis-act-prefixe"
+                      value={activiteForm.prefixeIdPaiement}
+                      onChange={(e) =>
+                        setActiviteForm((f) => ({ ...f, prefixeIdPaiement: e.target.value }))
+                      }
+                      required
+                      placeholder="ex. EYAWA"
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor="cotis-act-montant">Montant défaut (FCFA)</label>
+                    <input
+                      id="cotis-act-montant"
+                      type="number"
+                      min="0"
+                      inputMode="numeric"
+                      value={activiteForm.montantDefaut}
+                      onChange={(e) =>
+                        setActiviteForm((f) => ({ ...f, montantDefaut: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="cotis-act-active">Statut</label>
+                    <select
+                      id="cotis-act-active"
+                      value={activiteForm.active ? '1' : '0'}
+                      onChange={(e) =>
+                        setActiviteForm((f) => ({ ...f, active: e.target.value === '1' }))
+                      }
+                    >
+                      <option value="1">Active</option>
+                      <option value="0">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="cotis-act-visibilite">Visible par</label>
+                  <select
+                    id="cotis-act-visibilite"
+                    value={activiteForm.visibilite}
+                    onChange={(e) =>
+                      setActiviteForm((f) => ({ ...f, visibilite: e.target.value }))
+                    }
+                  >
+                    {ACTIVITE_VISIBILITE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="cotis-activite-form-actions">
+                  <button type="button" className="btn btn-secondary" onClick={resetActiviteForm}>
+                    Annuler
+                  </button>
+                  <button type="submit" className="btn" disabled={savingActivite}>
+                    {savingActivite ? 'Enregistrement…' : 'Créer'}
+                  </button>
+                </div>
+              </form>
+            )}
             {totauxParActivite.length === 0 ? (
               <p className="muted">Aucune activité</p>
             ) : (
@@ -377,6 +518,9 @@ export default function AdminCotisationsPage() {
                   {activites.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.nom}
+                      {Number(a.montantDefaut) > 0
+                        ? ` (${Number(a.montantDefaut).toLocaleString('fr-FR')} F)`
+                        : ''}
                     </option>
                   ))}
                 </select>
@@ -392,6 +536,12 @@ export default function AdminCotisationsPage() {
                   onChange={(e) => setForm((f) => ({ ...f, montantPaye: e.target.value }))}
                   required
                 />
+                {montantFixeManuel != null && (
+                  <p className="muted tiny">
+                    Montant fixe {montantFixeManuel.toLocaleString('fr-FR')} F, payable en une ou
+                    plusieurs fois.
+                  </p>
+                )}
               </div>
               <div className="form-group">
                 <label htmlFor="notes">Notes</label>

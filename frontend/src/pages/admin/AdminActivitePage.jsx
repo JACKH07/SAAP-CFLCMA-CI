@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import AdminShell from '../../components/AdminShell';
 import api from '../../api/client';
+import { ACTIVITE_VISIBILITE, ACTIVITE_VISIBILITE_OPTIONS, labelVisibilite } from '../../utils/activiteVisibilite';
 import './AdminPages.css';
 
 const EMPTY = {
   nom: '',
   prefixeIdPaiement: '',
   montantDefaut: '',
+  visibilite: ACTIVITE_VISIBILITE.TOUS,
   active: true,
 };
 
@@ -42,6 +44,7 @@ export default function AdminActivitePage() {
       nom: a.nom || '',
       prefixeIdPaiement: a.prefixeIdPaiement || '',
       montantDefaut: a.montantDefaut != null ? String(a.montantDefaut) : '',
+      visibilite: a.visibilite || ACTIVITE_VISIBILITE.TOUS,
       active: Boolean(a.active),
     });
     setMsg('');
@@ -63,6 +66,7 @@ export default function AdminActivitePage() {
         nom: form.nom.trim(),
         prefixeIdPaiement: form.prefixeIdPaiement.trim(),
         montantDefaut: form.montantDefaut === '' ? null : Number(form.montantDefaut),
+        visibilite: form.visibilite,
         active: form.active,
       };
       if (editingId) {
@@ -100,7 +104,7 @@ export default function AdminActivitePage() {
         <form className="card" onSubmit={onSubmit}>
           <div className="card-head-simple">
             <h2>{editingId ? 'Modifier l’activité' : 'Nouvelle activité'}</h2>
-            <p className="muted">Nom, préfixe de paiement et montant par défaut</p>
+            <p className="muted">Nom, préfixe, montant et visibilité (tous les membres, ou officiers de région)</p>
           </div>
           <div className="form-row">
             <div className="form-group">
@@ -146,6 +150,20 @@ export default function AdminActivitePage() {
                 <option value="0">Inactive</option>
               </select>
             </div>
+            <div className="form-group">
+              <label htmlFor="act-visibilite">Visible par</label>
+              <select
+                id="act-visibilite"
+                value={form.visibilite}
+                onChange={(e) => setForm((f) => ({ ...f, visibilite: e.target.value }))}
+              >
+                {ACTIVITE_VISIBILITE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="admin-form-actions">
             {editingId && (
@@ -174,6 +192,7 @@ export default function AdminActivitePage() {
                     <th>Nom</th>
                     <th>Préfixe</th>
                     <th>Montant</th>
+                    <th>Visible par</th>
                     <th>Cotisations</th>
                     <th>Statut</th>
                     <th>Actions</th>
@@ -193,6 +212,7 @@ export default function AdminActivitePage() {
                           ? `${Number(a.montantDefaut).toLocaleString('fr-FR')} FCFA`
                           : '—'}
                       </td>
+                      <td data-label="Visible par">{labelVisibilite(a.visibilite)}</td>
                       <td data-label="Cotisations">{a._count?.cotisations ?? 0}</td>
                       <td data-label="Statut">
                         <span className={`badge ${a.active ? 'badge-valide' : 'badge-attente'}`}>
@@ -211,7 +231,7 @@ export default function AdminActivitePage() {
                   ))}
                   {!items.length && (
                     <tr>
-                      <td colSpan={6} className="muted">
+                      <td colSpan={7} className="muted">
                         Aucune activité
                       </td>
                     </tr>

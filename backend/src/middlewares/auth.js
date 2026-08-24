@@ -50,6 +50,18 @@ async function authenticate(req, _res, next) {
 }
 
 /**
+ * Authentifie si un Bearer token est présent, sinon continue sans utilisateur.
+ */
+async function authenticateOptional(req, res, next) {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) {
+    req.user = null;
+    return next();
+  }
+  return authenticate(req, res, next);
+}
+
+/**
  * Réservé aux comptes admin (Super Admin ou Admin délégué).
  */
 function requireAdmin(req, _res, next) {
@@ -133,6 +145,7 @@ function requireGeoScope(getResourceScope) {
 
 module.exports = {
   authenticate,
+  authenticateOptional,
   requireAdmin,
   requireSuperAdmin,
   restrictToSelf,

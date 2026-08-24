@@ -24,6 +24,7 @@ CREATE TABLE `activites` (
   `nom` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `prefixe_id_paiement` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
   `montant_defaut` decimal(12,2) DEFAULT NULL,
+  `visibilite` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'TOUS',
   `active` tinyint(1) NOT NULL DEFAULT '1',
   `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt` datetime(3) NOT NULL,

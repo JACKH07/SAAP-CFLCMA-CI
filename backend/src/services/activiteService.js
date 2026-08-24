@@ -1,15 +1,18 @@
 const prisma = require('../config/prisma');
 const { AppError } = require('../utils/errors');
+const { filterActivitesForViewer } = require('../utils/activiteAccess');
+const { normalizeVisibilite } = require('../constants/activiteVisibilite');
 
 class ActiviteService {
-  async list({ includeInactive = false } = {}) {
-    return prisma.activite.findMany({
+  async list({ includeInactive = false, viewer = null, includeRestricted = false } = {}) {
+    const items = await prisma.activite.findMany({
       where: includeInactive ? undefined : { active: true },
       orderBy: { nom: 'asc' },
       include: {
         _count: { select: { cotisations: true } },
       },
     });
+    return filterActivitesForViewer(items, viewer, { includeRestricted });
   }
 
   async getById(id) {
@@ -21,7 +24,7 @@ class ActiviteService {
     return activite;
   }
 
-  async create({ nom, prefixeIdPaiement, montantDefaut, active = true }) {
+  async create({ nom, prefixeIdPaiement, montantDefaut, active = true, visibilite }) {
     if (!nom?.trim()) throw new AppError('Nom requis', 400);
     if (!prefixeIdPaiement?.trim()) throw new AppError('Préfixe ID paiement requis', 400);
 
@@ -32,6 +35,7 @@ class ActiviteService {
           nom: nom.trim(),
           prefixeIdPaiement: prefixe,
           montantDefaut: montantDefaut === '' || montantDefaut == null ? null : Number(montantDefaut),
+          visibilite: normalizeVisibilite(visibilite),
           active: Boolean(active),
         },
       });
@@ -63,6 +67,9 @@ class ActiviteService {
     }
     if (payload.active !== undefined) {
       data.active = Boolean(payload.active);
+    }
+    if (payload.visibilite !== undefined) {
+      data.visibilite = normalizeVisibilite(payload.visibilite);
     }
 
     try {

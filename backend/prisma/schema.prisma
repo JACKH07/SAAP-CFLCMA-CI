@@ -153,6 +153,8 @@ model Activite {
   nom              String       @unique @db.VarChar(100)
   prefixeIdPaiement String      @unique @map("prefixe_id_paiement") @db.VarChar(30)
   montantDefaut    Decimal?     @map("montant_defaut") @db.Decimal(12, 2)
+  /// TOUS = tous les membres ; REGION = coordinateur et commissaire de région
+  visibilite       String       @default("TOUS") @db.VarChar(20)
   active           Boolean      @default(true)
   cotisations      Cotisation[]
   createdAt        DateTime     @default(now())

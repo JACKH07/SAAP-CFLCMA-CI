@@ -3,11 +3,14 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import api from '../api/client';
 import { paths } from '../config/env';
-import { formatDateHeure, moyenPaiement, totalVersements } from '../utils/paiement';
+import { useAuthStore } from '../store/authStore';
+import { formatDateHeure, moyenPaiement, totalVersements, montantCible, restantDu, statutCotisation } from '../utils/paiement';
+import { isActiviteRegionale } from '../utils/activiteVisibilite';
 import './MesCotisationsPage.css';
 
 export default function MesCotisationsPage() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const [cotisations, setCotisations] = useState([]);
   const [activites, setActivites] = useState([]);
@@ -102,7 +105,9 @@ export default function MesCotisationsPage() {
             const c = findCotisation(a.id);
             const paye = totalVersements(c);
             const versements = c?.versements || [];
-            const statut = c?.statut || 'EN_ATTENTE';
+            const cible = montantCible(a);
+            const restant = restantDu(a, paye);
+            const statut = statutCotisation(c, a);
             return (
               <button
                 key={a.id}
@@ -114,11 +119,24 @@ export default function MesCotisationsPage() {
                   <strong>{a.nom}</strong>
                   <div className="muted" style={{ fontSize: '0.85rem', margin: '0.25rem 0' }}>
                     {c?.idPaiement || a.prefixeIdPaiement}
+                    {isActiviteRegionale(a) && (
+                      <>
+                        {' · '}
+                        Paiement par région
+                        {user?.region?.nom ? ` (${user.region.nom})` : ''}
+                      </>
+                    )}
+                    {cible != null &&
+                      ` · ${cible.toLocaleString('fr-FR')} F — une ou plusieurs fois`}
                   </div>
                   <span className="cotisation-paye">
-                    {versements.length > 0
-                      ? `${versements.length} versement${versements.length > 1 ? 's' : ''} · ${paye.toLocaleString('fr-FR')} FCFA`
-                      : `${paye.toLocaleString('fr-FR')} FCFA versés`}
+                    {cible != null
+                      ? `${paye.toLocaleString('fr-FR')} / ${cible.toLocaleString('fr-FR')} FCFA${
+                          restant > 0 ? ` · reste ${restant.toLocaleString('fr-FR')} F` : ' · soldé'
+                        }`
+                      : versements.length > 0
+                        ? `${versements.length} versement${versements.length > 1 ? 's' : ''} · ${paye.toLocaleString('fr-FR')} FCFA`
+                        : `${paye.toLocaleString('fr-FR')} FCFA versés`}
                   </span>
                   {versements.length > 0 && (
                     <ul className="cotisation-versements">

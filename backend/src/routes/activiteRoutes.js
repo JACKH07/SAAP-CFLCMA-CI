@@ -1,10 +1,10 @@
 const { Router } = require('express');
 const activiteController = require('../controllers/activiteController');
-const { authenticate, requireAdmin } = require('../middlewares/auth');
+const { authenticate, authenticateOptional, requireAdmin } = require('../middlewares/auth');
 
 const router = Router();
 
-/** Public : activités actives (inscription / paiements) */
+/** Activités actives, filtrées selon le rôle du visiteur */
 router.get('/', (req, res, next) => {
   if (req.query.all === 'true') {
     return authenticate(req, res, (err) => {
@@ -15,7 +15,10 @@ router.get('/', (req, res, next) => {
       });
     });
   }
-  return activiteController.list(req, res, next);
+  return authenticateOptional(req, res, (err) => {
+    if (err) return next(err);
+    return activiteController.list(req, res, next);
+  });
 });
 
 router.get('/:id', authenticate, requireAdmin, activiteController.getById);
