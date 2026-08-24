@@ -146,7 +146,8 @@ export default function AdminCotisationsPage() {
   }, [activiteAnnuel?.id]);
   const montantParRegion = montantCible(activiteAnnuel) || MONTANT_PAIEMENT_ANNUEL;
   const nbRegions = (regions || []).length;
-  const montantTotal = montantParRegion * nbRegions;
+  const montantAnnuel = montantParRegion * nbRegions;
+  const montantTotal = Number(stats?.cotisations?.montantPercu || 0);
   const montantVerseParToutesLesRegions = useMemo(() => {
     const parRegion = statsAnnuel?.parRegion || [];
     if (parRegion.length) {
@@ -154,7 +155,7 @@ export default function AdminCotisationsPage() {
     }
     return Number(statsAnnuel?.cotisations?.montantPercu || 0);
   }, [statsAnnuel]);
-  const resteACollecter = Math.max(0, montantTotal - montantVerseParToutesLesRegions);
+  const resteACollecter = Math.max(0, montantAnnuel - montantVerseParToutesLesRegions);
   const payees = stats?.cotisations?.payees ?? 0;
   const taux = stats?.cotisations?.tauxPaiement ?? 0;
 
@@ -456,13 +457,7 @@ export default function AdminCotisationsPage() {
           <article className="cotis-kpi cotis-kpi--blue">
             <div className="cotis-kpi-text">
               <span>Montant Total</span>
-              <strong>
-                {formatMoney(montantTotal)}
-                <small>
-                  {' '}
-                  · {Number(montantParRegion).toLocaleString('fr-FR')} F × {nbRegions}
-                </small>
-              </strong>
+              <strong>{formatMoney(montantTotal)}</strong>
             </div>
             <div className="cotis-kpi-ico" aria-hidden>
               <svg viewBox="0 0 48 48" width="52" height="52">
@@ -483,7 +478,7 @@ export default function AdminCotisationsPage() {
               <span>Versé sur l’annuel</span>
               <strong>
                 {formatMoney(montantVerseParToutesLesRegions)}
-                <small> sur {formatMoney(montantTotal)}</small>
+                <small> sur {formatMoney(montantAnnuel)}</small>
               </strong>
             </div>
             <div className="cotis-kpi-ico" aria-hidden>
