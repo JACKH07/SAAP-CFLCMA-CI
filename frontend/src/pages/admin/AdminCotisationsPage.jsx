@@ -155,7 +155,7 @@ export default function AdminCotisationsPage() {
     }
     return Number(statsAnnuel?.cotisations?.montantPercu || 0);
   }, [statsAnnuel]);
-  const resteACollecter = Math.max(0, montantAnnuel - montantVerseParToutesLesRegions);
+  const depenses = 0;
   const payees = stats?.cotisations?.payees ?? 0;
   const taux = stats?.cotisations?.tauxPaiement ?? 0;
 
@@ -513,7 +513,7 @@ export default function AdminCotisationsPage() {
           <article className="cotis-kpi cotis-kpi--red">
             <div className="cotis-kpi-text">
               <span>Dépenses</span>
-              <strong>{formatMoney(resteACollecter)}</strong>
+              <strong>{formatMoney(depenses)}</strong>
             </div>
             <div className="cotis-kpi-ico" aria-hidden>
               <svg viewBox="0 0 64 32" width="64" height="32">
