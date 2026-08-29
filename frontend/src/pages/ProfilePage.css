@@ -19,7 +19,7 @@
   padding: 1.5rem 1.15rem 1.25rem;
   border-radius: 18px;
   background:
-    linear-gradient(#fff 0%, var(--color-brand-soft) 100%);
+    linear-gradient(180deg, #f7fbf7 0%, #fff 42%);
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow);
   position: relative;
@@ -73,8 +73,9 @@
 
 .profile-identity-role {
   margin: 0 0 0.85rem;
-  font-size: 0.92rem;
-  color: var(--color-muted);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-accent);
 }
 
 .profile-id-badge {
@@ -104,13 +105,83 @@
 }
 
 .profile-sheet-title {
-  margin: 0 0 0.85rem;
-  padding-bottom: 0.65rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.35rem;
+  padding-bottom: 0.7rem;
   border-bottom: 1px solid var(--color-border);
-  font-family: var(--font-display);
-  font-size: 1.1rem;
-  font-weight: 700;
+  font-family: var(--font-sans);
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.profile-sheet-title-icon {
+  display: grid;
+  place-items: center;
   color: var(--color-brand);
+}
+
+.profile-sheet-title-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.profile-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.profile-tab {
+  border: none;
+  background: transparent;
+  min-height: 44px;
+  padding: 0.55rem 0.35rem 0.7rem;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  cursor: pointer;
+  position: relative;
+}
+
+.profile-tab.is-active {
+  color: var(--color-brand);
+  font-weight: 800;
+}
+
+.profile-tab.is-active::after {
+  content: '';
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: -1px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--color-brand);
+}
+
+.profile-field {
+  padding: 0.7rem 0;
+}
+
+.profile-field + .profile-field {
+  border-top: 1px solid var(--color-border);
+}
+
+.profile-field-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  margin-bottom: 0.2rem;
+}
+
+.profile-field-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-ink);
 }
 
 .profile-contact-row {
@@ -174,6 +245,7 @@
   border-radius: 999px;
   background: var(--color-brand-soft);
   overflow: hidden;
+  margin-top: 0.85rem;
 }
 
 .profile-progress span {

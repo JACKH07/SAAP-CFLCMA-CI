@@ -6,7 +6,7 @@ import MemberAvatar from '../components/MemberAvatar';
 import ProfilePhotoCapture from '../components/ProfilePhotoCapture';
 import api from '../api/client';
 import { useAuthStore } from '../store/authStore';
-import { titreNom, gradeNom, effectiveRank, rankProgress } from '../utils/roleDisplay';
+import { titreNom, gradeNom, rankProgress } from '../utils/roleDisplay';
 import './Auth.css';
 import './ProfilePage.css';
 
@@ -38,12 +38,13 @@ function rattachement(profile) {
 }
 
 function roleSubtitle(profile) {
-  const titre = titreNom(profile.role, profile.titre);
-  if (titre && titre !== '—') return titre;
-  if (profile.responsabiliteBureau) return profile.responsabiliteBureau;
-  const grade = gradeNom(profile.role);
-  return grade !== '—' ? grade : 'Membre';
+  return brancheLabel(profile.branche, true);
 }
+
+const TABS = [
+  { id: 'identite', label: 'Identité' },
+  { id: 'organisation', label: 'Organisation' },
+];
 
 const EMPTY_FORM = {
   contact: '',
@@ -121,25 +122,32 @@ function IconUser() {
   );
 }
 
-function IconBriefcase() {
+function IconIdCard() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path
         fill="currentColor"
-        d="M20 6h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v3h20V8c0-1.1-.9-2-2-2ZM10 4h4v2h-4V4Zm12 7H2v7c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-7Z"
+        d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2Zm0 14H4V6h16v12ZM6 10h5v5H6v-5Zm7 0h5v2h-5v-2Zm0 3h5v2h-5v-2Z"
       />
     </svg>
   );
 }
 
-function IconHeart() {
+function FieldRow({ label, value }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M12 21.4 10.6 20C5.4 15.4 2 12.3 2 8.5 2 5.4 4.4 3 7.5 3c1.7 0 3.4.8 4.5 2.1C13.1 3.8 14.8 3 16.5 3 19.6 3 22 5.4 22 8.5c0 3.8-3.4 6.9-8.6 11.5L12 21.4Z"
-      />
-    </svg>
+    <div className="profile-field">
+      <div className="profile-field-label">{label}</div>
+      <div className="profile-field-value">{value || '—'}</div>
+    </div>
+  );
+}
+
+function SheetTitle({ icon, children }) {
+  return (
+    <h2 className="profile-sheet-title">
+      <span className="profile-sheet-title-icon">{icon}</span>
+      {children}
+    </h2>
   );
 }
 
@@ -167,6 +175,7 @@ export default function ProfilePage() {
   const [photoFile, setPhotoFile] = useState(null);
   const [photoError, setPhotoError] = useState('');
   const [photoSaving, setPhotoSaving] = useState(false);
+  const [tab, setTab] = useState('identite');
   const printRef = useRef(null);
 
   useEffect(() => {
@@ -269,11 +278,14 @@ export default function ProfilePage() {
   if (!profile) return null;
 
   const dateNaiss = profile.dateNaissance
-    ? new Date(profile.dateNaissance).toLocaleDateString('fr-FR')
+    ? new Date(profile.dateNaissance).toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
     : '—';
 
   const isMemberAccount = profile && !profile.isSuperAdmin;
-  const rank = effectiveRank(profile);
   const progress = rankProgress(profile);
   const badges = [
     profile.branche
@@ -455,55 +467,86 @@ export default function ProfilePage() {
           </form>
         ) : (
           <>
-            <article className="card profile-sheet no-print">
-              <h2 className="profile-sheet-title">Coordonnées</h2>
-              <ContactRow icon={<IconMail />} label="E-mail" value={profile.email} />
-              <ContactRow icon={<IconPhone />} label="Téléphone" value={profile.contact} />
-              <ContactRow icon={<IconPin />} label="Rattachement" value={rattachement(profile)} />
-            </article>
+            <div className="profile-tabs no-print" role="tablist" aria-label="Sections du profil">
+              {TABS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === item.id}
+                  className={`profile-tab${tab === item.id ? ' is-active' : ''}`}
+                  onClick={() => setTab(item.id)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
 
-            <article className="card profile-sheet no-print">
-              <h2 className="profile-sheet-title">Informations personnelles</h2>
-              <ContactRow icon={<IconUser />} label="Date de naissance" value={dateNaiss} />
-              <ContactRow icon={<IconPin />} label="Lieu de naissance" value={profile.lieuNaissance} />
-              <ContactRow icon={<IconHeart />} label="Situation" value={profile.situationMatrimoniale} />
-              <ContactRow icon={<IconBriefcase />} label="Profession" value={profile.profession} />
-            </article>
+            {tab === 'identite' ? (
+              <>
+                <article className="card profile-sheet no-print">
+                  <SheetTitle icon={<IconUser />}>Identité</SheetTitle>
+                  <FieldRow label="Date de naissance" value={dateNaiss} />
+                  <FieldRow label="Lieu de naissance" value={profile.lieuNaissance} />
+                  <FieldRow label="État civil" value={profile.situationMatrimoniale} />
+                  <FieldRow label="Profession" value={profile.profession} />
+                </article>
 
-            <article className="card profile-sheet no-print">
-              <h2 className="profile-sheet-title">Statut dans le mouvement</h2>
-              <div className="profile-rank-row">
-                <span>Grade actuel</span>
-                <strong>{rank?.nom || '—'}</strong>
-              </div>
-              <div
-                className="profile-progress"
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={progress.pct}
-                aria-label="Progression vers le rang suivant"
-              >
-                <span style={{ width: `${progress.pct}%` }} />
-              </div>
-              <p className="profile-progress-label">
-                {progress.isTop
-                  ? 'Rang le plus élevé du mouvement'
-                  : `${progress.pct}% vers ${progress.nextShort || progress.nextNom}`}
-              </p>
-              {badges.length > 0 && (
-                <div className="profile-badges">
-                  <span className="profile-badges-label">Badges</span>
-                  <div className="profile-badge-list">
-                    {badges.map((b) => (
-                      <span key={b.key} className={`profile-chip profile-chip--${b.kind}`}>
-                        {b.label}
-                      </span>
-                    ))}
+                <article className="card profile-sheet no-print">
+                  <SheetTitle icon={<IconIdCard />}>Contact</SheetTitle>
+                  <ContactRow icon={<IconMail />} label="Email" value={profile.email} />
+                  <ContactRow icon={<IconPhone />} label="Téléphone" value={profile.contact} />
+                </article>
+              </>
+            ) : (
+              <>
+                <article className="card profile-sheet no-print">
+                  <SheetTitle icon={<IconPin />}>Organisation</SheetTitle>
+                  <FieldRow label="Région" value={profile.region?.nom} />
+                  <FieldRow label="District" value={profile.district?.nom} />
+                  <FieldRow label="Paroisse" value={profile.paroisse?.nom} />
+                  <FieldRow label="Communauté" value={profile.communaute?.nom} />
+                </article>
+
+                <article className="card profile-sheet no-print">
+                  <SheetTitle icon={<IconBadge />}>Statut dans le mouvement</SheetTitle>
+                  <FieldRow label="Titre" value={titreNom(profile.role, profile.titre)} />
+                  <FieldRow label="Grade" value={gradeNom(profile.role)} />
+                  <FieldRow
+                    label="Responsabilité bureau"
+                    value={profile.responsabiliteBureau}
+                  />
+                  <FieldRow label="Statut" value={statutLabel(profile.statut)} />
+                  <div
+                    className="profile-progress"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={progress.pct}
+                    aria-label="Progression vers le rang suivant"
+                  >
+                    <span style={{ width: `${progress.pct}%` }} />
                   </div>
-                </div>
-              )}
-            </article>
+                  <p className="profile-progress-label">
+                    {progress.isTop
+                      ? 'Rang le plus élevé du mouvement'
+                      : `${progress.pct}% vers ${progress.nextShort || progress.nextNom}`}
+                  </p>
+                  {badges.length > 0 && (
+                    <div className="profile-badges">
+                      <span className="profile-badges-label">Badges</span>
+                      <div className="profile-badge-list">
+                        {badges.map((b) => (
+                          <span key={b.key} className={`profile-chip profile-chip--${b.kind}`}>
+                            {b.label}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </article>
+              </>
+            )}
 
             <div className="profile-cta no-print">
               <button type="button" className="profile-edit-cta" onClick={startEdit}>
