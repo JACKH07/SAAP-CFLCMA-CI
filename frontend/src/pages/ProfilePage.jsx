@@ -6,23 +6,23 @@ import MemberAvatar from '../components/MemberAvatar';
 import ProfilePhotoCapture from '../components/ProfilePhotoCapture';
 import api from '../api/client';
 import { useAuthStore } from '../store/authStore';
-import { titreNom, gradeNom } from '../utils/roleDisplay';
+import { titreNom, gradeNom, effectiveRank, rankProgress } from '../utils/roleDisplay';
 import './Auth.css';
 import './ProfilePage.css';
 
-function statutBadge(statut) {
+function statutLabel(statut) {
   const map = {
-    VALIDE: 'badge-valide',
-    EN_ATTENTE: 'badge-en_attente',
-    REJETE: 'badge-attente',
-    SUSPENDU: 'badge-attente',
+    VALIDE: 'Validé',
+    EN_ATTENTE: 'En attente',
+    REJETE: 'Rejeté',
+    SUSPENDU: 'Suspendu',
   };
-  return map[statut] || 'badge-attente';
+  return map[statut] || statut?.replace('_', ' ') || '—';
 }
 
-function brancheLabel(branche) {
-  if (branche === 'LUMIERES') return 'Lumières (Femme)';
-  if (branche === 'FLAMBEAUX') return 'Flambeaux (Homme)';
+function brancheLabel(branche, short = false) {
+  if (branche === 'LUMIERES') return short ? 'Lumières' : 'Lumières (Femme)';
+  if (branche === 'FLAMBEAUX') return short ? 'Flambeaux' : 'Flambeaux (Homme)';
   return '—';
 }
 
@@ -37,6 +37,14 @@ function rattachement(profile) {
     .join(' · ') || '—';
 }
 
+function roleSubtitle(profile) {
+  const titre = titreNom(profile.role, profile.titre);
+  if (titre && titre !== '—') return titre;
+  if (profile.responsabiliteBureau) return profile.responsabiliteBureau;
+  const grade = gradeNom(profile.role);
+  return grade !== '—' ? grade : 'Membre';
+}
+
 const EMPTY_FORM = {
   contact: '',
   email: '',
@@ -46,6 +54,106 @@ const EMPTY_FORM = {
   password: '',
   confirm: '',
 };
+
+function IconMail() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2Zm0 4-8 5L4 8V6l8 5 8-5v2Z"
+      />
+    </svg>
+  );
+}
+
+function IconPhone() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1.1-.2 1.2.4 2.5.6 3.8.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.6.6 3.8.1.4 0 .8-.3 1.1L6.6 10.8Z"
+      />
+    </svg>
+  );
+}
+
+function IconPin() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M12 2C8.1 2 5 5.1 5 9c0 5.3 7 13 7 13s7-7.7 7-13c0-3.9-3.1-7-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5Z"
+      />
+    </svg>
+  );
+}
+
+function IconPencil() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M3 17.3V21h3.8L17.8 9.9l-3.8-3.8L3 17.3ZM20.7 7c.4-.4.4-1 0-1.4l-2.3-2.3c-.4-.4-1-.4-1.4 0l-1.8 1.8 3.8 3.8L20.7 7Z"
+      />
+    </svg>
+  );
+}
+
+function IconBadge() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M12 2 9.2 8.1 2.5 9l5 4.9L6.2 21 12 17.8 17.8 21 16.5 13.9l5-4.9-6.7-.9L12 2Z"
+      />
+    </svg>
+  );
+}
+
+function IconUser() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12Zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8V22h19.2v-2.8c0-3.2-6.4-4.8-9.6-4.8Z"
+      />
+    </svg>
+  );
+}
+
+function IconBriefcase() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M20 6h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v3h20V8c0-1.1-.9-2-2-2ZM10 4h4v2h-4V4Zm12 7H2v7c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-7Z"
+      />
+    </svg>
+  );
+}
+
+function IconHeart() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M12 21.4 10.6 20C5.4 15.4 2 12.3 2 8.5 2 5.4 4.4 3 7.5 3c1.7 0 3.4.8 4.5 2.1C13.1 3.8 14.8 3 16.5 3 19.6 3 22 5.4 22 8.5c0 3.8-3.4 6.9-8.6 11.5L12 21.4Z"
+      />
+    </svg>
+  );
+}
+
+function ContactRow({ icon, label, value }) {
+  return (
+    <div className="profile-contact-row">
+      <span className="profile-contact-icon">{icon}</span>
+      <div>
+        <div className="profile-contact-label">{label}</div>
+        <div className="profile-contact-value">{value || '—'}</div>
+      </div>
+    </div>
+  );
+}
 
 export default function ProfilePage() {
   const { user, refreshMe, setSession, token } = useAuthStore();
@@ -149,6 +257,11 @@ export default function ProfilePage() {
     }
   }
 
+  function openPhotoEditor() {
+    setPhotoError('');
+    setShowPhotoEditor(true);
+  }
+
   function printFiche() {
     window.print();
   }
@@ -160,12 +273,46 @@ export default function ProfilePage() {
     : '—';
 
   const isMemberAccount = profile && !profile.isSuperAdmin;
+  const rank = effectiveRank(profile);
+  const progress = rankProgress(profile);
+  const badges = [
+    profile.branche
+      ? {
+          key: 'branche',
+          label: brancheLabel(profile.branche, true),
+          kind: profile.branche === 'LUMIERES' ? 'lumieres' : 'flambeaux',
+        }
+      : null,
+    profile.statut ? { key: 'statut', label: statutLabel(profile.statut), kind: profile.statut === 'VALIDE' ? 'ok' : 'warn' } : null,
+    profile.responsabiliteBureau
+      ? { key: 'bureau', label: profile.responsabiliteBureau, kind: 'bureau' }
+      : null,
+  ].filter(Boolean);
 
   return (
     <Layout>
       <section className="stack profile-page">
-        <div className="profile-header no-print">
-          {profile && (
+        {msg && <div className="alert alert-success no-print">{msg}</div>}
+        {error && <div className="alert alert-error no-print">{error}</div>}
+
+        <article className="profile-identity no-print">
+          {isMemberAccount ? (
+            <button
+              type="button"
+              className="profile-avatar-btn"
+              onClick={openPhotoEditor}
+              aria-label={profile.photoUrl ? 'Changer la photo de profil' : 'Ajouter une photo de profil'}
+            >
+              <MemberAvatar
+                photoUrl={profile.photoUrl}
+                prenom={profile.prenom}
+                nom={profile.nom}
+                isSuperAdmin={profile.isSuperAdmin}
+                className="profile-photo"
+                alt={`${profile.prenom} ${profile.nom}`}
+              />
+            </button>
+          ) : (
             <MemberAvatar
               photoUrl={profile.photoUrl}
               prenom={profile.prenom}
@@ -175,86 +322,48 @@ export default function ProfilePage() {
               alt={`${profile.prenom} ${profile.nom}`}
             />
           )}
-          <p className="muted" style={{ margin: 0 }}>
-            Mon profil
-          </p>
-          <h1>
+          <h1 className="profile-identity-name">
             {profile.prenom} {profile.nom}
           </h1>
-          <span className={`badge ${statutBadge(profile.statut)}`}>
-            {profile.statut.replace('_', ' ')}
-          </span>
+          <p className="profile-identity-role">{roleSubtitle(profile)}</p>
+          <div className="profile-id-badge">
+            <IconBadge />
+            <span>ID : {profile.idMembre}</span>
+          </div>
+        </article>
 
-          <div className="profile-actions">
-            {!editing && (
-              <button type="button" className="btn btn-secondary" onClick={startEdit}>
-                Modifier
+        {isMemberAccount && showPhotoEditor && (
+          <form className="card no-print profile-sheet" onSubmit={uploadPhoto}>
+            <h2 className="profile-sheet-title">Photo de profil</h2>
+            <ProfilePhotoCapture
+              value={photoFile}
+              onChange={setPhotoFile}
+              onError={setPhotoError}
+            />
+            {photoError && <div className="alert alert-error">{photoError}</div>}
+            <div className="profile-actions">
+              <button type="submit" className="btn" disabled={!photoFile || photoSaving}>
+                {photoSaving ? 'Envoi…' : 'Enregistrer la photo'}
               </button>
-            )}
-            <button type="button" className="btn" onClick={printFiche}>
-              Imprimer la fiche
-            </button>
-          </div>
-        </div>
-
-        {msg && <div className="alert alert-success no-print">{msg}</div>}
-        {error && <div className="alert alert-error no-print">{error}</div>}
-
-        {isMemberAccount && (
-          <div className="card no-print profile-photo-section">
-            {!showPhotoEditor ? (
-              <>
-                <h2 className="profile-edit-title">Photo de profil</h2>
-                <p className="muted profile-photo-section__hint">
-                  {profile.photoUrl
-                    ? 'Vous pouvez remplacer votre photo d\'identité.'
-                    : 'Ajoutez votre photo d\'identité pour compléter votre fiche membre.'}
-                </p>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    setPhotoError('');
-                    setShowPhotoEditor(true);
-                  }}
-                >
-                  {profile.photoUrl ? 'Changer ma photo' : 'Ajouter ma photo'}
-                </button>
-              </>
-            ) : (
-              <form onSubmit={uploadPhoto}>
-                <h2 className="profile-edit-title">Nouvelle photo</h2>
-                <ProfilePhotoCapture
-                  value={photoFile}
-                  onChange={setPhotoFile}
-                  onError={setPhotoError}
-                />
-                {photoError && <div className="alert alert-error">{photoError}</div>}
-                <div className="profile-actions">
-                  <button type="submit" className="btn" disabled={!photoFile || photoSaving}>
-                    {photoSaving ? 'Envoi…' : 'Enregistrer la photo'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => {
-                      setShowPhotoEditor(false);
-                      setPhotoFile(null);
-                      setPhotoError('');
-                    }}
-                    disabled={photoSaving}
-                  >
-                    Annuler
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowPhotoEditor(false);
+                  setPhotoFile(null);
+                  setPhotoError('');
+                }}
+                disabled={photoSaving}
+              >
+                Annuler
+              </button>
+            </div>
+          </form>
         )}
 
         {editing ? (
-          <form className="card no-print" onSubmit={saveProfile}>
-            <h2 className="profile-edit-title">Modifier mon profil</h2>
+          <form className="card no-print profile-sheet" onSubmit={saveProfile}>
+            <h2 className="profile-sheet-title">Modifier mon profil</h2>
             <div className="form-row">
               <div className="form-group">
                 <label htmlFor="pf-contact">Contact</label>
@@ -345,69 +454,69 @@ export default function ProfilePage() {
             </div>
           </form>
         ) : (
-          <div className="card no-print">
-            <div className="stack">
-              <div>
-                <div className="muted" style={{ fontSize: '0.8rem' }}>
-                  ID membre
-                </div>
-                <strong style={{ fontSize: '1.25rem', letterSpacing: '0.04em' }}>
-                  {profile.idMembre}
-                </strong>
+          <>
+            <article className="card profile-sheet no-print">
+              <h2 className="profile-sheet-title">Coordonnées</h2>
+              <ContactRow icon={<IconMail />} label="E-mail" value={profile.email} />
+              <ContactRow icon={<IconPhone />} label="Téléphone" value={profile.contact} />
+              <ContactRow icon={<IconPin />} label="Rattachement" value={rattachement(profile)} />
+            </article>
+
+            <article className="card profile-sheet no-print">
+              <h2 className="profile-sheet-title">Informations personnelles</h2>
+              <ContactRow icon={<IconUser />} label="Date de naissance" value={dateNaiss} />
+              <ContactRow icon={<IconPin />} label="Lieu de naissance" value={profile.lieuNaissance} />
+              <ContactRow icon={<IconHeart />} label="Situation" value={profile.situationMatrimoniale} />
+              <ContactRow icon={<IconBriefcase />} label="Profession" value={profile.profession} />
+            </article>
+
+            <article className="card profile-sheet no-print">
+              <h2 className="profile-sheet-title">Statut dans le mouvement</h2>
+              <div className="profile-rank-row">
+                <span>Grade actuel</span>
+                <strong>{rank?.nom || '—'}</strong>
               </div>
-              <div className="form-row" style={{ gap: '1rem' }}>
-                <div>
-                  <div className="muted" style={{ fontSize: '0.8rem' }}>
-                    Branche
-                  </div>
-                  <div>{brancheLabel(profile.branche)}</div>
-                </div>
-                <div>
-                  <div className="muted" style={{ fontSize: '0.8rem' }}>
-                    Titre
-                  </div>
-                  <div>{titreNom(profile.role, profile.titre)}</div>
-                </div>
-                <div>
-                  <div className="muted" style={{ fontSize: '0.8rem' }}>
-                    Grades
-                  </div>
-                  <div>{gradeNom(profile.role)}</div>
-                </div>
+              <div
+                className="profile-progress"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={progress.pct}
+                aria-label="Progression vers le rang suivant"
+              >
+                <span style={{ width: `${progress.pct}%` }} />
               </div>
-              <div className="form-row" style={{ gap: '1rem' }}>
-                <div>
-                  <div className="muted" style={{ fontSize: '0.8rem' }}>
-                    Contact
+              <p className="profile-progress-label">
+                {progress.isTop
+                  ? 'Rang le plus élevé du mouvement'
+                  : `${progress.pct}% vers ${progress.nextShort || progress.nextNom}`}
+              </p>
+              {badges.length > 0 && (
+                <div className="profile-badges">
+                  <span className="profile-badges-label">Badges</span>
+                  <div className="profile-badge-list">
+                    {badges.map((b) => (
+                      <span key={b.key} className={`profile-chip profile-chip--${b.kind}`}>
+                        {b.label}
+                      </span>
+                    ))}
                   </div>
-                  <div>{profile.contact || '—'}</div>
                 </div>
-                <div>
-                  <div className="muted" style={{ fontSize: '0.8rem' }}>
-                    Situation matrimoniale
-                  </div>
-                  <div>{profile.situationMatrimoniale || '—'}</div>
-                </div>
-              </div>
-              <div className="form-row" style={{ gap: '1rem' }}>
-                <div>
-                  <div className="muted" style={{ fontSize: '0.8rem' }}>
-                    Profession
-                  </div>
-                  <div>{profile.profession || '—'}</div>
-                </div>
-              </div>
-              <div>
-                <div className="muted" style={{ fontSize: '0.8rem' }}>
-                  Rattachement
-                </div>
-                <div>{rattachement(profile)}</div>
-              </div>
+              )}
+            </article>
+
+            <div className="profile-cta no-print">
+              <button type="button" className="profile-edit-cta" onClick={startEdit}>
+                <IconPencil />
+                Modifier le profil
+              </button>
+              <button type="button" className="profile-print-link" onClick={printFiche}>
+                Imprimer la fiche
+              </button>
             </div>
-          </div>
+          </>
         )}
 
-        {/* Fiche imprimable */}
         <div className="fiche-print" ref={printRef}>
           <div className="fiche-print-head">
             <BrandLogo size={72} />
