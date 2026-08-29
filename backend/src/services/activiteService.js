@@ -2,6 +2,7 @@ const prisma = require('../config/prisma');
 const { AppError } = require('../utils/errors');
 const { filterActivitesForViewer } = require('../utils/activiteAccess');
 const { normalizeVisibilite } = require('../constants/activiteVisibilite');
+const { toPaymentSafeId } = require('../utils/text');
 
 class ActiviteService {
   async list({ includeInactive = false, viewer = null, includeRestricted = false } = {}) {
@@ -28,7 +29,8 @@ class ActiviteService {
     if (!nom?.trim()) throw new AppError('Nom requis', 400);
     if (!prefixeIdPaiement?.trim()) throw new AppError('Préfixe ID paiement requis', 400);
 
-    const prefixe = prefixeIdPaiement.trim().toUpperCase();
+    const prefixe = toPaymentSafeId(prefixeIdPaiement);
+    if (!prefixe) throw new AppError('Préfixe ID paiement requis', 400);
     try {
       return await prisma.activite.create({
         data: {
@@ -57,7 +59,8 @@ class ActiviteService {
     }
     if (payload.prefixeIdPaiement !== undefined) {
       if (!String(payload.prefixeIdPaiement).trim()) throw new AppError('Préfixe invalide', 400);
-      data.prefixeIdPaiement = String(payload.prefixeIdPaiement).trim().toUpperCase();
+      data.prefixeIdPaiement = toPaymentSafeId(payload.prefixeIdPaiement);
+      if (!data.prefixeIdPaiement) throw new AppError('Préfixe invalide', 400);
     }
     if (payload.montantDefaut !== undefined) {
       data.montantDefaut =

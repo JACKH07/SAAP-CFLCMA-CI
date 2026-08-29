@@ -1,5 +1,5 @@
 const prisma = require('../config/prisma');
-const { extractLetters, formatDateCompact } = require('../utils/text');
+const { extractLetters, formatDateCompact, toPaymentSafeId } = require('../utils/text');
 
 /**
  * Service de génération d'identifiants membres.
@@ -22,10 +22,10 @@ class MembreIdService {
   }
 
   /**
-   * Construit l'id_paiement : PREFIXE-ID_MEMBRE
+   * Construit l'id_paiement : PREFIXE-ID_MEMBRE (sans accents, compatible Orange Money).
    */
   buildPaymentId(prefixe, idMembre) {
-    return `${prefixe}-${idMembre}`;
+    return toPaymentSafeId(`${prefixe}-${idMembre}`);
   }
 
   /**

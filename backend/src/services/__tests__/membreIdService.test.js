@@ -17,6 +17,12 @@ describe('text utils', () => {
     expect(normalizeText('Évangélique')).toBe('evangelique');
     expect(normalizeText('  Saint  Paul  ')).toBe('saint paul');
   });
+
+  test('toPaymentSafeId retire les accents pour Orange Money', () => {
+    const { toPaymentSafeId } = require('../../utils/text');
+    expect(toPaymentSafeId('NGLIÈ-ELKO19980101')).toBe('NGLIE-ELKO19980101');
+    expect(toPaymentSafeId('eyawa-koja19950312')).toBe('EYAWA-KOJA19950312');
+  });
 });
 
 describe('membreId base generation', () => {

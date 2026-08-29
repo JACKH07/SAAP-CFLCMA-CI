@@ -1,4 +1,6 @@
 /** Page checkout actuelle renvoyée par Orange (sandbox = /sx, prod CI = /ci). */
+const { toPaymentSafeId } = require('../../utils/text');
+
 const MPAYMENT_HOST = 'https://mpayment.orange-money.com';
 
 const ORANGE_URL_MAX_LENGTH = 120;
@@ -61,7 +63,7 @@ function resolveCheckoutUrl(data = {}, env = 'dev') {
 
 function clipOrangeField(value, maxLength) {
   if (value == null) return value;
-  const text = String(value);
+  const text = toPaymentSafeId(value) || 'CFLCMACI';
   return text.length <= maxLength ? text : text.slice(0, maxLength);
 }
 

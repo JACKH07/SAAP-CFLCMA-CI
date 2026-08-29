@@ -13,6 +13,19 @@ function normalizeText(value) {
 }
 
 /**
+ * Identifiant paiement / référence opérateur : ASCII, majuscules, A–Z 0–9 et tiret.
+ * Orange Money refuse les accents (ex. NGLIÈ → NGLIE).
+ */
+function toPaymentSafeId(value) {
+  if (value == null) return '';
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9-]/g, '')
+    .toUpperCase();
+}
+
+/**
  * Extrait les 2 premières lettres alphabétiques d'une chaîne (majuscules).
  */
 function extractLetters(value, count = 2) {
@@ -39,4 +52,4 @@ function formatDateCompact(date) {
   return `${yyyy}${mm}${dd}`;
 }
 
-module.exports = { normalizeText, extractLetters, formatDateCompact };
+module.exports = { normalizeText, extractLetters, formatDateCompact, toPaymentSafeId };

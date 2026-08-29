@@ -63,4 +63,8 @@ describe('orangeWebpayUrls', () => {
       30
     );
   });
+
+  test('retire les accents de la référence Orange Money', () => {
+    expect(clipOrangeField('NGLIÈ-ELKO19980101', REFERENCE_MAX_LENGTH)).toBe('NGLIE-ELKO19980101');
+  });
 });

@@ -16,6 +16,7 @@ const {
 } = require('./payment/versementUtils');
 const { assertCanPayActivite } = require('../utils/activiteAccess');
 const { montantCible, assertMontantVersement } = require('../utils/montantActivite');
+const { toPaymentSafeId } = require('../utils/text');
 const path = require('path');
 const fs = require('fs');
 const config = require('../config');
@@ -62,6 +63,36 @@ function idPaiementFromOrangeOrderId(orderId) {
   const raw = String(orderId);
   const match = raw.match(/^(.*)-(\d{10,})$/);
   return match ? match[1] : raw;
+}
+
+async function findCotisationForActivite(membre, activite) {
+  const idPaiement = membreIdService.buildPaymentId(
+    activite.prefixeIdPaiement,
+    membre.idMembre
+  );
+
+  let cotisation = await prisma.cotisation.findUnique({
+    where: {
+      membreId_activiteId: { membreId: membre.id, activiteId: activite.id },
+    },
+  });
+
+  if (!cotisation) {
+    cotisation = await prisma.cotisation.findUnique({ where: { idPaiement } });
+  }
+
+  if (cotisation && cotisation.idPaiement !== idPaiement) {
+    try {
+      cotisation = await prisma.cotisation.update({
+        where: { id: cotisation.id },
+        data: { idPaiement },
+      });
+    } catch {
+      // conserve l'ancien id si collision unique
+    }
+  }
+
+  return { cotisation, idPaiement };
 }
 
 class CotisationService {
@@ -144,18 +175,26 @@ class CotisationService {
   }
 
   async findByPaymentId(idPaiement) {
-    const cotisation = await prisma.cotisation.findUnique({
+    const include = {
+      activite: true,
+      membre: { select: COTISATION_MEMBRE_SELECT },
+      region: true,
+      district: true,
+      paroisse: true,
+      communaute: true,
+      ...VERSEMENTS_INCLUDE,
+    };
+    let cotisation = await prisma.cotisation.findUnique({
       where: { idPaiement },
-      include: {
-        activite: true,
-        membre: { select: COTISATION_MEMBRE_SELECT },
-        region: true,
-        district: true,
-        paroisse: true,
-        communaute: true,
-        ...VERSEMENTS_INCLUDE,
-      },
+      include,
     });
+    const safeId = toPaymentSafeId(idPaiement);
+    if (!cotisation && safeId && safeId !== idPaiement) {
+      cotisation = await prisma.cotisation.findUnique({
+        where: { idPaiement: safeId },
+        include,
+      });
+    }
     if (!cotisation) throw new AppError('Paiement introuvable', 404);
     return cotisation;
   }
@@ -405,12 +444,8 @@ class CotisationService {
     const paye = Number(montantPaye);
     if (paye <= 0) throw new AppError('Montant invalide', 400);
 
-    const idPaiement = membreIdService.buildPaymentId(
-      activite.prefixeIdPaiement,
-      membre.idMembre
-    );
-
-    let cotisation = await prisma.cotisation.findUnique({ where: { idPaiement } });
+    const { cotisation: existing, idPaiement } = await findCotisationForActivite(membre, activite);
+    let cotisation = existing;
     assertMontantVersement(activite, cotisation?.montantPaye || 0, paye);
 
     const cible = montantCible(activite);
@@ -502,12 +537,8 @@ class CotisationService {
     }
 
     const providerKey = paymentGateway.normalizeProvider(provider);
-    const idPaiement = membreIdService.buildPaymentId(
-      activite.prefixeIdPaiement,
-      membre.idMembre
-    );
-
-    let cotisation = await prisma.cotisation.findUnique({ where: { idPaiement } });
+    const { cotisation: existing, idPaiement } = await findCotisationForActivite(membre, activite);
+    let cotisation = existing;
     assertMontantVersement(activite, cotisation?.montantPaye || 0, payAmount);
     const cible = montantCible(activite);
 
@@ -702,6 +733,12 @@ class CotisationService {
       const exact = await prisma.cotisation.findUnique({ where: { idPaiement } });
       if (exact) return exact;
 
+      const safeId = toPaymentSafeId(idPaiement);
+      if (safeId && safeId !== idPaiement) {
+        const bySafe = await prisma.cotisation.findUnique({ where: { idPaiement: safeId } });
+        if (bySafe) return bySafe;
+      }
+
       const resolved = idPaiementFromOrangeOrderId(idPaiement);
       if (resolved && resolved !== idPaiement) {
         const byPrefix = await prisma.cotisation.findUnique({ where: { idPaiement: resolved } });
@@ -731,7 +768,11 @@ class CotisationService {
    * Après retour WebPay : interroge transactionstatus puis confirme.
    */
   async verifyMobileMoney(idPaiement, acteur) {
-    const cotisation = await prisma.cotisation.findUnique({ where: { idPaiement } });
+    let cotisation = await prisma.cotisation.findUnique({ where: { idPaiement } });
+    const safeId = toPaymentSafeId(idPaiement);
+    if (!cotisation && safeId && safeId !== idPaiement) {
+      cotisation = await prisma.cotisation.findUnique({ where: { idPaiement: safeId } });
+    }
     if (!cotisation) throw new AppError('Cotisation introuvable', 404);
 
     if (acteur && !acteur.isAdmin && cotisation.membreId !== acteur.id) {
