@@ -72,11 +72,22 @@ APP_ENV=production
 NODE_ENV=production
 PORT=4000
 SERVE_FRONTEND=true
+UPLOAD_DIR=/app/uploads
 JWT_SECRET=votre_cle_jwt_longue_et_aleatoire
 CORS_ORIGIN=https://cfl.flambeauxcmaci.com
 FRONTEND_URL=https://cfl.flambeauxcmaci.com
 API_PUBLIC_URL=https://cfl.flambeauxcmaci.com/api
-PAYMENT_MOCK_MODE=true
+PAYMENT_MOCK_MODE=false
+ORANGE_MONEY_ENV=ci
+ORANGE_MONEY_ALLOW_CI=true
+ORANGE_MONEY_API_URL=https://api.orange.com/orange-money-webpay
+ORANGE_MONEY_OAUTH_URL=https://api.orange.com/oauth/v3/token
+ORANGE_MONEY_CLIENT_ID=votre_client_id_prod
+ORANGE_MONEY_CLIENT_SECRET=votre_client_secret_prod
+ORANGE_MONEY_MERCHANT_KEY=votre_merchant_key_prod
+ORANGE_MONEY_NOTIF_URL=https://cfl.flambeauxcmaci.com/api/cotisations/webhooks/orange
+ORANGE_MONEY_RETURN_URL=https://cfl.flambeauxcmaci.com/mes-cotisations
+ORANGE_MONEY_CANCEL_URL=https://cfl.flambeauxcmaci.com/mes-cotisations
 ADMIN_EMAIL=flambeaux@gmail.com
 ADMIN_PASSWORD=flambeaux&lumière
 ADMIN_NOM=Administrateur
@@ -84,7 +95,9 @@ ADMIN_PRENOM=Flambeaux
 ```
 
 > `DATABASE_URL` : base MySQL Hostinger (Remote MySQL activé pour l’IP du VPS).  
-> **Important :** le fichier `.env.production` local n’est **pas** lu dans Docker — seules les variables **Dokploy → Environment** comptent.
+> **Important :** le fichier `.env.production` local n’est **pas** lu dans Docker — seules les variables **Dokploy → Environment** comptent.  
+> **Paiements cotisations :** `PAYMENT_MOCK_MODE=false` + `ORANGE_MONEY_ENV=ci` + `ALLOW_CI=true` → API réelle `/ci/v1` + devise **XOF** (plus de sandbox `/dev` / OUV).  
+> `API_PUBLIC_URL` doit être `https://cfl.flambeauxcmaci.com/api` (**pas** l’ancien Render).
 
 **Save** → **Deploy**.
 

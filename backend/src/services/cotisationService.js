@@ -564,11 +564,32 @@ class CotisationService {
     const dejaPaye = Number(cotisation.montantPaye || 0);
     const returnBase = config.urls.mesCotisations;
     const apiBase = String(config.urls.apiPublic || '').replace(/\/$/, '');
+    const orangeCfg = config.orangeMoney || {};
+    const waveCfg = config.wave || {};
     const orangeOrderId = `CFL${Date.now().toString(36)}${Math.random()
       .toString(36)
       .slice(2, 6)}`
       .toUpperCase()
       .slice(0, 30);
+
+    const defaultNotifUrl = `${apiBase}/cotisations/webhooks/${
+      providerKey === 'WAVE' ? 'wave' : 'orange'
+    }`;
+    const notifUrl =
+      providerKey === 'WAVE'
+        ? waveCfg.callbackUrl || defaultNotifUrl
+        : orangeCfg.notifUrl || orangeCfg.callbackUrl || defaultNotifUrl;
+
+    const memberReturnBase = String(
+      (providerKey === 'ORANGE' && orangeCfg.returnUrl) || returnBase
+    )
+      .replace(/\/$/, '')
+      .split('?')[0];
+    const memberCancelBase = String(
+      (providerKey === 'ORANGE' && orangeCfg.cancelUrl) || returnBase
+    )
+      .replace(/\/$/, '')
+      .split('?')[0];
 
     let providerResult;
     try {
@@ -578,11 +599,11 @@ class CotisationService {
         orderId: orangeOrderId,
         reference: idPaiement,
         phone: String(phone).trim(),
-        returnUrl: `${returnBase}?paiement=ok&id=${encodeURIComponent(idPaiement)}`,
-        cancelUrl: `${returnBase}?paiement=annule&id=${encodeURIComponent(idPaiement)}`,
-        successUrl: `${returnBase}?paiement=ok&id=${encodeURIComponent(idPaiement)}`,
-        errorUrl: `${returnBase}?paiement=echec&id=${encodeURIComponent(idPaiement)}`,
-        notifUrl: `${apiBase}/cotisations/webhooks/${providerKey === 'WAVE' ? 'wave' : 'orange'}`,
+        returnUrl: `${memberReturnBase}?paiement=ok&id=${encodeURIComponent(idPaiement)}`,
+        cancelUrl: `${memberCancelBase}?paiement=annule&id=${encodeURIComponent(idPaiement)}`,
+        successUrl: `${memberReturnBase}?paiement=ok&id=${encodeURIComponent(idPaiement)}`,
+        errorUrl: `${memberCancelBase}?paiement=echec&id=${encodeURIComponent(idPaiement)}`,
+        notifUrl,
       });
     } catch (err) {
       await prisma.cotisation.update({

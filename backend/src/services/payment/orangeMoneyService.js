@@ -144,7 +144,7 @@ class OrangeMoneyService {
         const errBody = JSON.parse(text);
         if (errBody.code === 50 || /not authorized to access this URI/i.test(errBody.description || '')) {
           detail =
-            'Orange Money sandbox uniquement pour le moment. Redéployez l’application : le serveur utilisera automatiquement /dev (pas /ci).';
+            'Orange Money : accès refusé à cette URI. Vérifiez ORANGE_MONEY_ENV=ci, ORANGE_MONEY_ALLOW_CI=true, l’abonnement WebPay CI et MERCHANT_KEY.';
         } else {
           detail = errBody.description || errBody.message || text;
         }

@@ -26,6 +26,17 @@ async function start() {
 
   app.listen(config.port, () => {
     console.log(`SAAP CFLCMA-CI API [${config.appEnv}] sur le port ${config.port}`);
+    const om = config.orangeMoney || {};
+    const mock = config.payment?.mockMode === true;
+    if (mock) {
+      console.log('[payments] MODE MOCK — aucun débit Orange réel');
+    } else {
+      console.log(
+        `[payments] Orange Money WebPay env=${om.env || 'dev'} currency=${om.currency || '?'} configured=${Boolean(
+          om.clientId && om.clientSecret && om.merchantKey
+        )}`
+      );
+    }
     startPaymentStatusPoller();
   });
 }
