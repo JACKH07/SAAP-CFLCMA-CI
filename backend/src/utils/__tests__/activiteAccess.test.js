@@ -7,6 +7,12 @@ const {
 
 const activiteTous = { id: 1, nom: 'Mission', visibilite: 'TOUS' };
 const activiteAnnuel = { id: 2, nom: 'Paiement Annuel', visibilite: 'REGION' };
+const activiteInscription = {
+  id: 3,
+  nom: "Frais d'inscription",
+  prefixeIdPaiement: 'INSCRIT',
+  visibilite: 'TOUS',
+};
 
 function membre(overrides = {}) {
   return {
@@ -42,6 +48,26 @@ describe('activiteAccess', () => {
     expect(
       filterActivitesForViewer(items, membre(), { includeRestricted: true }).map((a) => a.nom)
     ).toEqual(['Mission', 'Paiement Annuel']);
+  });
+
+  test('réserve les frais d’inscription aux nouveaux comptes EN_ATTENTE', () => {
+    const nouveau = membre({ statut: 'EN_ATTENTE' });
+    const existant = membre({ statut: 'VALIDE' });
+
+    expect(canSeeActivite(nouveau, activiteInscription)).toBe(true);
+    expect(canSeeActivite(nouveau, activiteTous)).toBe(false);
+    expect(canSeeActivite(existant, activiteInscription)).toBe(false);
+    expect(canSeeActivite(existant, activiteTous)).toBe(true);
+
+    expect(() =>
+      assertCanPayActivite({ acteur: nouveau, payeur: nouveau, activite: activiteInscription })
+    ).not.toThrow();
+    expect(() =>
+      assertCanPayActivite({ acteur: existant, payeur: existant, activite: activiteInscription })
+    ).toThrow(/nouveaux comptes/);
+    expect(() =>
+      assertCanPayActivite({ acteur: nouveau, payeur: nouveau, activite: activiteTous })
+    ).toThrow(/inscription/);
   });
 
   test('interdit le paiement annuel hors officiers région, sauf admin', () => {

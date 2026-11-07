@@ -2,9 +2,18 @@ const { VISIBILITE_TOUS, VISIBILITE_REGION } = require('./activiteVisibilite');
 const { toPaymentSafeId } = require('../utils/text');
 
 const MONTANT_PAIEMENT_ANNUEL = 150000;
+const PREFIXE_INSCRIPTION = 'INSCRIT';
+const NOM_ACTIVITE_INSCRIPTION = "Frais d'inscription";
+const MONTANT_FRAIS_INSCRIPTION = 200;
 
 /** Activités de cotisation / paiement (référence métier). */
 const DEFAULT_ACTIVITES = [
+  {
+    nom: NOM_ACTIVITE_INSCRIPTION,
+    prefixeIdPaiement: PREFIXE_INSCRIPTION,
+    montantDefaut: MONTANT_FRAIS_INSCRIPTION,
+    visibilite: VISIBILITE_TOUS,
+  },
   { nom: 'Évangélique', prefixeIdPaiement: 'EYAWA', montantDefaut: 0, visibilite: VISIBILITE_TOUS },
   { nom: 'Mission', prefixeIdPaiement: 'NGLIE', montantDefaut: 0, visibilite: VISIBILITE_TOUS },
   { nom: 'Investissement / Siège (Écolet Motel)', prefixeIdPaiement: 'SIEGE', montantDefaut: 0, visibilite: VISIBILITE_TOUS },
@@ -17,6 +26,13 @@ const DEFAULT_ACTIVITES = [
     visibilite: VISIBILITE_REGION,
   },
 ];
+
+function isActiviteInscription(activite) {
+  const prefixe = toPaymentSafeId(activite?.prefixeIdPaiement || '');
+  if (prefixe === PREFIXE_INSCRIPTION) return true;
+  const nom = String(activite?.nom || '').trim().toLowerCase();
+  return nom === NOM_ACTIVITE_INSCRIPTION.toLowerCase();
+}
 
 async function ensureDefaultActivites(prismaClient) {
   for (const activite of DEFAULT_ACTIVITES) {
@@ -51,4 +67,12 @@ async function ensureDefaultActivites(prismaClient) {
   return DEFAULT_ACTIVITES.length;
 }
 
-module.exports = { DEFAULT_ACTIVITES, ensureDefaultActivites, MONTANT_PAIEMENT_ANNUEL };
+module.exports = {
+  DEFAULT_ACTIVITES,
+  ensureDefaultActivites,
+  MONTANT_PAIEMENT_ANNUEL,
+  PREFIXE_INSCRIPTION,
+  NOM_ACTIVITE_INSCRIPTION,
+  MONTANT_FRAIS_INSCRIPTION,
+  isActiviteInscription,
+};

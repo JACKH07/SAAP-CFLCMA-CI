@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import BrandLogo from '../components/BrandLogo';
 import PasswordInput from '../components/PasswordInput';
@@ -7,6 +8,8 @@ import ProfilePhotoCapture from '../components/ProfilePhotoCapture';
 import api from '../api/client';
 import { useAuthStore } from '../store/authStore';
 import { titreNom, gradeNom, rankProgress } from '../utils/roleDisplay';
+import { needsInscriptionPayment, MONTANT_FRAIS_INSCRIPTION } from '../utils/inscription';
+import { paths } from '../config/env';
 import './Auth.css';
 import './ProfilePage.css';
 
@@ -306,6 +309,13 @@ export default function ProfilePage() {
       <section className="stack profile-page">
         {msg && <div className="alert alert-success no-print">{msg}</div>}
         {error && <div className="alert alert-error no-print">{error}</div>}
+        {needsInscriptionPayment(profile) && (
+          <div className="alert alert-error no-print">
+            Votre compte n&apos;est pas encore actif. Payez{' '}
+            {MONTANT_FRAIS_INSCRIPTION.toLocaleString('fr-FR')} F pour le valider.{' '}
+            <Link to={paths.mesCotisations}>Payer maintenant</Link>
+          </div>
+        )}
 
         <article className="profile-identity no-print">
           {isMemberAccount ? (
