@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { hasAdminAccess } from '../utils/roles';
-import { postAuthMemberPath } from '../utils/inscription';
 import { paths } from '../config/env';
 import BrandLogo from '../components/BrandLogo';
 import PasswordInput from '../components/PasswordInput';
@@ -75,7 +74,7 @@ export default function LoginPage({ mode = 'membre' }) {
         return;
       }
 
-      navigate(postAuthMemberPath(data.membre));
+      navigate(paths.profil);
     } catch (err) {
       const msg =
         err?.response?.data?.message ||

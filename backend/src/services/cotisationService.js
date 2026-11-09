@@ -15,9 +15,13 @@ const {
   buildIdempotenceKey,
 } = require('./payment/versementUtils');
 const { assertCanPayActivite } = require('../utils/activiteAccess');
-const { montantCible, restantDu, assertMontantVersement } = require('../utils/montantActivite');
+const {
+  FRAIS_PAIEMENT_FCFA,
+  montantCible,
+  assertMontantVersement,
+  montantChargeMobileMoney,
+} = require('../utils/montantActivite');
 const { toPaymentSafeId } = require('../utils/text');
-const { isActiviteInscription, MONTANT_FRAIS_INSCRIPTION } = require('../constants/activites');
 const path = require('path');
 const fs = require('fs');
 const config = require('../config');
@@ -40,18 +44,6 @@ const MEMBRE_ACCESS_INCLUDE = {
   role: { select: { nom: true, niveauHierarchique: true } },
   titre: { select: { nom: true, niveauHierarchique: true } },
 };
-
-function assertInscriptionMontantComplet(activite, dejaPaye, payAmount) {
-  if (!isActiviteInscription(activite)) return;
-  const restant = restantDu(activite, dejaPaye);
-  if (restant == null) return;
-  if (Number(payAmount) !== restant) {
-    throw new AppError(
-      `Les frais d’inscription sont de ${MONTANT_FRAIS_INSCRIPTION.toLocaleString('fr-FR')} FCFA, à régler en une fois`,
-      400
-    );
-  }
-}
 
 function parsePaymentNotes(notes) {
   if (!notes) return {};
@@ -282,7 +274,7 @@ class CotisationService {
     if (cleIdempotence) {
       const existing = await prisma.versement.findUnique({ where: { cleIdempotence } });
       if (existing) {
-        return this.finalizeVersement(cotisation.id, {
+        return this.refreshCotisationTotals(cotisation.id, {
           clearPendingNotes: payload.clearPendingNotes !== false,
           provider: payload.provider,
           modePaiement: payload.modePaiement,
@@ -305,65 +297,20 @@ class CotisationService {
       });
     } catch (err) {
       if (err.code === 'P2002') {
-        return this.finalizeVersement(cotisation.id, {
+        return this.refreshCotisationTotals(cotisation.id, {
           clearPendingNotes: payload.clearPendingNotes !== false,
         });
       }
       throw err;
     }
 
-    return this.finalizeVersement(cotisation.id, {
+    return this.refreshCotisationTotals(cotisation.id, {
       clearPendingNotes: payload.clearPendingNotes !== false,
       provider: payload.provider,
       modePaiement: payload.modePaiement,
       referenceExterne: payload.referenceExterne,
       datePaiement: payload.datePaiement,
     });
-  }
-
-  async finalizeVersement(cotisationId, extra = {}) {
-    const updated = await this.refreshCotisationTotals(cotisationId, extra);
-    await this.maybeActivateMembreAfterInscription(updated);
-    return updated;
-  }
-
-  /**
-   * Nouveau compte web (EN_ATTENTE) : le paiement des 200 F active le membre.
-   * Les comptes déjà en base (VALIDE) ne sont pas concernés.
-   */
-  async maybeActivateMembreAfterInscription(cotisation) {
-    if (!cotisation?.membreId) return cotisation;
-    let activite = cotisation.activite;
-    if (!activite && cotisation.activiteId) {
-      activite = await prisma.activite.findUnique({ where: { id: cotisation.activiteId } });
-    }
-    if (!isActiviteInscription(activite)) return cotisation;
-    if (String(cotisation.statut) !== 'PAYE') return cotisation;
-
-    const membre = await prisma.membre.findUnique({
-      where: { id: cotisation.membreId },
-      select: { id: true, statut: true },
-    });
-    if (!membre || membre.statut !== 'EN_ATTENTE') return cotisation;
-
-    await prisma.membre.update({
-      where: { id: membre.id },
-      data: { statut: 'VALIDE' },
-    });
-
-    await auditService.log({
-      acteurId: membre.id,
-      action: 'COMPTE_VALIDE_INSCRIPTION',
-      entite: 'Membre',
-      entiteId: membre.id,
-      details: {
-        cotisationId: cotisation.id,
-        idPaiement: cotisation.idPaiement,
-        montant: Number(cotisation.montantPaye || 0),
-      },
-    });
-
-    return cotisation;
   }
 
   /**
@@ -505,7 +452,6 @@ class CotisationService {
     const { cotisation: existing, idPaiement } = await findCotisationForActivite(membre, activite);
     let cotisation = existing;
     assertMontantVersement(activite, cotisation?.montantPaye || 0, paye);
-    assertInscriptionMontantComplet(activite, cotisation?.montantPaye || 0, paye);
 
     const cible = montantCible(activite);
 
@@ -599,7 +545,6 @@ class CotisationService {
     const { cotisation: existing, idPaiement } = await findCotisationForActivite(membre, activite);
     let cotisation = existing;
     assertMontantVersement(activite, cotisation?.montantPaye || 0, payAmount);
-    assertInscriptionMontantComplet(activite, cotisation?.montantPaye || 0, payAmount);
     const cible = montantCible(activite);
 
     if (!cotisation) {
@@ -622,6 +567,7 @@ class CotisationService {
     }
 
     const dejaPaye = Number(cotisation.montantPaye || 0);
+    const chargedAmount = montantChargeMobileMoney(payAmount);
     const returnBase = config.urls.mesCotisations;
     const apiBase = String(config.urls.apiPublic || '').replace(/\/$/, '');
     const orangeCfg = config.orangeMoney || {};
@@ -655,7 +601,7 @@ class CotisationService {
     try {
       providerResult = await paymentGateway.initiatePayment({
         provider: providerKey,
-        amount: Math.round(payAmount),
+        amount: chargedAmount,
         orderId: orangeOrderId,
         reference: idPaiement,
         phone: String(phone).trim(),
@@ -683,6 +629,8 @@ class CotisationService {
     );
     const pendingNotes = JSON.stringify({
       pendingAmount: payAmount,
+      frais: FRAIS_PAIEMENT_FCFA,
+      chargedAmount,
       orangeOrderId,
       payToken: providerResult.payToken || null,
       notifToken: providerResult.notifToken || null,
@@ -710,6 +658,8 @@ class CotisationService {
           phone,
           referenceExterne,
           montant: payAmount,
+          frais: FRAIS_PAIEMENT_FCFA,
+          chargedAmount,
           totalPaye: Number(cotisation.montantPaye),
           mock: Boolean(providerResult.mock),
         },
@@ -722,6 +672,8 @@ class CotisationService {
         idPaiement: cotisation.idPaiement,
         referenceExterne,
         montant: payAmount,
+        frais: FRAIS_PAIEMENT_FCFA,
+        chargedAmount,
         totalPaye: Number(cotisation.montantPaye),
         provider: providerKey,
         status: 'SUCCESS',
@@ -731,7 +683,7 @@ class CotisationService {
         mock: Boolean(providerResult.mock),
         message:
           providerResult.message ||
-          `Paiement de ${payAmount.toLocaleString('fr-FR')} FCFA validé pour ${activite.nom}.`,
+          `Paiement de ${payAmount.toLocaleString('fr-FR')} FCFA validé pour ${activite.nom} (frais ${FRAIS_PAIEMENT_FCFA.toLocaleString('fr-FR')} F).`,
         cotisation,
       };
     }
@@ -786,6 +738,8 @@ class CotisationService {
         phone,
         referenceExterne,
         montant: payAmount,
+        frais: FRAIS_PAIEMENT_FCFA,
+        chargedAmount,
         mock: Boolean(providerResult.mock),
       },
     });
@@ -795,6 +749,8 @@ class CotisationService {
       idPaiement: cotisation.idPaiement,
       referenceExterne,
       montant: payAmount,
+      frais: FRAIS_PAIEMENT_FCFA,
+      chargedAmount,
       totalPaye: dejaPaye,
       provider: providerKey,
       status: 'PENDING',

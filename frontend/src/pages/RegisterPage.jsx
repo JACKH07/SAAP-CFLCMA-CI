@@ -188,8 +188,8 @@ export default function RegisterPage() {
         communauteNom: communauteNom.trim(),
         photo: photo || undefined,
       });
-      setMessage(data.message || 'Inscription enregistrée. Payez 200 F pour activer le compte.');
-      navigate(paths.mesCotisations, { replace: true, state: { activerCompte: true } });
+      setMessage(data.message || 'Inscription réussie');
+      navigate(paths.profil, { replace: true });
     } catch {
       /* store */
     }
@@ -409,11 +409,6 @@ export default function RegisterPage() {
             />
           </div>
         </div>
-
-        <p className="inscription-fee-note">
-          Frais d&apos;inscription : <strong>200 F</strong> (Orange Money ou Wave) pour activer le
-          compte. Les membres déjà inscrits ne paient pas.
-        </p>
 
         <button className="btn btn-block" type="submit" disabled={loading}>
           {loading ? 'Inscription…' : "S'inscrire"}

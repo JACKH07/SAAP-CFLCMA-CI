@@ -1,3 +1,12 @@
+/** Frais de service ajoutés à chaque paiement Mobile Money. */
+export const FRAIS_PAIEMENT_FCFA = 200;
+
+export function montantChargeMobileMoney(payAmount) {
+  const amount = Number(payAmount);
+  if (!Number.isFinite(amount) || amount <= 0) return 0;
+  return Math.round(amount) + FRAIS_PAIEMENT_FCFA;
+}
+
 export function moyenPaiement(versement) {
   const provider = String(versement?.provider || '').toUpperCase();
   if (provider === 'ORANGE') return 'Orange Money';

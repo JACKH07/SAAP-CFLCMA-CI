@@ -241,20 +241,6 @@
   }
 }
 
-.inscription-fee-note {
-  margin: 0.85rem 0 0;
-  padding: 0.85rem 1rem;
-  border-radius: 10px;
-  background: #faf3dc;
-  color: #8f7128;
-  font-size: 0.92rem;
-  line-height: 1.4;
-}
-
-.inscription-fee-note strong {
-  color: #1c7c38;
-}
-
 .auth-page--register .btn-block {
   position: sticky;
   bottom: calc(0.5rem + var(--safe-bottom));

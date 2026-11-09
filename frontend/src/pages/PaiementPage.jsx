@@ -7,13 +7,16 @@ import { useAuthStore } from '../store/authStore';
 import { paths } from '../config/env';
 import { enabledPaymentMethods } from '../payments/paymentMethods';
 import { toSameOriginCheckoutUrl } from '../payments/orangeWebpay';
-import { formatDateHeure, moyenPaiement, totalVersements, montantCible, restantDu } from '../utils/paiement';
-import { isActiviteRegionale } from '../utils/activiteVisibilite';
 import {
-  isActiviteInscription,
-  needsInscriptionPayment,
-  MONTANT_FRAIS_INSCRIPTION,
-} from '../utils/inscription';
+  formatDateHeure,
+  moyenPaiement,
+  totalVersements,
+  montantCible,
+  restantDu,
+  FRAIS_PAIEMENT_FCFA,
+  montantChargeMobileMoney,
+} from '../utils/paiement';
+import { isActiviteRegionale } from '../utils/activiteVisibilite';
 import './PaiementPage.css';
 
 const METHODS = enabledPaymentMethods();
@@ -35,8 +38,7 @@ export default function PaiementPage() {
   const [searchParams] = useSearchParams();
   const activiteId = paramId || searchParams.get('activiteId');
   const navigate = useNavigate();
-  const { user, refreshMe } = useAuthStore();
-  const waitingActivation = needsInscriptionPayment(user);
+  const { user } = useAuthStore();
 
   const [activite, setActivite] = useState(null);
   const [cotisation, setCotisation] = useState(null);
@@ -78,7 +80,6 @@ export default function PaiementPage() {
     [cotisation]
   );
   const versements = cotisation?.versements || [];
-  const inscriptionFee = isActiviteInscription(activite);
   const cible = montantCible(activite);
   const restant = restantDu(activite, dejaPaye);
   const solde = restant === 0;
@@ -88,6 +89,7 @@ export default function PaiementPage() {
   );
   const montantValue = Number(montant);
   const hasMontant = Number.isFinite(montantValue) && montantValue > 0;
+  const totalAPayer = hasMontant ? montantChargeMobileMoney(montantValue) : 0;
 
   useEffect(() => {
     if (restant == null || solde) return;
@@ -164,14 +166,10 @@ export default function PaiementPage() {
       }
 
       if (result.mock || status === 'SUCCESS' || status === 'SUCCESSFUL') {
-        const updated = await refreshMe().catch(() => null);
-        const activated = updated?.statut === 'VALIDE' && waitingActivation;
         setMsg(
-          activated
-            ? 'Compte activé. Vous pouvez utiliser la plateforme.'
-            : result.mock
-              ? 'Paiement simulé (mode test). Aucune redirection WebPay — désactivez PAYMENT_MOCK_MODE sur le serveur.'
-              : result.message || 'Paiement enregistré'
+          result.mock
+            ? 'Paiement simulé (mode test). Aucune redirection WebPay — désactivez PAYMENT_MOCK_MODE sur le serveur.'
+            : result.message || 'Paiement enregistré'
         );
         setMontant('');
       } else if (status === 'FAILED') {
@@ -201,40 +199,18 @@ export default function PaiementPage() {
             step === 'recap' ? setStep('form') : navigate(paths.mesCotisations)
           }
         >
-          {step === 'recap' ? '← Modifier' : inscriptionFee ? '← Retour' : '← Mes cotisations'}
+          {step === 'recap' ? '← Modifier' : '← Mes cotisations'}
         </button>
 
         <div>
-          <h1>
-            {step === 'recap'
-              ? 'Récapitulatif'
-              : inscriptionFee
-                ? 'Activer mon compte'
-                : 'Paiement'}
-          </h1>
+          <h1>{step === 'recap' ? 'Récapitulatif' : 'Paiement'}</h1>
           {step === 'recap' && (
             <p className="muted">Vérifiez les informations puis confirmez le paiement.</p>
-          )}
-          {step === 'form' && inscriptionFee && waitingActivation && (
-            <p className="muted">
-              Frais d&apos;inscription de {MONTANT_FRAIS_INSCRIPTION.toLocaleString('fr-FR')} F,
-              à régler en une fois.
-            </p>
           )}
         </div>
 
         {loadingMeta && <p className="muted">Chargement…</p>}
-        {msg && (
-          <div className="alert alert-success">
-            {msg}
-            {user?.statut === 'VALIDE' && inscriptionFee && (
-              <>
-                {' '}
-                <Link to={paths.profil}>Aller au profil</Link>
-              </>
-            )}
-          </div>
-        )}
+        {msg && <div className="alert alert-success">{msg}</div>}
         {err && <div className="alert alert-error">{err}</div>}
 
         {activite && (
@@ -253,9 +229,8 @@ export default function PaiementPage() {
               </div>
               {cible != null && (
                 <p className="paiement-cible">
-                  {inscriptionFee
-                    ? `Montant : ${cible.toLocaleString('fr-FR')} FCFA, à régler en une fois.`
-                    : `Montant fixe : ${cible.toLocaleString('fr-FR')} FCFA — payable en une fois ou en plusieurs versements.`}
+                  Montant fixe : {cible.toLocaleString('fr-FR')} FCFA — payable en une fois ou en
+                  plusieurs versements.
                 </p>
               )}
               <div className="paiement-deja">
@@ -316,20 +291,18 @@ export default function PaiementPage() {
                   value={montant}
                   onChange={(e) => setMontant(e.target.value)}
                   required
-                  autoFocus={!inscriptionFee}
-                  readOnly={inscriptionFee}
+                  autoFocus
                 />
-                {inscriptionFee ? (
-                  <p className="muted tiny">Montant unique, non modifiable.</p>
-                ) : (
-                  restant != null &&
-                  restant > 0 && (
-                    <p className="muted tiny">
-                      Laissez {restant.toLocaleString('fr-FR')} F pour tout verser maintenant, ou
-                      saisissez un montant inférieur.
-                    </p>
-                  )
+                {restant != null && restant > 0 && (
+                  <p className="muted tiny">
+                    Laissez {restant.toLocaleString('fr-FR')} F pour tout verser maintenant, ou
+                    saisissez un montant inférieur.
+                  </p>
                 )}
+                <p className="muted tiny">
+                  Des frais de {FRAIS_PAIEMENT_FCFA.toLocaleString('fr-FR')} F s&apos;affichent au
+                  récapitulatif avant le paiement.
+                </p>
               </div>
 
               <fieldset className="paiement-methods-fieldset">
@@ -384,8 +357,16 @@ export default function PaiementPage() {
                   <dd>{activite.nom}</dd>
                 </div>
                 <div>
-                  <dt>Montant</dt>
+                  <dt>Cotisation</dt>
                   <dd>{montantValue.toLocaleString('fr-FR')} FCFA</dd>
+                </div>
+                <div>
+                  <dt>Frais</dt>
+                  <dd>{FRAIS_PAIEMENT_FCFA.toLocaleString('fr-FR')} FCFA</dd>
+                </div>
+                <div className="paiement-recap-total">
+                  <dt>Total à payer</dt>
+                  <dd>{totalAPayer.toLocaleString('fr-FR')} FCFA</dd>
                 </div>
                 <div>
                   <dt>Moyen</dt>
@@ -403,7 +384,9 @@ export default function PaiementPage() {
                 type="submit"
                 disabled={loading}
               >
-                {loading ? 'Paiement…' : 'Confirmer le paiement'}
+                {loading
+                  ? 'Paiement…'
+                  : `Confirmer ${totalAPayer.toLocaleString('fr-FR')} F`}
               </button>
             </form>
             )}

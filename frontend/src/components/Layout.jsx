@@ -3,7 +3,6 @@ import { useAuthStore } from '../store/authStore';
 import { hasAdminAccess } from '../utils/roles';
 import { loginPathAfterLogout } from '../utils/logout';
 import { paths } from '../config/env';
-import { needsInscriptionPayment } from '../utils/inscription';
 import BrandLogo from './BrandLogo';
 import './Layout.css';
 
@@ -98,7 +97,7 @@ export default function Layout({ children }) {
               </NavLink>
               <NavLink to={paths.mesCotisations} className="bottom-nav-item">
                 <IconPayments />
-                <span>{needsInscriptionPayment(user) ? 'Activer' : 'Cotisations'}</span>
+                <span>Cotisations</span>
               </NavLink>
             </>
           )}

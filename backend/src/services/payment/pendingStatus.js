@@ -59,7 +59,7 @@ function buildStatusCheckPayload(cotisation) {
     provider,
     orderId: notes.orangeOrderId || cotisation.idPaiement,
     payToken: notes.payToken || cotisation.referenceExterne,
-    amount: notes.pendingAmount,
+    amount: notes.chargedAmount != null ? notes.chargedAmount : notes.pendingAmount,
   };
 }
 

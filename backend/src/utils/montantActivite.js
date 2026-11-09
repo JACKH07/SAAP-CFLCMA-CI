@@ -1,5 +1,8 @@
 const { AppError } = require('./errors');
 
+/** Frais de service ajoutés à chaque paiement Mobile Money. */
+const FRAIS_PAIEMENT_FCFA = 200;
+
 function montantCible(activite) {
   const value = Number(activite?.montantDefaut);
   return Number.isFinite(value) && value > 0 ? value : null;
@@ -31,8 +34,16 @@ function assertMontantVersement(activite, dejaPaye, payAmount) {
   return amount;
 }
 
+function montantChargeMobileMoney(payAmount) {
+  const amount = Number(payAmount);
+  if (!Number.isFinite(amount) || amount <= 0) return 0;
+  return Math.round(amount) + FRAIS_PAIEMENT_FCFA;
+}
+
 module.exports = {
+  FRAIS_PAIEMENT_FCFA,
   montantCible,
   restantDu,
   assertMontantVersement,
+  montantChargeMobileMoney,
 };

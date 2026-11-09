@@ -41,6 +41,7 @@ describe('pendingStatus', () => {
         referenceExterne: 'tok-1',
         notes: JSON.stringify({
           pendingAmount: 10,
+          chargedAmount: 210,
           orangeOrderId: 'CFLABC',
           payToken: 'tok-1',
         }),
@@ -49,7 +50,7 @@ describe('pendingStatus', () => {
       provider: 'ORANGE',
       orderId: 'CFLABC',
       payToken: 'tok-1',
-      amount: 10,
+      amount: 210,
     });
 
     expect(

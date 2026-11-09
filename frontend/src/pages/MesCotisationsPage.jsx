@@ -1,23 +1,16 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import api from '../api/client';
 import { paths } from '../config/env';
 import { useAuthStore } from '../store/authStore';
 import { formatDateHeure, moyenPaiement, totalVersements, montantCible, restantDu, statutCotisation } from '../utils/paiement';
 import { isActiviteRegionale } from '../utils/activiteVisibilite';
-import {
-  isActiviteInscription,
-  needsInscriptionPayment,
-  MONTANT_FRAIS_INSCRIPTION,
-} from '../utils/inscription';
 import './MesCotisationsPage.css';
 
 export default function MesCotisationsPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { user, refreshMe } = useAuthStore();
-  const waitingActivation = needsInscriptionPayment(user);
+  const { user } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const [cotisations, setCotisations] = useState([]);
   const [activites, setActivites] = useState([]);
@@ -42,15 +35,6 @@ export default function MesCotisationsPage() {
   }, []);
 
   useEffect(() => {
-    if (!location.state?.activerCompte || !waitingActivation) return;
-    const inscription = activites.find(isActiviteInscription);
-    if (!inscription) return;
-    const c = findCotisation(inscription.id);
-    if (statutCotisation(c, inscription) === 'PAYE') return;
-    navigate(`${paths.paiement}/${inscription.id}`, { replace: true });
-  }, [activites, cotisations, location.state, waitingActivation, navigate]);
-
-  useEffect(() => {
     const paiement = searchParams.get('paiement');
     const id = searchParams.get('id');
     if (!paiement) return;
@@ -70,16 +54,10 @@ export default function MesCotisationsPage() {
           const statut = res.data?.data?.statut;
           setInfo(
             statut === 'PAYE'
-              ? waitingActivation
-                ? 'Paiement confirmé. Activation du compte…'
-                : 'Paiement confirmé.'
+              ? 'Paiement confirmé.'
               : 'Paiement en cours de confirmation par Orange Money.'
           );
-          return Promise.all([load(), refreshMe()]).then(([, updated]) => {
-            if (updated?.statut === 'VALIDE') {
-              setInfo('Compte activé. Vous pouvez utiliser la plateforme.');
-            }
-          });
+          return load();
         })
         .catch(() => {
           setInfo(
@@ -112,11 +90,10 @@ export default function MesCotisationsPage() {
     <Layout>
       <section className="stack">
         <div>
-          <h1>{waitingActivation ? 'Activer votre compte' : 'Mes cotisations'}</h1>
+          <h1>Mes cotisations</h1>
           <p className="muted">
-            {waitingActivation
-              ? `Les nouveaux membres règlent ${MONTANT_FRAIS_INSCRIPTION.toLocaleString('fr-FR')} F (Orange Money ou Wave) pour valider leur inscription. Les comptes déjà existants ne sont pas concernés.`
-              : 'Vous pouvez payer plusieurs fois la même activité. Le total est la somme de tous vos versements.'}
+            Vous pouvez payer plusieurs fois la même activité. Le total est la somme de tous vos
+            versements.
           </p>
         </div>
 
@@ -150,9 +127,7 @@ export default function MesCotisationsPage() {
                       </>
                     )}
                     {cible != null &&
-                      (isActiviteInscription(a)
-                        ? ` · ${cible.toLocaleString('fr-FR')} F`
-                        : ` · ${cible.toLocaleString('fr-FR')} F — une ou plusieurs fois`)}
+                      ` · ${cible.toLocaleString('fr-FR')} F — une ou plusieurs fois`}
                   </div>
                   <span className="cotisation-paye">
                     {cible != null

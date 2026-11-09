@@ -120,6 +120,17 @@
   text-align: right;
 }
 
+.paiement-recap-list .paiement-recap-total {
+  border-bottom-width: 2px;
+  border-bottom-color: #1c7c38;
+}
+
+.paiement-recap-list .paiement-recap-total dt,
+.paiement-recap-list .paiement-recap-total dd {
+  color: #1c7c38;
+  font-size: 1rem;
+}
+
 .alert-pending {
   background: #fff7ed;
   border: 1px solid #fdba74;

@@ -2,7 +2,6 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuthStore } from './store/authStore';
 import { hasAdminAccess } from './utils/roles';
-import { postAuthMemberPath } from './utils/inscription';
 import { paths } from './config/env';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -27,7 +26,7 @@ function HomeRedirect() {
   if (hasAdminAccess(user) && portal === 'admin') {
     return <Navigate to={paths.admin} replace />;
   }
-  return <Navigate to={postAuthMemberPath(user)} replace />;
+  return <Navigate to={paths.profil} replace />;
 }
 
 export default function App() {

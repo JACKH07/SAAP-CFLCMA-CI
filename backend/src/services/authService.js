@@ -222,7 +222,7 @@ class AuthService {
         paroisseId: paroisse.id,
         communauteId: communaute.id,
         isAdmin: false,
-        statut: 'EN_ATTENTE',
+        statut: 'VALIDE',
       },
       select: membrePublicSelect,
     });
@@ -261,8 +261,8 @@ class AuthService {
       membre: publicMembre,
       collision: idResult.collision,
       message: idResult.collision
-        ? `Inscription enregistrée. Un ID de collision a été généré : ${membre.idMembre}. Payez 200 F pour activer le compte.`
-        : 'Inscription enregistrée. Payez 200 F (Orange Money ou Wave) pour activer votre compte.',
+        ? `Inscription réussie. Un ID de collision a été généré : ${membre.idMembre}`
+        : 'Inscription réussie. Votre compte est validé.',
     };
   }
 
